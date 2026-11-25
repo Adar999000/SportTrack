@@ -6,7 +6,9 @@
  * Script properties (Project Settings → Script properties):
  *   OPENAI_API_KEY  (required for the chat bot)
  *   OPENAI_MODEL    (optional, default below)
- *   CHAT_DAILY_LIMIT (optional, messages per user per day, default 40)
+ *   CHAT_DAILY_LIMIT (optional, messages per user per day, default 20)
+ *   CHAT_GLOBAL_DAILY_LIMIT (optional, messages per day for everyone together, default 150)
+ *   CHAT_MAX_REPLY_TOKENS (optional, default 350)
  * A signing secret is created automatically on first run.
  */
 const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
@@ -407,49 +409,87 @@ function weekLine(r) {
   ].filter(Boolean).join(' | ');
 }
 
-function userContext(userRow, weeks, maxWeeks) {
+/** One line per month: keeps long histories cheap to send. */
+function monthLines(ws) {
+  const by = {};
+  ws.forEach((r) => {
+    const k = String(r[W.sunday]).slice(0, 7);
+    (by[k] = by[k] || []).push(r);
+  });
+  return Object.keys(by).sort().map((k) => {
+    const g = by[k];
+    const wts = g.map((r) => r[W.weight]).filter((x) => x !== '').map(Number);
+    const wo = g.reduce((s, r) => s + (Number(r[W.workouts]) || 0), 0);
+    const meals = avg(g.map((r) => r[W.meals]).filter((x) => x !== ''));
+    return k + ': ' + [
+      wts.length ? 'משקל ' + (Math.round((wts.reduce((a, b) => a + b, 0) / wts.length) * 10) / 10) : '',
+      'אימונים ' + wo + ' ב-' + g.length + ' שב׳',
+      meals !== null ? 'ארוחות ' + meals + '%' : '',
+    ].filter(Boolean).join(', ');
+  });
+}
+
+/**
+ * Compact context: profile, overall weight facts, monthly summary of older
+ * history, and only the last `detailWeeks` weeks in detail.
+ */
+function userContext(userRow, weeks, detailWeeks) {
   const p = parseJSON(userRow[U.profile], {});
   const mine = weeks.filter((w) => w[W.user] === userRow[U.id])
-    .sort((a, b) => String(a[W.sunday]).localeCompare(String(b[W.sunday])))
-    .slice(-maxWeeks);
+    .sort((a, b) => String(a[W.sunday]).localeCompare(String(b[W.sunday])));
+  const recent = mine.slice(-detailWeeks);
+  const older = mine.slice(0, Math.max(0, mine.length - detailWeeks));
+  const wts = mine.filter((r) => r[W.weight] !== '').map((r) => ({ d: String(r[W.sunday]), w: Number(r[W.weight]) }));
+  let facts = 'אין שקילות';
+  if (wts.length) {
+    const min = wts.reduce((a, b) => (b.w < a.w ? b : a)), max = wts.reduce((a, b) => (b.w > a.w ? b : a));
+    facts = 'משקל: התחלה ' + wts[0].w + ' (' + wts[0].d + '), נוכחי ' + wts[wts.length - 1].w + ' (' + wts[wts.length - 1].d +
+      '), מינימום ' + min.w + ' (' + min.d + '), מקסימום ' + max.w + ' (' + max.d + ')';
+  }
   return [
-    '### ' + userRow[U.name] + ' (' + userRow[U.email] + ')',
+    '### ' + userRow[U.name],
     'פרופיל: ' + JSON.stringify(p),
-    'שבועות (' + mine.length + ' אחרונים):',
-    mine.map(weekLine).join('\n') || 'אין נתונים',
-  ].join('\n');
+    mine.length + ' שבועות במעקב. ' + facts,
+    older.length ? 'סיכום חודשי (לפני השבועות האחרונים):\n' + monthLines(older).join('\n') : '',
+    'שבועות אחרונים בפירוט:\n' + (recent.map(weekLine).join('\n') || 'אין נתונים'),
+  ].filter(Boolean).join('\n');
 }
 
 function chat(me, req) {
   const key = props().getProperty('OPENAI_API_KEY');
   if (!key) throw new Error('הבוט עדיין לא הוגדר (חסר מפתח OpenAI)');
-  const limit = Number(props().getProperty('CHAT_DAILY_LIMIT')) || 40;
+  const limit = Number(props().getProperty('CHAT_DAILY_LIMIT')) || 20;
+  const globalLimit = Number(props().getProperty('CHAT_GLOBAL_DAILY_LIMIT')) || 150;
   const cache = CacheService.getScriptCache();
-  const ck = 'chat-' + me.r[U.id] + '-' + new Date().toISOString().slice(0, 10);
+  const day = new Date().toISOString().slice(0, 10);
+  const ck = 'chat-' + me.r[U.id] + '-' + day;
+  const gk = 'chat-all-' + day;
   const used = Number(cache.get(ck)) || 0;
-  if (used >= limit) throw new Error('הגעת למגבלת ההודעות היומית לבוט');
+  const usedAll = Number(cache.get(gk)) || 0;
+  if (used >= limit) throw new Error('הגעת למגבלת ההודעות היומית לבוט (' + limit + '). אפשר לחזור מחר.');
+  if (usedAll >= globalLimit) throw new Error('הבוט הגיע למגבלה היומית הכללית. אפשר לחזור מחר.');
 
   const weeks = rows('Weeks');
   const isAdmin = me.r[U.role] === 'admin';
   let context;
   if (isAdmin && req.scope === 'all') {
     context = 'אתה עוזר למנהל האפליקציה. נתוני כל המשתמשים:\n\n' +
-      rows('Users').map((u) => userContext(u, weeks, 26)).join('\n\n');
+      rows('Users').map((u) => userContext(u, weeks, 4)).join('\n\n');
   } else {
     const target = isAdmin && req.userId ? findUser((r) => r[U.id] === req.userId).r : me.r;
-    context = 'נתוני המשתמש:\n\n' + userContext(target, weeks, 200);
+    context = 'נתוני המשתמש:\n\n' + userContext(target, weeks, 8);
   }
   const system = [
-    'אתה העוזר של אפליקציית "משמעת אישית". ענה בעברית, קצר וברור.',
+    'אתה העוזר של אפליקציית "משמעת אישית". ענה בעברית, קצר: עד 5 משפטים או רשימה קצרה, אלא אם ביקשו פירוט.',
     'הצג עובדות ונתונים מתוך ההיסטוריה. בלי הטפה ובלי שיפוטיות. אינך רופא או דיאטן; אם נשאלת שאלה רפואית, הצע להתייעץ עם איש מקצוע.',
     'היום: ' + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd'),
     APP_GUIDE,
     context,
   ].join('\n\n');
 
-  const history = (req.messages || []).slice(-12).map((m) => ({
+  const history = (req.messages || []).slice(-6).map((m) => ({
     role: m.role === 'assistant' ? 'assistant' : 'user',
-    content: String(m.content || '').slice(0, 2000),
+    content: String(m.content || '').slice(0, 800),
   }));
   const res = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
     method: 'post',
@@ -459,6 +499,7 @@ function chat(me, req) {
     payload: JSON.stringify({
       model: props().getProperty('OPENAI_MODEL') || DEFAULT_MODEL,
       messages: [{ role: 'system', content: system }].concat(history),
+      max_tokens: Number(props().getProperty('CHAT_MAX_REPLY_TOKENS')) || 350,
     }),
   });
   const body = parseJSON(res.getContentText(), {});
@@ -466,6 +507,7 @@ function chat(me, req) {
     throw new Error('שגיאה מ-OpenAI: ' + ((body.error && body.error.message) || res.getResponseCode()));
   }
   cache.put(ck, String(used + 1), 6 * 3600);
+  cache.put(gk, String(usedAll + 1), 6 * 3600);
   return { reply: body.choices[0].message.content };
 }
 

@@ -16,7 +16,7 @@ The spreadsheet and folder IDs are set at the top of `Code.gs`.
    It asks for Sheets, Drive and external requests.
 4. **Project Settings (gear) → Script properties → Add**:
    - `OPENAI_API_KEY` = your OpenAI key (for the assistant)
-   - optional: `OPENAI_MODEL` (default `gpt-4o-mini`), `CHAT_DAILY_LIMIT` (default 40 messages per user per day)
+   - optional: `OPENAI_MODEL` (default `gpt-4o-mini`), `CHAT_DAILY_LIMIT` (default 20 per user per day), `CHAT_GLOBAL_DAILY_LIMIT` (default 150 per day for everyone), `CHAT_MAX_REPLY_TOKENS` (default 350)
 5. **Deploy → New deployment → Web app**
    - Execute as: **Me**
    - Who has access: **Anyone**

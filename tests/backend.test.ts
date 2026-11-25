@@ -110,4 +110,23 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     be.post({ action: 'chat', token: admin.token, messages: [] });
     expect(be.post({ action: 'chat', token: admin.token, messages: [] }).error).toMatch(/מגבלת/);
   });
+
+  it('chat: keeps the prompt small for a long history', () => {
+    be.properties.set('OPENAI_API_KEY', 'sk-test');
+    const weeks = Array.from({ length: 191 }, (_, i) => {
+      const d = new Date(Date.UTC(2023, 3, 2 + 7 * i)).toISOString().slice(0, 10);
+      return {
+        sundayDate: d, updatedAt: 1000,
+        data: { sundayDate: d, days: Array.from({ length: 7 }, () => ({ sport: { status: 'V', label: 'אימון קיקבוקס (שעה)' } })), note: 'הערה קצרה' },
+        summary: { startWeight: 90 + (i % 10), workouts: 3, mealsPct: 60 },
+      };
+    });
+    be.post({ action: 'putWeeks', token: admin.token, weeks });
+    be.post({ action: 'chat', token: admin.token, messages: [{ role: 'user', content: 'סכם' }] });
+    const sent = JSON.parse(be.fetches.at(-1).opts.payload);
+    expect(sent.max_tokens).toBe(350);
+    expect(sent.messages[0].content).toContain('סיכום חודשי');
+    expect(sent.messages[0].content.length).toBeLessThan(7000);
+    console.log('system prompt chars for 191 weeks:', sent.messages[0].content.length);
+  });
 });
