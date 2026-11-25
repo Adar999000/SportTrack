@@ -19,6 +19,17 @@ Requires Node 18+.
 
 `npm run build:artifact` builds a single self-contained HTML preview (no service worker, sample data flagged in the UI) into `dist-artifact/mishmaat-ishit.html`.
 
+## Live site
+
+Every push to the default branch runs the tests, builds, and deploys to GitHub Pages
+(`.github/workflows/deploy.yml`): **https://adar999000.github.io/SportTrack/**
+
+One-time setup: repository **Settings → Pages → Build and deployment → Source: GitHub Actions**,
+then re-run the workflow (Actions tab → *Deploy to GitHub Pages* → *Run workflow*).
+
+The site only contains the app's code. Your entries live in your own browser's storage on each device,
+so nobody who opens the URL can see them.
+
 ## Install as an app
 
 The service worker only runs over **HTTPS** (or `localhost`). Deploy `dist/` to any static host, such as GitHub Pages, Netlify or Cloudflare Pages. All paths are relative, so a sub-folder works too.
