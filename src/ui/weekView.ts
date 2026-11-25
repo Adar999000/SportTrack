@@ -4,7 +4,7 @@ import { editWeek, getSettings, getWeek } from '../store';
 import type { Day, Mark, MealKey } from '../types';
 import { h } from './dom';
 import { openSportSheet } from './sportSheet';
-import { navigate } from './router';
+import { HASH, navigate } from './router';
 
 const MEAL_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: 'ארוחת בוקר בריאה', short: 'בוקר' },
@@ -129,7 +129,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   const thisSunday = sundayOf(today);
   const isCurrent = sunday === thisSunday;
   const week = getWeek(sunday);
-  const go = (n: number) => navigate(`#/week/${addDays(sunday, 7 * n)}`);
+  const go = (n: number) => navigate(HASH.week(addDays(sunday, 7 * n)));
 
   const weight = h('input', {
     type: 'number', inputmode: 'decimal', step: '0.1', min: '20', max: '400', class: 'input input-weight',
@@ -157,7 +157,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
       h('button', { class: 'icon-btn', 'aria-label': 'שבוע קודם', onclick: () => go(-1) }, '→'),
       h('div', { class: 'week-title' },
         h('h2', null, `תאריך ${weekRangeLabel(sunday)}`),
-        !isCurrent && h('button', { class: 'link-btn', onclick: () => navigate('#/') }, 'חזרה לשבוע הנוכחי'),
+        !isCurrent && h('button', { class: 'link-btn', onclick: () => navigate(HASH.week()) }, 'חזרה לשבוע הנוכחי'),
       ),
       h('button', { class: 'icon-btn', 'aria-label': 'שבוע הבא', onclick: () => go(1) }, '←'),
     ),

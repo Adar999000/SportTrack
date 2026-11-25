@@ -4,8 +4,10 @@ import { download, parseBackup, toBackup, toCSV } from '../io';
 import { checkReminders, notificationsSupported, registerBackgroundCheck, requestPermission } from '../reminders';
 import { allWeeks, getSettings, putWeeks, replaceAll, updateSettings } from '../store';
 import type { Theme } from '../types';
-import { h, openSheet, toast } from './dom';
+import { confirmButton, h, openSheet, toast } from './dom';
 import { showDocxPreview } from './importPreview';
+import { IS_DEMO } from '../env';
+import { clearDemo } from '../demo';
 
 function pickFile(accept: string, onFile: (f: File) => void) {
   const input = h('input', { type: 'file', accept, class: 'sr-only' });
@@ -64,11 +66,8 @@ export function renderSettings(root: HTMLElement): void {
       h('h2', { class: 'card-title' }, 'סוגי פעילות שהוספת'),
       st.customSportTypes.length
         ? h('div', { class: 'chips' }, st.customSportTypes.map((t) =>
-            h('button', {
-              class: 'chip', 'aria-label': `מחק ${t}`,
-              onclick: () => confirm(`למחוק את "${t}" מהרשימה?`) &&
-                updateSettings({ customSportTypes: st.customSportTypes.filter((x) => x !== t) }),
-            }, t, ' ✕')))
+            confirmButton(`${t} ✕`, `למחוק את "${t}"?`,
+              () => updateSettings({ customSportTypes: st.customSportTypes.filter((x) => x !== t) }), 'chip')))
         : h('p', { class: 'muted' }, 'אפשר להוסיף סוג חדש מחלון הספורט ("+ סוג חדש").'),
     ),
 
@@ -86,16 +85,17 @@ export function renderSettings(root: HTMLElement): void {
     h('section', { class: 'card' },
       h('h2', { class: 'card-title' }, 'גיבוי וייבוא'),
       h('div', { class: 'btn-grid' },
-        h('button', { class: 'btn', onclick: () => download(`mishmaat-backup-${stamp}.json`, JSON.stringify(toBackup(allWeeks(), getSettings()), null, 1), 'application/json') }, 'ייצוא JSON'),
-        h('button', { class: 'btn', onclick: () => download(`mishmaat-${stamp}.csv`, toCSV(allWeeks()), 'text/csv;charset=utf-8') }, 'ייצוא CSV'),
+        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-backup-${stamp}.json`, JSON.stringify(toBackup(allWeeks(), getSettings()), null, 1), 'application/json') }, 'ייצוא JSON'),
+        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-${stamp}.csv`, toCSV(allWeeks()), 'text/csv;charset=utf-8') }, 'ייצוא CSV'),
         h('button', {
           class: 'btn', onclick: () => pickFile('.json,application/json', async (f) => {
             try {
               const data = parseBackup(await f.text());
+              await clearDemo();
               const body = h('div', { class: 'stack' },
                 h('p', null, `בקובץ ${data.weeks.length} שבועות${data.skipped ? ` (${data.skipped} לא תקינים דולגו)` : ''}.`),
                 h('button', { class: 'btn btn-primary', onclick: () => { const n = putWeeks(data.weeks, 'skip-existing'); close(); toast(`נוספו ${n} שבועות`); } }, 'מיזוג — הוסף רק שבועות חדשים'),
-                h('button', { class: 'btn btn-danger', onclick: () => { if (confirm('כל הנתונים הנוכחיים יוחלפו. להמשיך?')) { replaceAll(data.weeks, data.settings); close(); toast('הנתונים שוחזרו'); } } }, 'החלפת כל הנתונים'),
+                confirmButton('החלפת כל הנתונים', 'הקש שוב: כל הנתונים הנוכחיים יימחקו', () => { replaceAll(data.weeks, data.settings); close(); toast('הנתונים שוחזרו'); }, 'btn btn-danger'),
               );
               const close = openSheet('ייבוא גיבוי JSON', body);
             } catch (e: any) {
@@ -108,6 +108,7 @@ export function renderSettings(root: HTMLElement): void {
             try {
               const result = parseDocx(await f.arrayBuffer());
               if (!result.weeks.length) return toast('לא נמצאו שבועות בקובץ');
+              await clearDemo();
               showDocxPreview(result, f.name);
             } catch (e: any) {
               toast(e.message || 'שגיאה בקריאת הקובץ');
@@ -115,7 +116,9 @@ export function renderSettings(root: HTMLElement): void {
           }),
         }, 'ייבוא מקובץ Word'),
       ),
-      h('p', { class: 'hint' }, 'הנתונים נשמרים רק במכשיר הזה. מומלץ לייצא גיבוי מדי פעם.'),
+      h('p', { class: 'hint' }, IS_DEMO
+        ? 'בתצוגה המקדימה אי אפשר להוריד קבצים, לכן הייצוא כבוי. באפליקציה המותקנת הוא עובד.'
+        : 'הנתונים נשמרים רק במכשיר הזה. מומלץ לייצא גיבוי מדי פעם.'),
     ),
     h('p', { class: 'muted center' }, `משמעת אישית · ${allWeeks().length} שבועות שמורים`),
   );

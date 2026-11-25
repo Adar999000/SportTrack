@@ -75,3 +75,29 @@ export function fmtPct(p: number | null): string {
 export function fmtKg(n: number | null | undefined, digits = 1): string {
   return n === null || n === undefined ? '—' : n.toFixed(digits);
 }
+
+/**
+ * A button that asks for a second tap instead of a browser confirm() dialog
+ * (which embedded viewers block).
+ */
+export function confirmButton(label: string, confirmLabel: string, onConfirm: () => void, cls = 'btn'): HTMLButtonElement {
+  let armed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const b = h('button', { class: cls, type: 'button' }, label);
+  b.addEventListener('click', () => {
+    if (armed) {
+      clearTimeout(timer);
+      onConfirm();
+      return;
+    }
+    armed = true;
+    b.textContent = confirmLabel;
+    b.classList.add('is-armed');
+    timer = setTimeout(() => {
+      armed = false;
+      b.textContent = label;
+      b.classList.remove('is-armed');
+    }, 4000);
+  });
+  return b;
+}

@@ -17,6 +17,8 @@ npm run preview    # serve the production build (service worker active) at http:
 
 Requires Node 18+.
 
+`npm run build:artifact` builds a single self-contained HTML preview (no service worker, sample data flagged in the UI) into `dist-artifact/mishmaat-ishit.html`.
+
 ## Install as an app
 
 The service worker only runs over **HTTPS** (or `localhost`). Deploy `dist/` to any static host, such as GitHub Pages, Netlify or Cloudflare Pages. All paths are relative, so a sub-folder works too.

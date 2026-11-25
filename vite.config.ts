@@ -1,8 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: './',
+  build: mode === 'artifact'
+    ? { outDir: 'dist-artifact', assetsInlineLimit: 100_000_000, rollupOptions: { output: { inlineDynamicImports: true } } }
+    : {},
   plugins: [
     VitePWA({
       strategies: 'injectManifest',
@@ -38,4 +41,4 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
   },
-});
+}));

@@ -33,6 +33,19 @@ export function openSportSheet(sunday: string, dayIdx: number): void {
   });
 
   const chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'סוג פעילות' });
+  const newInput = h('input', { type: 'text', class: 'input', id: 'new-sport-type', placeholder: 'שם הסוג, למשל: שחייה', 'aria-label': 'שם סוג פעילות חדש' });
+  const addNew = () => {
+    const t = newInput.value.trim();
+    if (!t) return newInput.focus();
+    addCustomSportType(t);
+    newInput.value = '';
+    newRow.hidden = true;
+    renderChips();
+    selectChip(t);
+  };
+  newInput.addEventListener('keydown', (e) => e.key === 'Enter' && addNew());
+  const newRow = h('div', { class: 'inline-form', hidden: true },
+    newInput, h('button', { class: 'btn', type: 'button', onclick: addNew }, 'הוסף'));
   const chipEls: HTMLButtonElement[] = [];
   function selectChip(t: string | null) {
     selected = t;
@@ -51,13 +64,10 @@ export function openSportSheet(sunday: string, dayIdx: number): void {
     }
     chips.append(
       h('button', {
-        class: 'chip chip-add', type: 'button',
+        class: 'chip chip-add', type: 'button', 'aria-expanded': String(!newRow.hidden),
         onclick: () => {
-          const t = prompt('שם סוג פעילות חדש:')?.trim();
-          if (!t) return;
-          addCustomSportType(t);
-          renderChips();
-          selectChip(t);
+          newRow.hidden = !newRow.hidden;
+          if (!newRow.hidden) newInput.focus();
         },
       }, '+ סוג חדש'),
     );
@@ -70,6 +80,7 @@ export function openSportSheet(sunday: string, dayIdx: number): void {
   };
   const body = h('div', { class: 'stack' },
     chips,
+    newRow,
     detail,
     free,
     h('label', { class: 'check' }, counts, ' נחשב כאימון'),

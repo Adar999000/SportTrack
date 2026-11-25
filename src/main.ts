@@ -1,20 +1,22 @@
 import './styles.css';
 import { registerSW } from 'virtual:pwa-register';
+import { IS_DEMO } from './env';
+import { clearDemo, isDemoActive, seedDemoIfEmpty } from './demo';
 import { sundayOf, todayISO } from './dates';
 import { checkReminders } from './reminders';
 import { flush, getSettings, loadStore, subscribe } from './store';
 import { h } from './ui/dom';
 import { renderHistory } from './ui/historyView';
-import { parseRoute, type Route } from './ui/router';
+import { HASH, parseRoute, type Route } from './ui/router';
 import { renderSettings } from './ui/settingsView';
 import { renderStats } from './ui/statsView';
 import { renderWeek } from './ui/weekView';
 
 const TABS: { name: Route['name']; hash: string; label: string; icon: string }[] = [
-  { name: 'week', hash: '#/', label: 'שבוע', icon: '▦' },
-  { name: 'history', hash: '#/history', label: 'היסטוריה', icon: '☰' },
-  { name: 'stats', hash: '#/stats', label: 'סטטיסטיקה', icon: '◔' },
-  { name: 'settings', hash: '#/settings', label: 'הגדרות', icon: '⚙' },
+  { name: 'week', hash: HASH.week(), label: 'שבוע', icon: '▦' },
+  { name: 'history', hash: HASH.history, label: 'היסטוריה', icon: '☰' },
+  { name: 'stats', hash: HASH.stats, label: 'סטטיסטיקה', icon: '◔' },
+  { name: 'settings', hash: HASH.settings, label: 'הגדרות', icon: '⚙' },
 ];
 
 const main = h('main', { id: 'main', class: 'content' });
@@ -51,12 +53,25 @@ function render() {
 
 async function boot() {
   const app = document.getElementById('app')!;
+  document.documentElement.lang = 'he';
+  document.documentElement.dir = 'rtl';
+  const demoBar = h('div', { class: 'demo-bar', hidden: true },
+    h('span', null, 'אלה נתוני דוגמה. ייבוא קובץ Word בהגדרות יחליף אותם.'),
+    h('button', { class: 'link-btn', type: 'button', onclick: () => clearDemo() }, 'נקה'),
+  );
   app.replaceChildren(
     h('header', { class: 'topbar' }, h('h1', null, 'משמעת אישית')),
+    demoBar,
     main,
     nav,
   );
   await loadStore();
+  if (IS_DEMO) {
+    await seedDemoIfEmpty();
+    const sync = () => (demoBar.hidden = !isDemoActive());
+    sync();
+    subscribe(sync);
+  }
   render();
   subscribe(render);
   window.addEventListener('hashchange', render);
@@ -70,7 +85,7 @@ async function boot() {
     }
   });
   window.addEventListener('pagehide', () => flush());
-  if ('serviceWorker' in navigator && import.meta.env.PROD) registerSW({ immediate: true });
+  if (!IS_DEMO && 'serviceWorker' in navigator && import.meta.env.PROD) registerSW({ immediate: true });
   checkReminders();
 }
 
