@@ -4,6 +4,11 @@ import { editWeek, getSettings, getWeek } from '../store';
 import type { Day, Mark, MealKey } from '../types';
 import { h } from './dom';
 import { openSportSheet } from './sportSheet';
+import { call, hasBackend } from '../api';
+import { currentUser, photoUrl, rememberPhoto } from '../session';
+import { fileToDataUrl, pickImage } from '../image';
+import { setPhotoLocal } from '../store';
+import { toast } from './dom';
 import { HASH, navigate } from './router';
 
 const MEAL_ROWS: { key: MealKey; full: string; short: string }[] = [
@@ -124,6 +129,58 @@ function weekTable(sunday: string, today: string): HTMLElement {
   );
 }
 
+function weekPhoto(sunday: string): HTMLElement | '' {
+  if (!hasBackend() || !currentUser()) return '';
+  const week = getWeek(sunday);
+  const box = h('section', { class: 'card week-photo', 'aria-label': 'תמונת השבוע' });
+  const busy = (t: string) => box.replaceChildren(h('p', { class: 'muted' }, t));
+
+  const upload = async () => {
+    const f = await pickImage();
+    if (!f) return;
+    try {
+      const dataUrl = await fileToDataUrl(f);
+      busy('מעלה תמונה…');
+      const { photoId } = await call<{ photoId: string | null }>('setWeekPhoto', { sundayDate: sunday, photo: dataUrl, data: getWeek(sunday) });
+      if (photoId) rememberPhoto(photoId, dataUrl);
+      setPhotoLocal(sunday, photoId ?? undefined);
+      toast('התמונה נשמרה');
+    } catch (e: any) {
+      toast(e.message);
+      draw();
+    }
+  };
+  const remove = async () => {
+    try {
+      busy('מסיר…');
+      await call('setWeekPhoto', { sundayDate: sunday, photo: null });
+      setPhotoLocal(sunday, undefined);
+    } catch (e: any) {
+      toast(e.message);
+      draw();
+    }
+  };
+
+  function draw() {
+    if (!week.photoId) {
+      box.replaceChildren(h('button', { class: 'btn photo-add', type: 'button', onclick: upload }, '+ הוסף תמונה לשבוע'));
+      return;
+    }
+    const img = h('img', { class: 'week-img', alt: `תמונת השבוע ${weekRangeLabel(sunday)}` });
+    photoUrl(week.photoId).then((u) => (img.src = u)).catch(() => img.replaceWith(h('p', { class: 'muted' }, 'לא ניתן לטעון את התמונה כרגע')));
+    box.replaceChildren(
+      h('h2', { class: 'card-title' }, 'תמונת השבוע'),
+      img,
+      h('div', { class: 'row-btns two' },
+        h('button', { class: 'btn', type: 'button', onclick: upload }, 'החלף'),
+        h('button', { class: 'btn btn-danger', type: 'button', onclick: remove }, 'הסר'),
+      ),
+    );
+  }
+  draw();
+  return box;
+}
+
 export function renderWeek(root: HTMLElement, sunday: string): void {
   const today = todayISO();
   const thisSunday = sundayOf(today);
@@ -180,5 +237,6 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     isCurrent ? todayPanel(today) : '',
     sundayNoWeight ? h('div', { class: 'banner' }, 'שבוע חדש — אפשר להזין משקל התחלתי', h('button', { class: 'link-btn', onclick: () => weight.focus() }, 'הזן')) : '',
     weekCard,
+    weekPhoto(sunday),
   );
 }

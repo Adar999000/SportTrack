@@ -3,6 +3,7 @@ import {
   lunchStreak, monthlyStats, quarterTrends, warnings, weightPoints, weightSummary, workoutWeekStreak, countWorkouts,
 } from '../stats';
 import { allWeeks, getSettings } from '../store';
+import type { Week } from '../types';
 import { weightChart } from './chart';
 import { fmtKg, fmtPct, h } from './dom';
 
@@ -12,13 +13,10 @@ function tile(label: string, value: string, sub?: string) {
   return h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, label), h('div', { class: 'tile-value' }, value), sub && h('div', { class: 'tile-sub' }, sub));
 }
 
-export function renderStats(root: HTMLElement): void {
-  const weeks = allWeeks();
+/** Stats sections for a list of weeks (the current user's by default). */
+export function statsSections(weeks: Week[] = allWeeks()): (Node | string)[] {
   const today = todayISO();
-  if (!weeks.length) {
-    root.replaceChildren(h('section', { class: 'card' }, h('p', { class: 'muted' }, 'אין עדיין נתונים להצגה.')));
-    return;
-  }
+  if (!weeks.length) return [h('section', { class: 'card' }, h('p', { class: 'muted' }, 'אין עדיין נתונים להצגה.'))];
   const pts = weightPoints(weeks);
   const ws = weightSummary(pts);
   const warn = warnings(weeks, today);
@@ -28,7 +26,7 @@ export function renderStats(root: HTMLElement): void {
   const quarters = quarterTrends(pts).reverse();
   const showSmoke = getSettings().showSmoking;
 
-  root.replaceChildren(
+  return [
     warn.length
       ? h('section', { class: 'card warnings', 'aria-label': 'התראות' }, h('ul', null, warn.map((w) => h('li', null, w))))
       : '',
@@ -94,5 +92,9 @@ export function renderStats(root: HTMLElement): void {
           )
         : h('p', { class: 'muted' }, 'צריך לפחות שתי שקילות ברבעון.'),
     ),
-  );
+  ];
+}
+
+export function renderStats(root: HTMLElement): void {
+  root.replaceChildren(...statsSections());
 }

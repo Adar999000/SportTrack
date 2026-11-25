@@ -61,7 +61,7 @@ export function isWorkout(s: SportCell): boolean {
 
 /** True when the week has any user data at all. */
 export function weekHasData(w: Week): boolean {
-  if (w.startWeight !== undefined || (w.note && w.note.trim())) return true;
+  if (w.startWeight !== undefined || (w.note && w.note.trim()) || w.photoId) return true;
   return w.days.some(
     (d) => d.breakfast || d.lunch || d.dinner || d.sport.status || (d.smoked !== null && d.smoked !== undefined),
   );
@@ -99,5 +99,7 @@ export function normalizeWeek(raw: any): Week | null {
   const wt = typeof raw.startWeight === 'string' ? parseFloat(raw.startWeight) : raw.startWeight;
   if (typeof wt === 'number' && Number.isFinite(wt) && wt > 0) w.startWeight = wt;
   if (typeof raw.note === 'string' && raw.note.trim()) w.note = raw.note;
+  if (typeof raw.updatedAt === 'number') w.updatedAt = raw.updatedAt;
+  if (typeof raw.photoId === 'string' && raw.photoId) w.photoId = raw.photoId;
   return w;
 }

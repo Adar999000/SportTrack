@@ -2,7 +2,8 @@
 
 A mobile-first, Hebrew (RTL) Progressive Web App for tracking weekly habits and weight. It copies the paper-style Word tracker: one table per week, Sunday to Saturday, with healthy breakfast, lunch and dinner, sport activity, and an optional smoking row.
 
-- No backend and no login. All data stays on the device in IndexedDB and works offline.
+- Works offline. Data is saved on the device first (IndexedDB).
+- **Optional accounts:** with the Google Apps Script backend in [`apps-script/`](apps-script/README.md), users sign in and their data syncs to a spreadsheet in the owner's Drive. That adds profiles with photos, a weekly photo, an admin panel across all users, and an AI assistant (OpenAI). Without the backend URL, the app runs local-only with no login.
 - Installable as a PWA (manifest + service worker), with light and dark mode.
 
 ## Run

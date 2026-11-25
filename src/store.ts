@@ -7,19 +7,27 @@ type Listener = () => void;
 interface State {
   weeks: Record<string, Week>;
   settings: Settings;
+  /** Sundays edited locally and not yet uploaded. */
+  dirty: Set<string>;
+  /** userId the local weeks belong to (undefined = pre-account local data). */
+  owner?: string | null;
 }
 
-const state: State = { weeks: {}, settings: { ...DEFAULT_SETTINGS } };
+const state: State = { weeks: {}, settings: { ...DEFAULT_SETTINGS }, dirty: new Set() };
 const listeners = new Set<Listener>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 const LS_FALLBACK = 'mishmaat-ishit-backup';
 
 export async function loadStore(): Promise<void> {
   try {
-    const [weeks, settings] = await Promise.all([
+    const [weeks, settings, dirty, owner] = await Promise.all([
       kvGet<Record<string, Week>>(KEYS.weeks),
       kvGet<Partial<Settings>>(KEYS.settings),
+      kvGet<string[]>('dirty'),
+      kvGet<string | null>('weeksOwner'),
     ]);
+    state.dirty = new Set(dirty ?? []);
+    state.owner = owner;
     state.weeks = {};
     for (const w of Object.values(weeks ?? {})) {
       const n = normalizeWeek(w);
@@ -51,7 +59,12 @@ export async function flush(): Promise<void> {
   const weeks: Record<string, Week> = {};
   for (const [k, w] of Object.entries(state.weeks)) if (weekHasData(w)) weeks[k] = w;
   try {
-    await Promise.all([kvSet(KEYS.weeks, weeks), kvSet(KEYS.settings, state.settings)]);
+    await Promise.all([
+      kvSet(KEYS.weeks, weeks),
+      kvSet(KEYS.settings, state.settings),
+      kvSet('dirty', [...state.dirty]),
+      kvSet('weeksOwner', state.owner ?? null),
+    ]);
   } catch {
     localStorage.setItem(LS_FALLBACK, JSON.stringify({ weeks, settings: state.settings }));
   }
@@ -97,6 +110,58 @@ export function allWeeks(): Week[] {
 export function editWeek(sunday: string, fn: (w: Week) => void): void {
   const w = structuredClone(getWeek(sunday));
   fn(w);
+  w.updatedAt = Date.now();
+  state.weeks[sunday] = w;
+  state.dirty.add(sunday);
+  emit();
+}
+
+// ---------------------------------------------------------------- sync support
+
+export const dirtyWeeks = (): Week[] => [...state.dirty].map((s) => state.weeks[s]).filter(Boolean);
+export const dirtyCount = () => state.dirty.size;
+
+/** Mark weeks as uploaded, unless they were edited again meanwhile. */
+export function markSynced(weeks: Week[]): void {
+  for (const w of weeks) {
+    if ((state.weeks[w.sundayDate]?.updatedAt ?? 0) <= (w.updatedAt ?? 0)) state.dirty.delete(w.sundayDate);
+  }
+  persist();
+}
+
+/** Apply weeks from the server; local unsynced edits win. Doesn't mark anything dirty. */
+export function applyRemote(weeks: Week[]): number {
+  let n = 0;
+  for (const w of weeks) {
+    const local = state.weeks[w.sundayDate];
+    if (state.dirty.has(w.sundayDate) && local) continue;
+    if (!local || (w.updatedAt ?? 0) > (local.updatedAt ?? 0) || w.photoId !== local.photoId) {
+      state.weeks[w.sundayDate] = w;
+      n++;
+    }
+  }
+  if (n) emit();
+  return n;
+}
+
+export const weeksOwner = () => state.owner;
+
+/** Switch the local data set to a user: keep (and upload) pre-account data, or wipe another user's. */
+export function setOwner(userId: string | null, keepLocal: boolean): void {
+  if (!keepLocal) {
+    state.weeks = {};
+    state.dirty = new Set();
+  } else {
+    for (const w of Object.values(state.weeks)) if (weekHasData(w)) state.dirty.add(w.sundayDate);
+  }
+  state.owner = userId;
+  emit();
+}
+
+export function setPhotoLocal(sunday: string, photoId: string | undefined): void {
+  const w = structuredClone(getWeek(sunday));
+  if (photoId) w.photoId = photoId;
+  else delete w.photoId;
   state.weeks[sunday] = w;
   emit();
 }
@@ -109,7 +174,8 @@ export function putWeeks(weeks: Week[], mode: 'skip-existing' | 'overwrite'): nu
   let n = 0;
   for (const w of weeks) {
     if (mode === 'skip-existing' && hasWeek(w.sundayDate)) continue;
-    state.weeks[w.sundayDate] = w;
+    state.weeks[w.sundayDate] = { ...w, updatedAt: Date.now() };
+    state.dirty.add(w.sundayDate);
     n++;
   }
   emit();
@@ -118,7 +184,10 @@ export function putWeeks(weeks: Week[], mode: 'skip-existing' | 'overwrite'): nu
 
 export function replaceAll(weeks: Week[], settings?: Partial<Settings>): void {
   state.weeks = {};
-  for (const w of weeks) state.weeks[w.sundayDate] = w;
+  for (const w of weeks) {
+    state.weeks[w.sundayDate] = { ...w, updatedAt: Date.now() };
+    state.dirty.add(w.sundayDate);
+  }
   if (settings) state.settings = { ...DEFAULT_SETTINGS, ...settings };
   emit();
 }

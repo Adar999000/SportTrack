@@ -24,6 +24,10 @@ export interface Week {
   note?: string;
   /** Exactly 7 entries, Sunday → Saturday. */
   days: Day[];
+  /** ms timestamp of the last local edit (used for sync conflict resolution). */
+  updatedAt?: number;
+  /** Drive file id of the week's photo (accounts only). */
+  photoId?: string;
 }
 
 export type MealKey = 'breakfast' | 'lunch' | 'dinner';
