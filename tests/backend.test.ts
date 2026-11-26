@@ -318,6 +318,6 @@ describe('site settings, AI budget, account deletion, backups', () => {
     expect(be.post({ action: 'adminSettings', token: admin.token }).backups).toHaveLength(5);
     be.run('setup');
     be.run('setup');
-    expect(be.triggers).toEqual(['backupNow']);
+    expect(be.triggers).toEqual(['backupNow', 'autoUpdate']);
   });
 });
