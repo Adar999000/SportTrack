@@ -1,5 +1,13 @@
 /** English UI strings. Keys are the Hebrew originals (see scripts/i18n-keys.mjs). */
 export const EN: Record<string, string> = {
+  "צבע האפליקציה": "App color",
+  "ירוק": "Green",
+  "כחול": "Blue",
+  "סגול": "Purple",
+  "כתום": "Orange",
+  "ורוד": "Pink",
+  "אפור": "Gray",
+  "בחירת צבע לאפליקציה בהגדרות: ירוק, כחול, סגול, כתום, ורוד או אפור": "Choose the app color in Settings: green, blue, purple, orange, pink or gray",
   "איפוס סיסמה במייל: \"שכחתי סיסמה\" במסך הכניסה שולח קוד בן 6 ספרות": "Password reset by email: \"Forgot password\" on the sign-in screen sends a 6-digit code",
   " · מנהל": " · admin",
   " נחשב כאימון": " Counts as a workout",

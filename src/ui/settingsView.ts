@@ -3,7 +3,7 @@ import { todayISO } from '../dates';
 import { download, parseBackup, toBackup, toCSV } from '../io';
 import { checkReminders, notificationsSupported, registerBackgroundCheck, requestPermission } from '../reminders';
 import { allWeeks, getSettings, putWeeks, replaceAll, updateSettings } from '../store';
-import type { Theme } from '../types';
+import { ACCENTS, type Theme } from '../types';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION, CHANGELOG } from '../version';
@@ -73,6 +73,16 @@ export function renderSettings(root: HTMLElement): void {
       h('h2', { class: 'card-title' }, t('תצוגה')),
       toggle(t('שורת "מעשן?"'), st.showSmoking, (v) => updateSettings({ showSmoking: v })),
       h('div', { class: 'setting' }, h('label', null, t('ערכת צבעים')), theme),
+      h('div', { class: 'setting setting-col' },
+        h('span', { id: 'accent-label' }, t('צבע האפליקציה')),
+        h('div', { class: 'swatches', role: 'radiogroup', 'aria-labelledby': 'accent-label' },
+          ACCENTS.map((a) => h('button', {
+            class: 'swatch', type: 'button', role: 'radio',
+            'aria-checked': String((st.accent ?? 'green') === a.id), 'aria-label': t(a.name), title: t(a.name),
+            style: { background: a.swatch },
+            onclick: () => updateSettings({ accent: a.id }),
+          }))),
+      ),
       h('div', { class: 'setting' }, h('label', { for: 'lang-select' }, t('שפה / Language')), langSel),
     ),
 

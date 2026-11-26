@@ -39,10 +39,21 @@ export const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner'];
 
 export type Theme = 'auto' | 'light' | 'dark';
 export type Lang = 'he' | 'en';
+export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate';
+
+export const ACCENTS: { id: Accent; name: string; swatch: string }[] = [
+  { id: 'green', name: 'ירוק', swatch: '#2f6f5e' },
+  { id: 'blue', name: 'כחול', swatch: '#2a5fa8' },
+  { id: 'purple', name: 'סגול', swatch: '#6a4aa5' },
+  { id: 'orange', name: 'כתום', swatch: '#a94f17' },
+  { id: 'rose', name: 'ורוד', swatch: '#a8366a' },
+  { id: 'slate', name: 'אפור', swatch: '#4a5563' },
+];
 
 export interface Settings {
   showSmoking: boolean;
   theme: Theme;
+  accent: Accent;
   /** User-added sport types, remembered for the sport picker. */
   customSportTypes: string[];
   dailyReminder: boolean;
@@ -56,6 +67,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   showSmoking: false,
   theme: 'auto',
+  accent: 'green',
   customSportTypes: [],
   dailyReminder: false,
   reminderTime: '21:00',

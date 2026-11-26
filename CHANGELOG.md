@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.0 (2026-11-26)
+- App color picker in Settings (green, blue, purple, orange, rose, slate), each with light and dark variants checked for contrast. The logo and browser bar follow the chosen color.
+
 ## 1.2.0 (2026-11-26)
 - Password reset by email: "Forgot password" on the sign-in screen emails a 6-digit code (valid 15 minutes, 5 attempts, at most one email a minute). Needs the updated `apps-script/Code.gs` and the mail permission (run `setup` again).
 

@@ -22,6 +22,6 @@ export function icon(name: keyof typeof P | string, size = 22): SVGSVGElement {
 /** The app mark: a checked weekly grid on a green tile. */
 export function logo(size = 32): SVGSVGElement {
   const wrap = document.createElement('span');
-  wrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}" aria-hidden="true" focusable="false"><rect width="512" height="512" rx="112" fill="#2f6f5e"/><g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="14"><rect x="96" y="112" width="320" height="288" rx="28"/><path d="M96 192h320M202 112v288M310 112v288"/></g><path d="M168 300l62 58 128-150" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  wrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}" aria-hidden="true" focusable="false"><rect width="512" height="512" rx="112" fill="var(--brand, #2f6f5e)"/><g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="14"><rect x="96" y="112" width="320" height="288" rx="28"/><path d="M96 192h320M202 112v288M310 112v288"/></g><path d="M168 300l62 58 128-150" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return wrap.firstElementChild as SVGSVGElement;
 }

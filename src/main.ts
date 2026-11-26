@@ -65,9 +65,16 @@ function drawThemeBtn() {
 let lastRoute = '';
 
 function applyTheme() {
-  const th = getSettings().theme;
-  if (th === 'auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', th);
+  const { theme: th, accent } = getSettings();
+  const root = document.documentElement;
+  if (th === 'auto') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', th);
+  if (!accent || accent === 'green') root.removeAttribute('data-accent');
+  else root.setAttribute('data-accent', accent);
+  const brand = getComputedStyle(root).getPropertyValue('--brand').trim();
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    if (!(m as HTMLMetaElement).media.includes('dark')) m.setAttribute('content', brand || '#2f6f5e');
+  });
 }
 
 function drawSyncBadge() {
