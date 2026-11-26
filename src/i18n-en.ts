@@ -1352,4 +1352,5 @@ export const EN: Record<string, string> = {
   "זיקוקים": "Fireworks",
   "לפי רמה": "By level",
   "חנות מורחבת: 16 דמויות חדשות, הילות, תגים, צבעים, רקעים, מסגרות וזיקוקים. חלק מהפריטים נפתחים רק מרמה מסוימת": "Bigger store: 16 new characters, auras, badges, colors, backgrounds, frames and fireworks. Some items open only from a certain level",
+  "בטלפון, חלון הבוט נפתח על כל המסך ונשאר מסודר גם כשהמקלדת פתוחה": "On phones, the bot window opens full screen and stays tidy while the keyboard is open",
 };

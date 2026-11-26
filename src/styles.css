@@ -1176,3 +1176,18 @@ body.is-landing .fab-panel { bottom: calc(150px + env(safe-area-inset-bottom)); 
 .lv-opens { display: block; color: var(--accent); margin-top: 2px; }
 @media (prefers-reduced-motion: reduce) { .avatar.frame-legend { animation: none; } }
 .a11y-motion .avatar.frame-legend { animation: none; }
+
+/* floating assistant on phones: a full-screen sheet that follows the on-screen keyboard */
+.chat-input { font-size: 16px; } /* iOS zooms the page into inputs smaller than 16px */
+@media (max-width: 640px) {
+  .fab-panel {
+    inset: auto 0 auto 0; top: var(--vv-top, 0); bottom: auto; width: 100%; max-width: none;
+    height: var(--vv-h, 100dvh); border-radius: 0; border: none; z-index: 110; padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+  }
+  .fab-panel:not([hidden]) { animation: sheet-up .25s ease-out; }
+  @keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+  body.fab-open { overflow: hidden; }
+  body.fab-open .fab, body.fab-open .a11y-btn, body.fab-open .tabbar, body.fab-open nav.tabs { visibility: hidden; }
+  .fab-panel .chat-empty .chat-hero { padding-top: 0; }
+  .fab-panel .chat-foot .hint { font-size: 0.72rem; }
+}

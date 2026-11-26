@@ -42,10 +42,33 @@ export function mountFloatingChat(): { refresh: () => void } {
         : guest ? h('div', { class: 'support-panel stack guest-contact' }, h('p', { class: 'muted' }, t('שאלה, תקלה או בקשה? כתבו למנהל האפליקציה ונחזור אליכם במייל.')), contactForm('תמיכה'))
         : supportPanel(setUnread),
     );
-    (panel.querySelector('textarea') as HTMLElement | null)?.focus();
+    // on phones the keyboard would cover half the screen right away, so wait for a tap
+    if (!isPhone()) (panel.querySelector('textarea') as HTMLElement | null)?.focus();
   }
-  function open() { panel.hidden = false; fab.setAttribute('aria-expanded', 'true'); draw(); }
-  function close() { panel.hidden = true; fab.setAttribute('aria-expanded', 'false'); fab.focus(); }
+  const isPhone = () => matchMedia('(max-width: 640px)').matches;
+  /** On phones the panel fills exactly the visible area, also above the on-screen keyboard. */
+  const fit = () => {
+    const vv = window.visualViewport;
+    if (!vv || !isPhone()) { panel.style.removeProperty('--vv-h'); panel.style.removeProperty('--vv-top'); return; }
+    panel.style.setProperty('--vv-h', vv.height + 'px');
+    panel.style.setProperty('--vv-top', vv.offsetTop + 'px');
+    const log = panel.querySelector('.chat-log') as HTMLElement | null;
+    if (log) log.scrollTop = log.scrollHeight;
+  };
+  function open() {
+    panel.hidden = false; fab.setAttribute('aria-expanded', 'true'); draw();
+    document.body.classList.add('fab-open');
+    fit();
+    window.visualViewport?.addEventListener('resize', fit);
+    window.visualViewport?.addEventListener('scroll', fit);
+  }
+  function close() {
+    panel.hidden = true; fab.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('fab-open');
+    window.visualViewport?.removeEventListener('resize', fit);
+    window.visualViewport?.removeEventListener('scroll', fit);
+    if (!fab.hidden) fab.focus();
+  }
   fab.addEventListener('click', () => (panel.hidden ? open() : close()));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) close(); });
 
