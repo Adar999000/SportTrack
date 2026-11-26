@@ -9,6 +9,7 @@ import { logo } from './icons';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { duelsTab } from './duelsView';
+import { storiesBar } from './storiesView';
 import { track } from '../analytics';
 import { cardPreview, openShareAchievement, shareOutside, visibilitySelect, type Achievement } from './shareCard';
 
@@ -302,7 +303,7 @@ export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels')
     } }, t(label)));
   });
   moreBtn.addEventListener('click', () => load(true));
-  box.replaceChildren(composer(() => load()), filter, list, moreBtn,
+  box.replaceChildren(storiesBar(), composer(() => load()), filter, list, moreBtn,
     h('p', { class: 'hint' }, t('"חברים" הם מי שהזמנת לאפליקציה ומי שהזמין אותך. אפשר לדווח על תוכן לא הולם דרך ⋯.')));
   load();
   void navigate;

@@ -1,3 +1,4 @@
+import { goalChips } from './goalChips';
 import { t, tr } from '../i18n';
 import { call, type User } from '../api';
 import { daysBetween, formatShort, todayISO } from '../dates';
@@ -29,7 +30,9 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
   const field = (id: string, label: string, attrs: Record<string, any>, hint?: string) =>
     h('div', { class: 'field' }, h('label', { for: id }, label), h('input', { id, class: 'input', ...attrs }), hint && h('small', { class: 'hint' }, hint));
 
+  const chips = goalChips(p.goals ?? []);
   const form = h('form', { class: 'stack', novalidate: true },
+    onboarding && h('div', { class: 'field' }, h('span', { class: 'label' }, t('מה המטרות שלך? אפשר לבחור כמה')), chips.el),
     h('div', { class: 'avatar-row' },
       preview,
       h('div', { class: 'stack' },
@@ -74,7 +77,7 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
     try {
       const res = await call<{ user: User }>('updateProfile', {
         name: v('pf-name'),
-        profile: { birthDate: v('pf-birth') || undefined, heightCm: num('pf-height'), goalWeight: num('pf-goalw'), goal: v('pf-goal') || undefined, completed: true },
+        profile: { birthDate: v('pf-birth') || undefined, heightCm: num('pf-height'), goalWeight: num('pf-goalw'), goal: v('pf-goal') || undefined, ...(onboarding ? { goals: chips.value() } : {}), completed: true },
         ...(photo !== undefined ? { photo } : {}),
       });
       if (photo && res.user.photoId) rememberPhoto(res.user.photoId, photo);
@@ -200,6 +203,8 @@ export function renderProfile(root: HTMLElement): void {
     h('section', { class: 'card menu-list' },
       menuItem('coin', t('מטבעות וחנות'), t('אתגרים אישיים, רמות וחנות'), go(HASH.rewards)),
       menuItem('feed', t('קהילה ואתגרים'), t('פיד, אתגרים עם חברים ותחרויות'), go(HASH.feed)),
+      menuItem('music', t('מוזיקה'), t('Spotify ו-Apple Music לאימונים'), go(HASH.music)),
+      menuItem('star', t('המטרות שלי'), t('מה חשוב לך, והאפליקציה מתאימה את עצמה'), go(HASH.goals)),
       menuItem('chat', t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),
       menuItem('info', t('פנייה למנהל'), t('שאלה, בעיה או הצעה'), () => openAssistant('support')),
       menuItem('mail', t('הזמנת חברים'), t('קישור אישי, ומטבעות לשניכם'), go(HASH.share)),

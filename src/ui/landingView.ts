@@ -46,7 +46,8 @@ function landingHeader(go: (to: 'login' | 'signup') => void): HTMLElement {
     h('a', { class: 'landing-brand', href: '#' }, logo(34), h('span', null, t('משמעת אישית'))),
     h('nav', { class: 'landing-nav', 'aria-label': t('ניווט ראשי') }, ...linkButtons()),
     h('div', { class: 'landing-actions' },
-      h('button', { class: 'link-btn lang-switch', type: 'button', onclick: () => setLang(lang === 'he' ? 'en' : 'he') }, lang === 'he' ? 'English' : 'עברית'),
+      h('a', { class: 'icon-btn btn-on-band a11y-link', href: '#accessibility', 'aria-label': t('הצהרת נגישות'), title: t('הצהרת נגישות') }, icon('access', 20)),
+      h('button', { class: 'link-btn lang-switch', type: 'button', lang: lang === 'he' ? 'en' : 'he', onclick: () => setLang(lang === 'he' ? 'en' : 'he') }, lang === 'he' ? 'English' : 'עברית'),
       themeBtn,
       h('button', { class: 'btn btn-on-band desk-only', type: 'button', onclick: () => go('login') }, t('כניסה')),
       h('button', { class: 'btn btn-white desk-only', type: 'button', onclick: () => go('signup') }, t('הרשמה')),
@@ -66,6 +67,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
     { label: t('ספורט'), marks: ['V', '-', 'V', '-', 'V', '-', null] },
   ];
   const cls = (m: Mark | null) => (m === 'V' ? 'mark-V' : m === 'X' ? 'mark-X' : m === '-' ? 'mark-dash' : 'mark-empty');
+  const demoLive = h('span', { class: 'sr-only', 'aria-live': 'polite' });
   const demo = h('div', { class: 'demo-table', role: 'group', 'aria-label': t('הדגמה של הטבלה השבועית. אפשר להקיש על תא.') },
     h('span', null), ...days.map((d) => h('span', { class: 'demo-day' }, d)),
     ...rows.flatMap((r) => [
@@ -73,6 +75,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       ...r.marks.map((m) => {
         let cur = m;
         const b = h('button', { class: `demo-cell ${cls(m)}`, type: 'button', 'aria-label': `${r.label}: ${m ?? t('ריק')}` }, m ?? '');
+        b.addEventListener('click', () => queueMicrotask(() => { demoLive.textContent = b.getAttribute('aria-label') ?? ''; }));
         b.addEventListener('click', () => {
           cur = cycleMark(cur);
           b.className = `demo-cell ${cls(cur)}`;
@@ -94,7 +97,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       landingHeader(go),
       h('section', { class: 'hero' },
         h('div', { class: 'hero-copy' },
-          h('p', { class: 'eyebrow' }, 'Every journey starts with one step'),
+          h('p', { class: 'eyebrow', lang: 'en', dir: 'ltr' }, 'Every journey starts with one step'),
           h('h1', null, t('טבלה שבועית אחת. הרגלים שנשארים.')),
           h('p', { class: 'lead' }, t('ארוחות בריאות, אימונים ומשקל. מסמנים בהקשה, צוברים מטבעות, ועוזר AI שמכיר את הנתונים שלכם עוזר לראות מה באמת עובד.')),
           h('div', { class: 'hero-cta' },
@@ -107,7 +110,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
         h('div', { class: 'hero-visual' },
           h('div', { class: 'phone' },
             h('div', { class: 'phone-top' }, h('span', { class: 'phone-brand' }, logo(20), t('השבוע שלי')), h('span', { class: 'coin-pill' }, h('span', { class: 'coin' }), '520 · ', t('רמה'), ' 3')),
-            demo,
+            demo, demoLive,
             h('div', { class: 'phone-chat' },
               h('div', { class: 'bubble bubble-user' }, t('תסמן לי צהריים V היום')),
               h('div', { class: 'bubble bubble-assistant' }, h('span', { class: 'bubble-ai' }, aiMark(14)), t('סימנתי. זה היום החמישי ברצף עם צהריים V, ועוד 2 ימים לבונוס הרצף.')),

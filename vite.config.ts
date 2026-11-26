@@ -9,7 +9,7 @@ function cspConnect(mode: string): Plugin {
     name: 'csp-connect-src',
     transformIndexHtml(html) {
       const api = loadEnv(mode, process.cwd(), 'VITE_').VITE_API_URL ?? process.env.VITE_API_URL;
-      const origins = new Set<string>(['https://script.google.com', 'https://script.googleusercontent.com', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://api.open-meteo.com']);
+      const origins = new Set<string>(['https://script.google.com', 'https://script.googleusercontent.com', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://api.open-meteo.com', 'https://accounts.spotify.com', 'https://api.spotify.com']);
       if (api) origins.add(new URL(api).origin);
       return html.replace('__API_ORIGINS__', [...origins].join(' '));
     },

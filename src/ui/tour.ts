@@ -80,10 +80,11 @@ export function maybeStartTour(): void {
 function welcome(): void {
   running = true;
   const slides = [
-    { art: logo(64), title: 'ברוכים הבאים למשמעת אישית', text: 'טבלה שבועית אחת לארוחות, אימונים ומשקל. מסמנים בהקשה, ורואים לאורך זמן מה באמת עובד.' },
-    { art: icon('coin', 56), title: 'מטבעות, רמות ואתגרים', text: 'כל יום מלא, אימון ושקילה מכניסים מטבעות. עולים ברמות, משלימים אתגרים ומתחרים עם חברים.' },
-    { art: aiMark(56), title: 'עוזר AI אישי', text: 'הכפתור הצף בפינה: שואלים על הנתונים, מבקשים שיסמן בשבילכם, או שולחים פנייה למנהל.' },
-  ];
+    { art: logo(64), title: 'ברוכים הבאים למשמעת אישית', text: 'שלושה צעדים פשוטים, וזהו. 30 שניות ביום מספיקות.' },
+    { art: h('div', { class: 'howto-cells', 'aria-hidden': 'true' }, h('span', { class: 'v' }, 'V'), h('span', { class: 'x' }, 'X'), h('span', null, '–')), title: '1. מסמנים את היום', text: 'במסך "היום" מקישים על כל משימה: V עשיתי, X לא הפעם. בסוף היום הוא נסגר והמטבעות נכנסים.' },
+    { art: icon('stats', 56), title: '2. שוקלים פעם בשבוע', text: 'ביום ראשון רושמים משקל. בלשונית "התקדמות" רואים גרף, אימונים ומה באמת עובד.' },
+    { art: aiMark(56), title: '3. יש לך עוזר', text: 'הכפתור הצף: אומרים לו "סמן לי צהריים V" או שואלים איך הולך. באזור "אני" יש קהילה, מוזיקה וחנות.' },
+    ];
   let i = 0;
   const box = h('div', { class: 'welcome', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('ברוכים הבאים') });
   const overlay = h('div', { class: 'tour-overlay welcome-overlay' }, box);

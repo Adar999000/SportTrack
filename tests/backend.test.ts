@@ -276,7 +276,7 @@ describe('site settings, AI budget, account deletion, backups', () => {
   it('admins set the accessibility coordinator; visitors can read it', () => {
     const { be, admin } = setup();
     be.post({ action: 'setSiteConfig', token: admin.token, a11yName: 'דנה כהן', a11yPhone: '03-1234567', a11yEmail: 'a11y@x.com' });
-    expect(be.post({ action: 'siteConfig' }).config).toEqual({ a11yName: 'דנה כהן', a11yPhone: '03-1234567', a11yEmail: 'a11y@x.com' });
+    expect(be.post({ action: 'siteConfig' }).config).toEqual({ a11yName: 'דנה כהן', a11yPhone: '03-1234567', a11yEmail: 'a11y@x.com', spotifyClientId: '' });
     const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'u' });
     expect(be.post({ action: 'setSiteConfig', token: u.token, a11yName: 'x' }).error).toMatch(/מנהל/);
   });

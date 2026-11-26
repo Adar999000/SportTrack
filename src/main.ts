@@ -43,6 +43,9 @@ import { maybeStartTour } from './ui/tour';
 import { BADGES, getRewards, levelLabel, loadCachedRewards, onRewards, owns, refreshRewards } from './rewards';
 import { celebrate } from './ui/celebrate';
 import { refreshMascots } from './ui/mascot';
+import { renderMusic } from './ui/musicView';
+import { renderGoals } from './ui/goalsView';
+import { handleSpotifyRedirect } from './music';
 setLockedHandler((whole) => toast(whole ? t('השבוע נעול. אפשר לשחרר אותו מתחת לטבלה.') : t('היום נעול. לחיצה על היום בטבלה פותחת אותו לשחרור.')));
 setDayCompleteHandler(() => {
   const today = todayISO();
@@ -172,7 +175,7 @@ function render() {
     return;
   }
   // Keep in-progress forms (chat, profile edit) from being wiped by background updates.
-  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share' || route.name === 'feed' || route.name === 'workout')) return;
+  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share' || route.name === 'feed' || route.name === 'workout' || route.name === 'music' || route.name === 'goals')) return;
 
   nav.hidden = false;
   nav.replaceChildren(
@@ -185,7 +188,7 @@ function render() {
   );
   nav.style.setProperty('--tabs', String(tabs().length));
 
-  const fromMe = hasBackend() && ['settings', 'rewards', 'share', 'feed', 'chat', 'admin'].includes(route.name) && !(route.name === 'chat' && route.scope !== 'me');
+  const fromMe = hasBackend() && ['settings', 'rewards', 'share', 'feed', 'chat', 'admin', 'music', 'goals'].includes(route.name) && !(route.name === 'chat' && route.scope !== 'me');
   crumb.hidden = !fromMe;
   if (fromMe) crumb.replaceChildren(h('a', { class: 'link-btn', href: HASH.profile }, (isRTL ? '→ ' : '← ') + t('אני')));
   switch (route.name) {
@@ -213,6 +216,8 @@ function render() {
     case 'share': hasBackend() ? renderShare(main) : renderWeek(main, sundayOf(todayISO())); break;
     case 'tracker': renderTracker(main, route.id, route.sunday); break;
     case 'workout': renderWorkout(main, route.id); break;
+    case 'music': renderMusic(main); break;
+    case 'goals': renderGoals(main); break;
     case 'feed': hasBackend() ? renderFeed(main, route.tab ?? 'posts') : renderWeek(main, sundayOf(todayISO())); break;
     case 'duel':
       call('joinDuel', { code: route.code }).then(() => { toast(t('הצטרפת לאתגר! בהצלחה 💪')); track('duel:join-link'); }).catch((e) => toast(e.message)).finally(() => navigate(HASH.duels));
@@ -381,6 +386,7 @@ async function boot() {
   await loadSession();
   floating = mountFloatingChat();
   mountA11yWidget();
+  handleSpotifyRedirect().then((done) => { if (done) { toast(t('Spotify מחובר 🎵')); render(); } }).catch((e) => toast(e.message));
   if (IS_DEMO) {
     await seedDemoIfEmpty();
     const sync = () => (demoBar.hidden = !isDemoActive());

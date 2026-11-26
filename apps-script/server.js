@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.5.0';
+const SERVER_VERSION = '5.6.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -88,6 +88,8 @@ function route(req) {
     case 'putDocs': return putDocs(me, req.docs || []);
     case 'feed': return feed(me, req);
     case 'createPost': return createPost(me, req);
+    case 'stories': return stories(me);
+    case 'viewStory': return viewStory(me, req);
     case 'likePost': return likePost(me, req);
     case 'commentPost': return commentPost(me, req);
     case 'deleteComment': return deleteComment(me, req);
@@ -540,6 +542,8 @@ function savePhoto(dataUrl, name, oldId) {
   return file.getId();
 }
 
+const GOAL_IDS = ['lose', 'muscle', 'fit', 'eat', 'habit', 'smoke', 'sleep', 'race', 'stress', 'friends'];
+
 function updateProfile(me, req) {
   const sh = sheet('Users');
   if (typeof req.name === 'string' && req.name.trim()) sh.getRange(me.row, U.name + 1).setValue(req.name.trim().slice(0, 60));
@@ -547,6 +551,7 @@ function updateProfile(me, req) {
     const allowed = ['birthDate', 'heightCm', 'goalWeight', 'goal', 'completed'];
     const clean = {};
     allowed.forEach((k) => { if (req.profile[k] !== undefined) clean[k] = typeof req.profile[k] === 'string' ? req.profile[k].slice(0, 300) : req.profile[k]; });
+    if (Array.isArray(req.profile.goals)) clean.goals = req.profile.goals.filter((g) => GOAL_IDS.indexOf(g) >= 0).slice(0, 10);
     const merged = Object.assign(parseJSON(me.r[U.profile], {}), clean);
     sh.getRange(me.row, U.profile + 1).setValue(JSON.stringify(merged));
   }
@@ -780,7 +785,7 @@ const CATALOG = {
   bg: { sand: 200, ocean: 200, forest: 200, rose: 200, mint: 200, lavender: 200, sunrise: 240, midnight: 300, carbon: 300, aurora: 380 },
   frame: { silver: 120, goldframe: 250, neon: 280, fire: 300, ice: 300, rainbow: 350, laurel: 380, diamond: 400, champion: 450, legend: 600 },
   effect: { confetti: 200, stars: 220, fireworks: 300 },
-  skin: { bubbly: 300, feminine: 300, stadium: 350, anime: 400, retro: 400, neon: 450, leopard: 500, luxe: 800 },
+  skin: { bubbly: 300, feminine: 300, stadium: 350, anime: 400, retro: 400, neon: 450, leopard: 500, athletic: 350, premium: 600, luxe: 800 },
   mascot: { cat: 120, frog: 120, rabbit: 120, hamster: 120, tiger: 150, fox: 150, bear: 150, horse: 160, koala: 180, monkey: 180, penguin: 180, polarbear: 180,
     owl: 200, octopus: 200, runner: 200, biker: 220, swimmer: 220, yogi: 220, lifter: 250, climber: 260, surfer: 260, unicorn: 300, gorilla: 300, wolf: 320,
     shark: 350, eagle: 380, dragon: 400, ninja: 450 },
@@ -791,7 +796,7 @@ const CATALOG = {
 
 /** Items you can only buy from a certain level (a level perk that makes it free still applies). */
 const ITEM_LEVEL = {
-  'skin:bubbly': 2, 'skin:feminine': 2, 'skin:stadium': 3, 'skin:anime': 4, 'skin:retro': 5, 'skin:neon': 6, 'skin:leopard': 7, 'skin:luxe': 10,
+  'skin:bubbly': 2, 'skin:feminine': 2, 'skin:stadium': 3, 'skin:anime': 4, 'skin:retro': 5, 'skin:neon': 6, 'skin:leopard': 7, 'skin:athletic': 3, 'skin:premium': 8, 'skin:luxe': 10,
   'color:emerald': 3, 'color:graphite': 4, 'color:ruby': 6,
   'bg:sunrise': 3, 'bg:carbon': 5, 'bg:aurora': 9,
   'frame:neon': 4, 'frame:ice': 5, 'frame:diamond': 7, 'frame:laurel': 8, 'frame:champion': 10, 'frame:legend': 13,
@@ -1303,12 +1308,17 @@ function siteConfig() { return parseJSON(props().getProperty('SITE_CONFIG'), {})
 /** What the public pages may show (accessibility coordinator). */
 function publicSiteConfig() {
   const c = siteConfig();
-  return { a11yName: c.a11yName || '', a11yPhone: c.a11yPhone || '', a11yEmail: c.a11yEmail || '' };
+  return { a11yName: c.a11yName || '', a11yPhone: c.a11yPhone || '', a11yEmail: c.a11yEmail || '', spotifyClientId: c.spotifyClientId || '' };
 }
 
 function setSiteConfig(me, req) {
   const c = siteConfig();
   ['a11yName', 'a11yPhone', 'a11yEmail'].forEach((k) => { if (typeof req[k] === 'string') c[k] = req[k].trim().slice(0, 120); });
+  if (typeof req.spotifyClientId === 'string') {
+    const id = req.spotifyClientId.trim();
+    if (id && !/^[a-f0-9]{32}$/.test(id)) throw new Error('מזהה Spotify צריך להיות 32 תווים (Client ID)');
+    c.spotifyClientId = id;
+  }
   props().setProperty('SITE_CONFIG', JSON.stringify(c));
   if (req.aiBudget !== undefined) {
     const b = Number(req.aiBudget);
@@ -1771,8 +1781,15 @@ function postOut(r, uid, people) {
   const comments = (parseJSON(r[P.comments], []) || []).slice(-30).map((c) => ({
     id: c.id, userId: c.userId, name: (people[c.userId] || {}).name || '—', text: c.text, at: c.at,
   }));
+  let data = parseJSON(r[P.data], null);
+  if (r[P.kind] === 'story' && data) {
+    const views = data.views || [];
+    data = Object.assign({}, data);
+    delete data.views;
+    if (r[P.user] === uid) { data.viewCount = views.length; data.viewers = views.slice(-30).map((v) => (people[v] || {}).name || '—'); }
+  }
   return {
-    id: r[P.id], at: r[P.at], kind: r[P.kind], text: r[P.text], data: parseJSON(r[P.data], null), photoId: r[P.photo] || null,
+    id: r[P.id], at: r[P.at], kind: r[P.kind], text: r[P.text], data: data, photoId: r[P.photo] || null,
     visibility: r[P.vis], status: r[P.status], mine: r[P.user] === uid,
     author: { userId: r[P.user], name: a.name, photoId: a.photoId || null, frame: a.frame || '', level: a.level || 1, levelName: a.levelName || '', team: !!a.team },
     likes: likes.length, liked: likes.indexOf(uid) >= 0, comments: comments,
@@ -1799,6 +1816,58 @@ function ensureTeamPosts() {
   withLock(() => appendRows(postsSheet(), rowsNew));
 }
 
+// ------------------------------------------------------------------ stories (24h)
+
+const STORY_MS = 24 * 3600 * 1000;
+const STORY_TPL = ['photo', 'text', 'rings', 'workout', 'achievement'];
+const STORY_BG = ['ink', 'lime', 'sunset', 'ocean', 'berry', 'forest'];
+function cleanStory(d) {
+  const num = (x, max) => Math.max(0, Math.min(max, Number(x) || 0));
+  const out = { tpl: STORY_TPL.indexOf(d.tpl) >= 0 ? d.tpl : 'text', bg: STORY_BG.indexOf(d.bg) >= 0 ? d.bg : 'ink' };
+  if (out.tpl === 'rings') Object.assign(out, { meals: num(d.meals, 3), sport: num(d.sport, 1), week: num(d.week, 7), streak: num(d.streak, 3650) });
+  if (out.tpl === 'workout') {
+    Object.assign(out, { type: ['run', 'walk', 'bike', 'hike'].indexOf(d.type) >= 0 ? d.type : 'run', distanceM: num(d.distanceM, 1e6), durationS: num(d.durationS, 864000),
+      name: String(d.name || '').slice(0, 60) });
+    if (Array.isArray(d.route)) out.route = d.route.slice(0, 80).map((p) => [Math.round(num(p[0], 100) * 10) / 10, Math.round(num(p[1], 100) * 10) / 10]);
+  }
+  if (out.tpl === 'achievement') Object.assign(out, { title: String(d.title || '').slice(0, 80), emoji: String(d.emoji || '🏆').slice(0, 4) });
+  return out;
+}
+
+/** Live stories (last 24h) I may see, grouped by person; mine first, then unseen-first is up to the client. */
+function stories(me) {
+  const uid = me.r[U.id];
+  const friends = friendsOf(uid, rows('Users'));
+  const since = new Date(Date.now() - STORY_MS).toISOString();
+  const live = allRows(postsSheet(), POST_W)
+    .filter((r) => r[P.kind] === 'story' && String(r[P.at]) >= since && canSeePost(uid, r, friends))
+    .sort((a, b) => String(a[P.at]).localeCompare(String(b[P.at])));
+  const people = peopleIndex();
+  const groups = {};
+  const order = [];
+  live.forEach((r) => {
+    const k = r[P.user];
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(postOut(r, uid, people));
+  });
+  order.sort((a, b) => (a === uid ? -1 : b === uid ? 1 : String(groups[b][groups[b].length - 1].at).localeCompare(String(groups[a][groups[a].length - 1].at))));
+  return { groups: order.map((k) => ({ author: groups[k][0].author, items: groups[k] })) };
+}
+
+/** Count a view (not my own story, once per person). */
+function viewStory(me, req) {
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    if (p.r[P.kind] !== 'story') throw new Error('הסטורי לא נמצא');
+    const uid = me.r[U.id];
+    if (p.r[P.user] === uid) return { ok: true };
+    const d = parseJSON(p.r[P.data], {}) || {};
+    d.views = d.views || [];
+    if (d.views.indexOf(uid) < 0 && d.views.length < 2000) { d.views.push(uid); postsSheet().getRange(p.row, P.data + 1).setValue(JSON.stringify(d)); }
+    return { ok: true };
+  });
+}
+
 function feed(me, req) {
   ensureTeamPosts();
   const uid = me.r[U.id];
@@ -1806,7 +1875,7 @@ function feed(me, req) {
   const before = String(req.before || '9999');
   const only = String(req.only || '');
   const list = allRows(postsSheet(), POST_W)
-    .filter((r) => String(r[P.at]) < before && canSeePost(uid, r, friends))
+    .filter((r) => r[P.kind] !== 'story' && String(r[P.at]) < before && canSeePost(uid, r, friends))
     .filter((r) => (only === 'mine' ? r[P.user] === uid : only === 'friends' ? !!friends[r[P.user]] || r[P.user] === uid : true))
     .sort((a, b) => String(b[P.at]).localeCompare(String(a[P.at])))
     .slice(0, 20);
@@ -1816,7 +1885,7 @@ function feed(me, req) {
 
 function createPost(me, req) {
   const text = String(req.text || '').trim().slice(0, 1000);
-  const kind = ['text', 'achievement', 'tracker', 'event', 'meetup'].indexOf(req.kind) >= 0 ? req.kind : 'text';
+  const kind = ['text', 'achievement', 'tracker', 'event', 'meetup', 'story'].indexOf(req.kind) >= 0 ? req.kind : 'text';
   let dataObj = req.data && typeof req.data === 'object' ? req.data : null;
   if (kind === 'meetup') {
     const m = dataObj || {};
@@ -1826,11 +1895,13 @@ function createPost(me, req) {
     dataObj = { title: String(m.title).trim().slice(0, 80), when: when.slice(0, 16), location: String(m.location || '').trim().slice(0, 120),
       sport: EVENT_TYPES.indexOf(m.sport) >= 0 ? m.sport : 'other', going: [me.r[U.id]] };
   }
+  if (kind === 'story') dataObj = cleanStory(dataObj || {});
   const data = dataObj ? JSON.stringify(dataObj) : '';
   const asTeam = !!req.asTeam && me.r[U.role] === 'admin';
   if (data.length > 4000) throw new Error('הפוסט גדול מדי');
   if (!text && !data && !req.photo) throw new Error('נא לכתוב משהו');
-  dailyCount('post-' + me.r[U.id], 15, 'אפשר לפרסם עד 15 פוסטים ביום');
+  if (kind === 'story') dailyCount('story-' + me.r[U.id], 10, 'אפשר להעלות עד 10 סטוריז ביום');
+  else dailyCount('post-' + me.r[U.id], 15, 'אפשר לפרסם עד 15 פוסטים ביום');
   const id = Utilities.getUuid().slice(0, 10);
   const photoId = req.photo ? savePhoto(String(req.photo), 'post-' + id + '.jpg', '') : '';
   const row = [id, asTeam ? TEAM_ID : me.r[U.id], new Date().toISOString(), req.visibility === 'friends' && !asTeam ? 'friends' : 'all', kind, text, data, photoId, '[]', '[]', '[]', 'ok'];

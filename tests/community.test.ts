@@ -237,3 +237,44 @@ describe('meetups, team posts and challenge chat', () => {
     expect(be.post({ action: 'duelChat', token: c.token, id: duel.id }).error).toMatch(/לא נמצא/);
   });
 });
+
+describe('stories, goals and music settings', () => {
+  it('posts 24h stories outside the feed, counts views for the owner only, and expires them', () => {
+    let clock = Date.parse('2026-11-20T10:00:00Z');
+    const be = createBackend({ now: () => clock });
+    be.properties.set('TEAM_SEEDED', '1');
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });
+    const { post } = be.post({ action: 'createPost', token: a.token, kind: 'story', text: 'בוקר טוב',
+      data: { tpl: 'workout', bg: 'nope', type: 'run', distanceM: 5000, durationS: 1500, route: [[10, 20], [300, -5]], lat: 32.1 } });
+    expect(post.data).toMatchObject({ tpl: 'workout', bg: 'ink', distanceM: 5000, route: [[10, 20], [100, 0]] });
+    expect(post.data.lat).toBeUndefined();
+    expect(be.post({ action: 'feed', token: b.token }).posts).toHaveLength(0); // stories stay out of the feed
+    let g = be.post({ action: 'stories', token: b.token }).groups;
+    expect(g).toHaveLength(1);
+    expect(g[0].author.name).toBe('אלף');
+    expect(g[0].items[0].data.viewCount).toBeUndefined();
+    be.post({ action: 'viewStory', token: b.token, id: post.id });
+    be.post({ action: 'viewStory', token: b.token, id: post.id });
+    be.post({ action: 'viewStory', token: a.token, id: post.id });
+    expect(be.post({ action: 'likePost', token: b.token, id: post.id }).liked).toBe(true);
+    const mine = be.post({ action: 'stories', token: a.token }).groups[0].items[0];
+    expect(mine.data).toMatchObject({ viewCount: 1, viewers: ['בית'] });
+    expect(mine.likes).toBe(1);
+    clock += 25 * 3600 * 1000;
+    expect(be.post({ action: 'stories', token: b.token }).groups).toHaveLength(0);
+  });
+
+  it('keeps only known onboarding goals and validates the Spotify client id', () => {
+    const be = createBackend();
+    const adm = be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
+    const { user } = be.post({ action: 'updateProfile', token: u.token, profile: { goals: ['lose', 'hack', 'fit'], completed: true } });
+    expect(user.profile.goals).toEqual(['lose', 'fit']);
+    expect(be.post({ action: 'setSiteConfig', token: adm.token, spotifyClientId: 'not-an-id' }).error).toMatch(/32/);
+    be.post({ action: 'setSiteConfig', token: adm.token, spotifyClientId: 'a'.repeat(32) });
+    expect(be.post({ action: 'siteConfig' }).config.spotifyClientId).toBe('a'.repeat(32));
+    expect(be.post({ action: 'setSiteConfig', token: u.token, spotifyClientId: 'b'.repeat(32) }).error).toBeTruthy();
+  });
+});

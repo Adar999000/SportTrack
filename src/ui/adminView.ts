@@ -206,7 +206,7 @@ function auditCard(names: Record<string, string>): HTMLElement {
 }
 
 interface AdminSettings {
-  config: { a11yName: string; a11yPhone: string; a11yEmail: string };
+  config: { a11yName: string; a11yPhone: string; a11yEmail: string; spotifyClientId?: string };
   ai: { month: string; spend: number; budget: number };
   backups: { id: string; name: string; at: string }[];
 }
@@ -222,6 +222,9 @@ function settingsCard(): HTMLElement {
       f('a11y-name', t('שם'), s.config.a11yName, { autocomplete: 'name' }),
       f('a11y-phone', t('טלפון'), s.config.a11yPhone, { type: 'tel', dir: 'ltr' }),
       f('a11y-email', t('אימייל'), s.config.a11yEmail, { type: 'email', dir: 'ltr' }),
+      h('h3', { class: 'section-title' }, t('מוזיקה (Spotify)')),
+      f('spotify-id', t('Client ID של אפליקציית Spotify'), s.config.spotifyClientId ?? '', { dir: 'ltr', autocomplete: 'off', spellcheck: false }),
+      h('p', { class: 'hint' }, t('יוצרים אפליקציה ב-developer.spotify.com, מוסיפים Redirect URI זהה לכתובת האתר, ומדביקים כאן את ה-Client ID (לא את ה-Secret).')),
       h('h3', { class: 'section-title' }, t('תקציב עוזר AI לחודש')),
       h('div', { class: 'bar', role: 'progressbar', 'aria-label': t('ניצול התקציב החודשי'), 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { style: { width: pct + '%' } })),
       h('p', { class: 'hint' }, t('נוצלו ${0} מתוך ${1} ב-{2}. כשמגיעים לתקרה העוזר נעצר עד החודש הבא.').replace('{0}', s.ai.spend.toFixed(2)).replace('{1}', String(s.ai.budget)).replace('{2}', s.ai.month)),
@@ -232,7 +235,7 @@ function settingsCard(): HTMLElement {
       e.preventDefault();
       const v = (id: string) => (form.querySelector('#' + id) as HTMLInputElement).value;
       try {
-        draw(await call<AdminSettings>('setSiteConfig', { a11yName: v('a11y-name'), a11yPhone: v('a11y-phone'), a11yEmail: v('a11y-email'), aiBudget: Number(v('ai-budget')) }));
+        draw(await call<AdminSettings>('setSiteConfig', { a11yName: v('a11y-name'), a11yPhone: v('a11y-phone'), a11yEmail: v('a11y-email'), spotifyClientId: v('spotify-id'), aiBudget: Number(v('ai-budget')) }));
         toast(t('נשמר'));
       } catch (ex: any) { toast(ex.message); }
     });

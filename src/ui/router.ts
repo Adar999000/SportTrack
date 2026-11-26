@@ -17,7 +17,9 @@ export type Route =
   | { name: 'tracker'; id: string; sunday?: string }
   | { name: 'feed'; tab?: 'posts' | 'events' | 'duels' }
   | { name: 'duel'; code: string }
-  | { name: 'workout'; id?: string };
+  | { name: 'workout'; id?: string }
+  | { name: 'music' }
+  | { name: 'goals' };
 
 /** Hashes are plain names: #week-2026-11-22, #history, #stats, #prefs, #profile, #admin, #chat … */
 export const HASH = {
@@ -42,6 +44,8 @@ export const HASH = {
   duels: '#duels',
   workout: (id?: string) => (id ? `#workout-${id}` : '#workout'),
   duel: (code: string) => `#duel-${code}`,
+  music: '#music',
+  goals: '#goals',
 };
 
 export function parseRoute(hash: string): Route {
@@ -58,6 +62,8 @@ export function parseRoute(hash: string): Route {
   if (h === 'privacy') return { name: 'privacy' };
   if (h === 'signup') return { name: 'signup' };
   if (h === 'share') return { name: 'share' };
+  if (h === 'music') return { name: 'music' };
+  if (h === 'goals') return { name: 'goals' };
   const j = /^join-([A-Za-z0-9]{4,12})$/.exec(h);
   if (j) return { name: 'join', code: j[1].toUpperCase() };
   if (h === 'chat') return { name: 'chat', scope: 'me' };

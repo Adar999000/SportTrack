@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.6.0 (2026-11-27)
+- Stories (24 h): `createPost` kind `story` with a sanitized template (`rings`, `workout`, `achievement`, `photo`, `text`) and background; `stories` returns live stories grouped by person; `viewStory` counts views (owner sees count and names); high-five reuses `likePost`. Stories are kept out of the feed. Workout routes are reduced to a 0–100 shape on the device, so no coordinates are uploaded.
+- Story bar, full-screen viewer (progress bars, tap / keys / hold to pause / swipe down), composer with live preview, "Share as story" on a workout.
+- Music: Spotify PKCE sign-in in the browser (client ID set by the admin in Admin → Settings), playlists, now playing and play/pause/next on the user's Spotify device (Premium); Spotify / Apple Music embed for any link; mini player in the GPS recorder.
+- Onboarding goals (multi-select, stored in `profile.goals`, whitelisted on the server), a simpler 3-step welcome, and "My goals" under Me.
+- Skins "Athletic" and "Premium" (from design.md references), `--signal-ink` so badges stay readable on any skin.
+- Landing a11y (lang on English text, accessibility link in the header, live region for the demo table, focus rings, 44px targets); page content clears the floating buttons.
+
 ## 5.5.0 (2026-11-27)
 - Meetups: posts of kind `meetup` (title, time, place, sport) with RSVP (`rsvpPost`), Google Maps link, .ics with a 1-hour alarm, and an on-device reminder.
 - Challenge chat (`duelChat` / `duelSay`, `DuelChat` sheet), members only, refreshes every 8 s while open.

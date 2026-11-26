@@ -1,7 +1,10 @@
 import { t, tr } from '../i18n';
 import { formatShort } from '../dates';
 import { confirmButton, h, openSheet, toast } from './dom';
-import { call } from '../api';
+import { call, hasBackend } from '../api';
+import { openStoryComposer, workoutStory } from './storiesView';
+import { miniPlayer } from './musicView';
+import { icon } from './icons';
 import { isAdmin } from '../session';
 import { HASH, navigate } from './router';
 import { track } from '../analytics';
@@ -148,6 +151,7 @@ function renderDetail(root: HTMLElement, w: Workout) {
       statTiles(w.type, w.distanceM, w.durationS),
       splits.length && w.type !== 'bike' ? h('div', null, h('h3', { class: 'section-title' }, t('לפי קילומטר')),
         h('div', { class: 'wo-splits' }, splits.map((s, i) => h('div', { class: 'wo-split' }, h('span', null, tr`ק"מ ${i + 1}`), h('b', null, fmtDuration(s)))))) : '',
+      hasBackend() ? h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openStoryComposer(workoutStory(w)) }, icon('story'), ' ', t('שיתוף כסטורי')) : '',
       confirmButton(t('מחק אימון'), t('הקש שוב למחיקה'), () => { deleteWorkout(w.id); navigate(HASH.stats); toast(t('האימון נמחק')); }, 'btn btn-danger'),
     ),
   );
@@ -236,7 +240,7 @@ function renderRecorder(root: HTMLElement) {
   root.replaceChildren(
     h('section', { class: 'card stack wo-recorder' },
       h('h2', { class: 'card-title' }, t('אימון חדש')),
-      types, m.el, stats, statusEl, controls,
+      types, m.el, stats, statusEl, controls, miniPlayer(),
       h('p', { class: 'hint' }, t('השאירו את האפליקציה פתוחה בזמן האימון: הדפדפן לא מודד מיקום כשהמסך כבוי. הצעדים הם הערכה לפי המרחק.')),
     ),
   );

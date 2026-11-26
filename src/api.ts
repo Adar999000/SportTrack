@@ -6,6 +6,7 @@ export interface UserProfile {
   heightCm?: number;
   goalWeight?: number;
   goal?: string;
+  goals?: string[];
   completed?: boolean;
 }
 
