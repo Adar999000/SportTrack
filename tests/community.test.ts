@@ -158,6 +158,9 @@ describe('server self-update', () => {
     const again = be.post({ action: 'serverUpdate', token: adm.token });
     expect(again).toMatchObject({ updated: true, version: 7, deployments: 1 });
     expect(be.fetches.at(-1).url).toMatch(/deployments\/old-url$/);
+    // code already installed by an older server (no stored version): the newest version comes from the project
+    be.properties.set('CODE_VERSION', '');
+    expect(be.post({ action: 'serverUpdate', token: adm.token })).toMatchObject({ updated: true, version: 6, deployments: 1 });
     expect(be.post({ action: 'status' }).serverVersion).toBeTruthy();
   });
 });

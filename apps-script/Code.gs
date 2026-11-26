@@ -15,7 +15,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '4.0.3';
+const SERVER_VERSION = '4.0.4';
 /** Self-update: the server pulls its own code from GitHub and redeploys the same web-app URL. */
 const UPDATE_SOURCE = 'https://raw.githubusercontent.com/Adar999000/SportTrack/claude/personal-discipline-pwa-13qhdk/apps-script/';
 const DEFAULT_MODEL = 'gpt-4o-mini';
@@ -2212,7 +2212,8 @@ function selfUpdate(force) {
 
   if (!force && props().getProperty('CODE_HASH') === hash) {
     // code unchanged: still bring any deployment that lags behind up to the newest version
-    const latest = Number(props().getProperty('CODE_VERSION')) || 0;
+    let latest = Number(props().getProperty('CODE_VERSION')) || 0;
+    if (!latest) latest = Math.max.apply(null, (call('get', '/versions?pageSize=200').versions || []).map((v) => v.versionNumber).concat([0]));
     if (!latest) return { updated: false, upToDate: true };
     const lagging = webDeployments().filter((d) => d.deploymentConfig.versionNumber < latest);
     if (!lagging.length) return { updated: false, upToDate: true };

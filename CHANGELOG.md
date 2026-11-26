@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.0.4 (2026-11-26)
+- Self-update catch-up works even when the code was installed by an older server (newest version read from the project).
+
 ## 4.0.3 (2026-11-26)
 - App points at the new deployment URL.
 - Self-update moves every web-app deployment to the new version (not one hard-coded ID), and on later runs catches up any deployment that lags behind.

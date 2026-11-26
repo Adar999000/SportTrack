@@ -125,7 +125,8 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
         }
         if (url.startsWith('https://script.googleapis.com/')) {
           const web = (id, v) => ({ deploymentId: id, deploymentConfig: { versionNumber: v }, entryPoints: [{ entryPointType: 'WEB_APP' }] });
-          const body = url.endsWith('/versions') ? { versionNumber: 7 }
+          const body = url.includes('/versions?') ? { versions: [{ versionNumber: 5 }, { versionNumber: 6 }] }
+            : url.endsWith('/versions') ? { versionNumber: 7 }
             : url.endsWith('/deployments') && (opts.method || 'get') === 'get'
               ? { deployments: [{ deploymentId: 'HEAD', deploymentConfig: {} }, web('old-url', 3), web('new-url', 7)] } : {};
           return { getResponseCode: () => 200, getContentText: () => JSON.stringify(body) };
