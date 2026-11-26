@@ -119,6 +119,8 @@ export interface Settings {
   skin?: string;
   /** Which celebration effect plays (when effects is on). */
   effectKind?: 'confetti' | 'stars' | 'fireworks';
+  /** The character pops out with tips now and then. */
+  peeks?: boolean;
   /** Show the floating assistant button (off by default to keep the screen clean). */
   showFab?: boolean;
   /** The assistant's character (see MASCOTS). */

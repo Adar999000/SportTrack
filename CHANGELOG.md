@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.5.0 (2026-11-27)
+- Meetups: posts of kind `meetup` (title, time, place, sport) with RSVP (`rsvpPost`), Google Maps link, .ics with a 1-hour alarm, and an on-device reminder.
+- Challenge chat (`duelChat` / `duelSay`, `DuelChat` sheet), members only, refreshes every 8 s while open.
+- Team posts: admins can post as "צוות משמעת אישית" (official badge); three welcome posts are written once.
+- Mascot peeks: a few times a day the character jumps out of its button with a speech bubble (meetup soon, a good time to work out from your usual hours plus Open-Meteo weather near your last GPS workout, insights, motivation). Tap to continue in the chat; toggle in Settings.
+- Fixes: the sticky month column no longer overlaps the scrolled cells; "full day" wording only when every task is V (otherwise "day closed").
+
 ## 5.4.1 (2026-11-26)
 - Settings → Assistant character lists only owned characters plus a "+N in store" tile that opens the store on the characters tab (no more grid of locked, half-loaded tiles).
 

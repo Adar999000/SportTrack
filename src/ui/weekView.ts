@@ -64,6 +64,9 @@ function label(full: string, short: string, key?: string) {
 /** How much of a day is filled in (meals + sport), 0–4. */
 const dayDone = (d: Day) => (['breakfast', 'lunch', 'dinner'] as const).filter((k) => d[k] || d.text?.[k]).length + (d.sport.status ? 1 : 0);
 
+/** Every task marked as done (V), not just filled in. */
+const perfectDay = (d: Day) => d.breakfast === 'V' && d.lunch === 'V' && d.dinner === 'V' && d.sport.status === 'V';
+
 /** "Good morning, Dana" by the time of day. */
 function greeting(): string {
   const hr = new Date().getHours();
@@ -174,7 +177,7 @@ function todayPanel(today: string): HTMLElement {
       h('div', null,
         h('p', { class: 'greet' }, greeting()),
         h('h2', { class: 'card-title' }, tr`יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
-        h('p', { class: 'today-motto' }, done >= 4 ? t('יום מלא. אלוף/ה') : nextTask(d)),
+        h('p', { class: 'today-motto' }, done >= 4 ? (perfectDay(d) ? t('יום מלא. אלוף/ה') : t('היום סגור: כל המשימות סומנו')) : nextTask(d)),
         smartChips(sunday),
       ),
       activityRings(d, getWeek(sunday)),

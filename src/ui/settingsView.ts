@@ -125,6 +125,7 @@ export function renderSettings(root: HTMLElement): void {
           return sel;
         })()),
       toggle(t('כפתור נגישות צף'), a11yButtonVisible(), (v) => setA11yButtonVisible(v), t('התפריט זמין תמיד גם במסך "אני"')),
+      hasBackend() && toggle(t('הדמות מציצה עם טיפים'), st.peeks !== false, (v) => updateSettings({ peeks: v }), t('מדי פעם הדמות יוצאת מהעיגול עם תובנה, תזכורת או מוטיבציה')),
       hasBackend() && toggle(t('כפתור עוזר AI צף'), st.showFab !== false, (v) => updateSettings({ showFab: v }), t('גם כשהוא כבוי, העוזר זמין במסך "אני"')),
       hasBackend() && ['confetti', 'stars', 'fireworks'].some((k) => owns('effect:' + k)) && toggle(t('חגיגה ביום מלא'), !!st.effects, (v) => updateSettings({ effects: v })),
       h('div', { class: 'setting setting-col' },

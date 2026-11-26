@@ -32,6 +32,7 @@ import { renderFeed } from './ui/feedView';
 import { dirtyDocCount, loadDocs, setDocsOwner } from './docs';
 import { initAnalytics, track } from './analytics';
 import { markNudgesRead } from './nudges';
+import { initPeeks } from './ui/peek';
 import { renderLanding } from './ui/landingView';
 import { initInstall } from './install';
 import { applyA11y } from './a11y';
@@ -50,7 +51,7 @@ setDayCompleteHandler(() => {
     const full = w.days.filter((d) => (d.breakfast || d.text?.breakfast) && (d.lunch || d.text?.lunch) && (d.dinner || d.text?.dinner) && d.sport.status).length;
     const wo = w.days.filter((d) => d.sport.status === 'V' && d.sport.countsAsWorkout).length;
     celebrate('week', t('השבוע נסגר'), tr`${full} ימים מלאים · ${wo} אימונים`);
-  } else celebrate('day', t('יום מלא'), t('כל המשימות של היום סומנו'));
+  } else celebrate('day', t('היום סגור'), t('כל המשימות של היום סומנו'));
 });
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
@@ -373,6 +374,7 @@ async function boot() {
   );
   initAnalytics();
   initSwipeTabs();
+  initPeeks();
   addEventListener('scroll', () => document.body.classList.toggle('scrolled', scrollY > 4), { passive: true });
   await loadStore();
   await loadDocs();

@@ -9,6 +9,7 @@ describe('custom trackers, feed and events', () => {
 
   beforeEach(() => {
     be = createBackend();
+    be.properties.set('TEAM_SEEDED', '1'); // keep the team's welcome posts out of these counts
     admin = reg('adm@x.com', 'מנהל');
     a = reg('a@x.com', 'אלף');
     const { code } = be.post({ action: 'myInvite', token: a.token });
@@ -32,11 +33,11 @@ describe('custom trackers, feed and events', () => {
   it('shows posts by visibility: everyone vs friends only', () => {
     be.post({ action: 'createPost', token: a.token, text: 'לכולם', visibility: 'all' });
     be.post({ action: 'createPost', token: a.token, text: 'רק לחברים', visibility: 'friends' });
-    const texts = (t: string) => be.post({ action: 'feed', token: t }).posts.map((p: any) => p.text);
+    const texts = (t: string) => be.post({ action: 'feed', token: t }).posts.filter((p: any) => !p.author.team).map((p: any) => p.text);
     expect(texts(a.token)).toEqual(['רק לחברים', 'לכולם']);
     expect(texts(friend.token)).toEqual(['רק לחברים', 'לכולם']);
     expect(texts(stranger.token)).toEqual(['לכולם']);
-    expect(be.post({ action: 'feed', token: stranger.token }).posts[0].author.name).toBe('אלף');
+    expect(be.post({ action: 'feed', token: stranger.token }).posts.find((p: any) => !p.author.team).author.name).toBe('אלף');
     expect(be.post({ action: 'createPost', token: a.token, text: '' }).error).toMatch(/לכתוב/);
   });
 
@@ -192,5 +193,47 @@ describe('Strava (smart watches)', () => {
     expect(acts[0].polyline).toBeTruthy();
     be.post({ action: 'stravaDisconnect', token: u.token });
     expect(be.post({ action: 'stravaStatus', token: u.token }).connected).toBe(false);
+  });
+});
+
+describe('meetups, team posts and challenge chat', () => {
+  it('seeds team posts once, lets the admin post as the team, and handles meetup RSVPs', () => {
+    const be = createBackend();
+    const adm = be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
+    const v = be.post({ action: 'register', email: 'v@x.com', password: 'secret12', name: 'יוסי' });
+    let posts = be.post({ action: 'feed', token: u.token }).posts;
+    expect(posts.filter((p: any) => p.author.team)).toHaveLength(3);
+    be.post({ action: 'feed', token: u.token });
+    expect(be.post({ action: 'feed', token: u.token }).posts.filter((p: any) => p.author.team)).toHaveLength(3); // only once
+    // only admins can post as the team
+    expect(be.post({ action: 'createPost', token: u.token, text: 'x', asTeam: true }).post.author.team).toBe(false);
+    expect(be.post({ action: 'createPost', token: adm.token, text: 'עדכון מהצוות', asTeam: true }).post.author).toMatchObject({ team: true, name: 'צוות משמעת אישית' });
+    // meetups
+    const soon = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 16);
+    expect(be.post({ action: 'createPost', token: u.token, kind: 'meetup', data: { title: 'ריצה', when: '2020-01-01T07:00' } }).error).toMatch(/עתידי/);
+    const { post } = be.post({ action: 'createPost', token: u.token, kind: 'meetup', data: { title: 'ריצה קבוצתית', when: soon, location: 'פארק הירקון', sport: 'run' } });
+    expect(post.data.going).toEqual([u.user.userId]);
+    expect(be.post({ action: 'rsvpPost', token: v.token, id: post.id })).toEqual({ going: 2, me: true });
+    expect(be.post({ action: 'rsvpPost', token: v.token, id: post.id })).toEqual({ going: 1, me: false });
+    const text = be.post({ action: 'createPost', token: u.token, text: 'רגיל' }).post;
+    expect(be.post({ action: 'rsvpPost', token: v.token, id: text.id }).error).toMatch(/מפגש/);
+  });
+
+  it('challenge members chat among themselves; others cannot read', () => {
+    const be = createBackend();
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית', invite: be.post({ action: 'myInvite', token: a.token }).code });
+    const c = be.post({ action: 'register', email: 'c@x.com', password: 'secret12', name: 'גימל' });
+    const { duel } = be.post({ action: 'createDuel', token: a.token, metric: 'workouts', days: 7, invite: [b.user.userId] });
+    expect(be.post({ action: 'duelSay', token: b.token, id: duel.id, text: 'אני בפנים?' }).error).toMatch(/לא נמצא/); // invited, not joined yet
+    be.post({ action: 'respondDuel', token: b.token, id: duel.id, accept: true });
+    be.post({ action: 'duelSay', token: a.token, id: duel.id, text: 'יאללה 💪' });
+    be.post({ action: 'duelSay', token: b.token, id: duel.id, text: 'בטח!' });
+    const msgs = be.post({ action: 'duelChat', token: a.token, id: duel.id }).messages;
+    expect(msgs.map((m: any) => [m.name, m.text, m.mine])).toEqual([['אלף', 'יאללה 💪', true], ['בית', 'בטח!', false]]);
+    expect(be.post({ action: 'duelChat', token: a.token, id: duel.id, after: msgs[0].id }).messages).toHaveLength(1);
+    expect(be.post({ action: 'duelChat', token: c.token, id: duel.id }).error).toMatch(/לא נמצא/);
   });
 });

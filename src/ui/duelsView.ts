@@ -69,10 +69,45 @@ function duelCard(d: Duel, reload: () => void): HTMLElement {
           h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => { try { await call('respondDuel', { id: d.id, accept: true }); track('duel:join'); toast(t('הצטרפת! בהצלחה 💪')); reload(); } catch (e: any) { toast(e.message); } } }, t('הצטרף')),
           h('button', { class: 'btn', type: 'button', onclick: async () => { try { await call('respondDuel', { id: d.id, accept: false }); reload(); } catch (e: any) { toast(e.message); } } }, t('לא תודה')))
       : h('div', { class: 'duel-actions' },
+          d.myStatus === 'in' && h('button', { class: 'btn', type: 'button', onclick: () => openDuelChat(d) }, '💬 ', t('צ\'אט')),
           d.status === 'active' && d.code && h('button', { class: 'btn', type: 'button', onclick: () => shareInvite(d) }, '📨 ', t('הזמן חברים')),
           d.status === 'active' && confirmButton(d.mine ? t('בטל אתגר') : t('צא מהאתגר'), t('הקש שוב לאישור'), async () => { try { await call('leaveDuel', { id: d.id }); reload(); } catch (e: any) { toast(e.message); } }, 'btn btn-danger'),
         ),
   );
+}
+
+interface ChatMsg { id: string; userId: string; name: string; at: string; text: string; mine: boolean }
+
+/** The challenge's own chat between its members (refreshes while open). */
+function openDuelChat(d: Duel): void {
+  let msgs: ChatMsg[] = [];
+  const log = h('div', { class: 'chat-log duel-chat-log', 'aria-live': 'polite' });
+  const input = h('input', { class: 'input', maxlength: 500, placeholder: t('כתבו משהו לקבוצה…'), 'aria-label': t('הודעה') }) as HTMLInputElement;
+  const draw = () => {
+    log.replaceChildren(...(msgs.length ? msgs.map((m) => h('div', { class: 'bubble ' + (m.mine ? 'bubble-user' : 'bubble-assistant') },
+      !m.mine ? h('strong', { class: 'dc-name' }, m.name) : '', m.text)) : [h('p', { class: 'muted' }, t('עוד אין הודעות. תגידו שלום 👋'))]));
+    log.scrollTop = log.scrollHeight;
+  };
+  const load = async () => {
+    try {
+      const { messages } = await call<{ messages: ChatMsg[] }>('duelChat', { id: d.id, after: msgs.length ? msgs[msgs.length - 1].id : '' });
+      if (messages.length) { msgs = msgs.concat(messages.filter((m) => !msgs.some((x) => x.id === m.id))); draw(); }
+    } catch { /* offline: try again next tick */ }
+  };
+  const form = h('form', { class: 'chat-form', onsubmit: async (e: Event) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    try { const { message } = await call<{ message: ChatMsg }>('duelSay', { id: d.id, text }); msgs.push(message); draw(); track('duel:chat'); }
+    catch (ex: any) { toast(ex.message); input.value = text; }
+  } }, input, h('button', { class: 'btn btn-primary', type: 'submit' }, t('שלח')));
+  const body = h('div', { class: 'stack duel-chat' }, log, form);
+  draw();
+  load();
+  const timer = setInterval(() => { if (!body.isConnected) clearInterval(timer); else load(); }, 8000);
+  openSheet(tr`צ'אט: ${d.title}`, body);
+  setTimeout(() => input.focus(), 100);
 }
 
 function newDuelSheet(onDone: () => void): void {

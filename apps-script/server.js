@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.3.0';
+const SERVER_VERSION = '5.5.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -112,6 +112,9 @@ function route(req) {
     case 'stravaAuthUrl': return { url: stravaAuthUrl(me) };
     case 'stravaImport': return { activities: stravaImport(me, Number(req.after) || 0) };
     case 'stravaDisconnect': setExtra(me, { strava: null }); return { ok: true };
+    case 'rsvpPost': return rsvpPost(me, req);
+    case 'duelChat': return { messages: duelChat(me, String(req.id || ''), String(req.after || '')) };
+    case 'duelSay': return duelSay(me, req);
     case 'contactAdmin': return { message: createMessage(me, String(req.subject || ''), String(req.text || '')) };
     case 'myMessages': return myMessages(me);
     case 'unreadCount': return { unread: messageRows().filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length };
@@ -1377,6 +1380,7 @@ function deleteAccount(me, req) {
     deleteRowsWhere(messagesSheet(), M.user, (v) => v === uid);
     deleteRowsWhere(sheet('Invites'), 4, (v) => v === uid);
     deleteRowsWhere(docsSheet(), D.user, (v) => v === uid);
+    deleteRowsWhere(duelChatSheet(), DC.user, (v) => v === uid);
     const ash = analyticsSheet();
     allRows(ash, 4).forEach((r, i) => {
       const us = parseJSON(r[AN.users], []) || [];
@@ -1760,8 +1764,9 @@ function canSeePost(uid, r, friends) {
   return r[P.vis] === 'all' || !!friends[r[P.user]];
 }
 
+const TEAM_ID = 'team';
 function postOut(r, uid, people) {
-  const a = people[r[P.user]] || { name: '—' };
+  const a = r[P.user] === TEAM_ID ? { name: 'צוות משמעת אישית', team: true } : (people[r[P.user]] || { name: '—' });
   const likes = parseJSON(r[P.likes], []) || [];
   const comments = (parseJSON(r[P.comments], []) || []).slice(-30).map((c) => ({
     id: c.id, userId: c.userId, name: (people[c.userId] || {}).name || '—', text: c.text, at: c.at,
@@ -1769,7 +1774,7 @@ function postOut(r, uid, people) {
   return {
     id: r[P.id], at: r[P.at], kind: r[P.kind], text: r[P.text], data: parseJSON(r[P.data], null), photoId: r[P.photo] || null,
     visibility: r[P.vis], status: r[P.status], mine: r[P.user] === uid,
-    author: { userId: r[P.user], name: a.name, photoId: a.photoId || null, frame: a.frame || '', level: a.level || 1, levelName: a.levelName || '' },
+    author: { userId: r[P.user], name: a.name, photoId: a.photoId || null, frame: a.frame || '', level: a.level || 1, levelName: a.levelName || '', team: !!a.team },
     likes: likes.length, liked: likes.indexOf(uid) >= 0, comments: comments,
   };
 }
@@ -1780,7 +1785,22 @@ function peopleIndex() {
   return out;
 }
 
+/** A few welcome posts from the team, written once, so the feed explains itself. */
+function ensureTeamPosts() {
+  if (props().getProperty('TEAM_SEEDED')) return;
+  props().setProperty('TEAM_SEEDED', '1');
+  const now = Date.now();
+  const posts = [
+    'ברוכים הבאים לקהילה של משמעת אישית! 👋 כאן משתפים אימונים, הישגים וטיפים, ומעודדים אחד את השני. אפשר לבחור בכל פוסט אם הוא לכולם או רק לחברים.',
+    'טיפ להתחלה: לא צריך שבוע מושלם. מטרה ראשונה טובה היא 3 אימונים בשבוע וצהריים בריא כל יום. הטבעות במסך "היום" יראו לכם איפה אתם עומדים.',
+    'חדש: מפגשים! אפשר לפרסם ריצה קבוצתית, אימון בפארק או רכיבה משותפת, ומי שלוחץ "אני בא" יקבל תזכורת ביום המפגש. מה המפגש הראשון שלכם?',
+  ];
+  const rowsNew = posts.map((text, i) => [Utilities.getUuid().slice(0, 10), TEAM_ID, new Date(now - (posts.length - i) * 60000).toISOString(), 'all', 'text', text, '', '', '[]', '[]', '[]', 'ok']);
+  withLock(() => appendRows(postsSheet(), rowsNew));
+}
+
 function feed(me, req) {
+  ensureTeamPosts();
   const uid = me.r[U.id];
   const friends = friendsOf(uid, rows('Users'));
   const before = String(req.before || '9999');
@@ -1796,15 +1816,26 @@ function feed(me, req) {
 
 function createPost(me, req) {
   const text = String(req.text || '').trim().slice(0, 1000);
-  const kind = ['text', 'achievement', 'tracker', 'event'].indexOf(req.kind) >= 0 ? req.kind : 'text';
-  const data = req.data && typeof req.data === 'object' ? JSON.stringify(req.data) : '';
+  const kind = ['text', 'achievement', 'tracker', 'event', 'meetup'].indexOf(req.kind) >= 0 ? req.kind : 'text';
+  let dataObj = req.data && typeof req.data === 'object' ? req.data : null;
+  if (kind === 'meetup') {
+    const m = dataObj || {};
+    const when = String(m.when || '');
+    if (!String(m.title || '').trim()) throw new Error('נא לתת שם למפגש');
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(when) || Date.parse(when) < Date.now() - 3600000) throw new Error('נא לבחור מועד עתידי');
+    dataObj = { title: String(m.title).trim().slice(0, 80), when: when.slice(0, 16), location: String(m.location || '').trim().slice(0, 120),
+      sport: EVENT_TYPES.indexOf(m.sport) >= 0 ? m.sport : 'other', going: [me.r[U.id]] };
+  }
+  const data = dataObj ? JSON.stringify(dataObj) : '';
+  const asTeam = !!req.asTeam && me.r[U.role] === 'admin';
   if (data.length > 4000) throw new Error('הפוסט גדול מדי');
   if (!text && !data && !req.photo) throw new Error('נא לכתוב משהו');
   dailyCount('post-' + me.r[U.id], 15, 'אפשר לפרסם עד 15 פוסטים ביום');
   const id = Utilities.getUuid().slice(0, 10);
   const photoId = req.photo ? savePhoto(String(req.photo), 'post-' + id + '.jpg', '') : '';
-  const row = [id, me.r[U.id], new Date().toISOString(), req.visibility === 'friends' ? 'friends' : 'all', kind, text, data, photoId, '[]', '[]', '[]', 'ok'];
+  const row = [id, asTeam ? TEAM_ID : me.r[U.id], new Date().toISOString(), req.visibility === 'friends' && !asTeam ? 'friends' : 'all', kind, text, data, photoId, '[]', '[]', '[]', 'ok'];
   withLock(() => appendRows(postsSheet(), [row]));
+  if (asTeam) audit(me.r[U.id], 'team_post', id);
   return { post: postOut(row, me.r[U.id], peopleIndex()) };
 }
 
@@ -2293,4 +2324,52 @@ function stravaImport(me, after) {
     id: 's' + a.id, type: STRAVA_TYPES[a.sport_type || a.type], name: String(a.name || '').slice(0, 80), start: Date.parse(a.start_date),
     durationS: Number(a.moving_time) || 0, distanceM: Math.round(Number(a.distance) || 0), polyline: (a.map && a.map.summary_polyline) || '',
   }));
+}
+
+// ------------------------------------------------------------------ meetups (RSVP) and challenge chat
+
+function rsvpPost(me, req) {
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    if (p.r[P.kind] !== 'meetup') throw new Error('זה לא מפגש');
+    const d = parseJSON(p.r[P.data], {}) || {};
+    const going = Array.isArray(d.going) ? d.going : [];
+    const uid = me.r[U.id];
+    const k = going.indexOf(uid);
+    if (k >= 0) going.splice(k, 1); else { if (going.length >= 200) throw new Error('המפגש מלא'); going.push(uid); }
+    d.going = going;
+    postsSheet().getRange(p.row, P.data + 1).setValue(JSON.stringify(d));
+    return { going: going.length, me: k < 0 };
+  });
+}
+
+const DC = { duel: 0, user: 1, at: 2, text: 3, id: 4 };
+function duelChatSheet() { return lazySheet('DuelChat', ['duelId', 'userId', 'at', 'text', 'id']); }
+
+function duelMember(me, id, needIn) {
+  const r = allRows(duelsSheet(), DUEL_W).find((x) => x[DU.id] === id);
+  const m = r && (parseJSON(r[DU.members], []) || []).find((x) => x.userId === me.r[U.id]);
+  if (!m || m.status === 'declined' || (needIn && m.status !== 'in')) throw new Error('האתגר לא נמצא');
+  return r;
+}
+
+/** Messages in a challenge's own chat (members only). */
+function duelChat(me, id, after) {
+  duelMember(me, id, false);
+  const people = peopleIndex();
+  const list = allRows(duelChatSheet(), 5).filter((r) => r[DC.duel] === id);
+  const from = after ? list.findIndex((r) => r[DC.id] === after) + 1 : 0;
+  return list.slice(Math.max(from, list.length - 100))
+    .map((r) => ({ id: r[DC.id], userId: r[DC.user], name: (people[r[DC.user]] || {}).name || '—', at: r[DC.at], text: r[DC.text], mine: r[DC.user] === me.r[U.id] }));
+}
+
+function duelSay(me, req) {
+  const id = String(req.id || '');
+  const text = String(req.text || '').trim().slice(0, 500);
+  if (!text) throw new Error('נא לכתוב הודעה');
+  duelMember(me, id, true);
+  dailyCount('dchat-' + me.r[U.id], 150, 'אפשר לשלוח עד 150 הודעות ביום');
+  const row = [id, me.r[U.id], new Date().toISOString(), text, Utilities.getUuid().slice(0, 8)];
+  withLock(() => appendRows(duelChatSheet(), [row]));
+  return { message: { id: row[4], userId: me.r[U.id], name: me.r[U.name], at: row[2], text: text, mine: true } };
 }

@@ -5,6 +5,7 @@ import { fileToDataUrl, pickImage } from '../image';
 import { levelLabel } from '../rewards';
 import { formatShort } from '../dates';
 import { avatar } from './avatar';
+import { logo } from './icons';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { duelsTab } from './duelsView';
@@ -13,7 +14,7 @@ import { cardPreview, openShareAchievement, shareOutside, visibilitySelect, type
 
 export interface Post {
   id: string; at: string; kind: string; text: string; data: any; photoId: string | null; visibility: 'all' | 'friends'; status: string; mine: boolean;
-  author: { userId: string; name: string; photoId: string | null; frame: string; level: number; levelName: string };
+  author: { userId: string; name: string; photoId: string | null; frame: string; level: number; levelName: string; team?: boolean };
   likes: number; liked: boolean; comments: { id: string; userId: string; name: string; text: string; at: string }[];
 }
 export interface CompEvent { id: string; title: string; date: string; location: string; type: string; url: string; details: string; status: string; mine: boolean }
@@ -81,10 +82,10 @@ function postCard(p: Post, reload: () => void): HTMLElement {
   };
   return h('article', { class: 'card post' + (p.status !== 'ok' ? ' post-hidden' : '') },
     h('header', { class: 'post-head' },
-      avatar(p.author.name, p.author.photoId, 42, p.author.frame),
+      p.author.team ? h('span', { class: 'team-avatar', 'aria-hidden': 'true' }, logo(42)) : avatar(p.author.name, p.author.photoId, 42, p.author.frame),
       h('div', { class: 'post-who' },
-        h('strong', null, p.author.name),
-        h('span', { class: 'muted small' }, tr`רמה ${p.author.level} · ${levelLabel(p.author.levelName)}`, ' · ', ago(p.at), ' · ', p.visibility === 'friends' ? '👥' : '🌍'),
+        h('strong', null, p.author.name, p.author.team ? h('span', { class: 'team-badge' }, '✓ ', t('רשמי')) : ''),
+        h('span', { class: 'muted small' }, p.author.team ? '' : tr`רמה ${p.author.level} · ${levelLabel(p.author.levelName)} · `, ago(p.at), ' · ', p.visibility === 'friends' ? '👥' : '🌍'),
       ),
       h('button', { class: 'icon-btn sm', type: 'button', 'aria-label': t('אפשרויות'), onclick: more }, '⋯'),
     ),
@@ -92,6 +93,7 @@ function postCard(p: Post, reload: () => void): HTMLElement {
     p.text && h('p', { class: 'post-text' }, p.text),
     p.kind === 'achievement' && p.data && cardPreview(p.data as Achievement),
     p.kind === 'event' && p.data && eventMini(p.data as CompEvent),
+    p.kind === 'meetup' && p.data && meetupCard(p),
     p.photoId && postPhoto(p.photoId),
     h('footer', { class: 'post-actions' },
       likeBtn,
@@ -99,6 +101,80 @@ function postCard(p: Post, reload: () => void): HTMLElement {
     ),
     comments,
   );
+}
+
+export interface Meetup { title: string; when: string; location: string; sport: string; going: string[] }
+const REMIND_KEY = () => 'meetups:' + (currentUser()?.userId ?? '');
+/** Meetups I'm going to, kept on the device for reminders. */
+export function myMeetups(): { id: string; title: string; when: string; location: string }[] {
+  try { return JSON.parse(localStorage.getItem(REMIND_KEY()) || '[]'); } catch { return []; }
+}
+function rememberMeetup(id: string, m: Meetup, on: boolean) {
+  const list = myMeetups().filter((x) => x.id !== id && Date.parse(x.when) > Date.now() - 864e5);
+  if (on) list.push({ id, title: m.title, when: m.when, location: m.location });
+  try { localStorage.setItem(REMIND_KEY(), JSON.stringify(list)); } catch { /* ignore */ }
+}
+
+function icsFile(m: Meetup) {
+  const start = new Date(m.when);
+  const end = new Date(start.getTime() + 3600000);
+  const f = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//mishmaat//meetup//HE', 'BEGIN:VEVENT', `DTSTART:${f(start)}`, `DTEND:${f(end)}`,
+    `SUMMARY:${m.title}`, `LOCATION:${m.location}`, 'BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY', `DESCRIPTION:${m.title}`, 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  const a = h('a', { href: url, download: 'meetup.ics' });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+function meetupCard(p: Post): HTMLElement {
+  const m = p.data as Meetup;
+  const me = currentUser()?.userId ?? '';
+  let going = m.going?.length ?? 0, iGo = !!m.going?.includes(me);
+  const [ic, typeName] = EVENT_TYPES[m.sport] ?? EVENT_TYPES.other;
+  const when = new Date(m.when);
+  const past = when.getTime() < Date.now();
+  const btn = h('button', { class: 'btn' + (iGo ? ' btn-primary' : ''), type: 'button', disabled: past }) as HTMLButtonElement;
+  const drawBtn = () => btn.replaceChildren(iGo ? '✓ ' + t('אני בא') : t('אני בא'), h('span', { class: 'go-count' }, ` · ${going}`));
+  drawBtn();
+  btn.addEventListener('click', async () => {
+    try {
+      const r = await call<{ going: number; me: boolean }>('rsvpPost', { id: p.id });
+      going = r.going; iGo = r.me; drawBtn(); btn.classList.toggle('btn-primary', iGo);
+      rememberMeetup(p.id, m, iGo);
+      if (iGo) { toast(t('מעולה! נזכיר לך ביום המפגש')); track('meetup:rsvp'); }
+    } catch (e: any) { toast(e.message); }
+  });
+  return h('div', { class: 'meetup' + (past ? ' past' : '') },
+    h('div', { class: 'ev-date', 'aria-hidden': 'true' }, h('b', null, String(when.getDate())), h('span', null, when.toLocaleDateString(undefined, { month: 'short' }))),
+    h('div', { class: 'ev-body' },
+      h('strong', null, `${ic} ${m.title}`),
+      h('span', { class: 'muted small' }, `${t(typeName)} · ${when.toLocaleDateString(undefined, { weekday: 'long' })} ${when.toTimeString().slice(0, 5)}`),
+      m.location ? h('a', { class: 'link-btn small', href: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(m.location), target: '_blank', rel: 'noopener noreferrer' }, '📍 ', m.location) : '',
+      h('div', { class: 'meetup-actions' }, btn, !past && h('button', { class: 'btn', type: 'button', onclick: () => icsFile(m) }, '🗓 ', t('ליומן'))),
+    ));
+}
+
+function meetupForm(onDone: () => void): void {
+  const f = (id: string, label: string, el: HTMLElement) => h('div', { class: 'field' }, h('label', { for: id }, label), el);
+  const title = h('input', { class: 'input', id: 'mt-title', maxlength: 80, required: true, placeholder: t('לדוגמה: ריצת בוקר קבוצתית') }) as HTMLInputElement;
+  const when = h('input', { class: 'input', id: 'mt-when', type: 'datetime-local', required: true }) as HTMLInputElement;
+  const loc = h('input', { class: 'input', id: 'mt-loc', maxlength: 120, placeholder: t('לדוגמה: פארק הירקון, הכניסה מרוקח') }) as HTMLInputElement;
+  const type = h('select', { class: 'input', id: 'mt-type' }, Object.entries(EVENT_TYPES).map(([k, [ic, n]]) => h('option', { value: k }, `${ic} ${t(n)}`))) as HTMLSelectElement;
+  const vis = visibilitySelect('mt-vis') as HTMLSelectElement;
+  const text = h('textarea', { class: 'input', id: 'mt-text', rows: 2, maxlength: 1000, placeholder: t('פרטים: קצב, מרחק, למי מתאים…') }) as HTMLTextAreaElement;
+  const close = openSheet(t('מפגש חדש'), h('form', { class: 'stack', onsubmit: async (e: Event) => {
+    e.preventDefault();
+    try {
+      const { post } = await call<{ post: Post }>('createPost', { kind: 'meetup', text: text.value, visibility: vis.value, data: { title: title.value, when: when.value, location: loc.value, sport: type.value } });
+      rememberMeetup(post.id, post.data as Meetup, true);
+      close(); toast(t('המפגש פורסם בקהילה')); track('meetup:create'); onDone();
+    } catch (ex: any) { toast(ex.message); }
+  } },
+    f('mt-title', t('שם המפגש'), title), f('mt-when', t('מתי'), when), f('mt-loc', t('איפה'), loc), f('mt-type', t('סוג'), type),
+    f('mt-text', t('פרטים (לא חובה)'), text), f('mt-vis', t('מי יראה'), vis),
+    h('button', { class: 'btn btn-primary', type: 'submit' }, t('פרסם מפגש')),
+  ));
 }
 
 function composer(onPosted: () => void): HTMLElement {
@@ -113,7 +189,8 @@ function composer(onPosted: () => void): HTMLElement {
     if (!text.value.trim() && !photo) return toast(t('נא לכתוב משהו'));
     (post as HTMLButtonElement).disabled = true;
     try {
-      const r = await call<{ post: Post }>('createPost', { text: text.value, visibility: vis.value, photo });
+      const asTeam = !!(document.getElementById('as-team') as HTMLInputElement | null)?.checked;
+      const r = await call<{ post: Post }>('createPost', { text: text.value, visibility: vis.value, photo, asTeam });
       if (r.post.photoId && photo) rememberPhoto(r.post.photoId, photo);
       text.value = ''; photo = null; thumb.hidden = true; toast(t('פורסם')); track('post:create');
       onPosted();
@@ -129,6 +206,8 @@ function composer(onPosted: () => void): HTMLElement {
         catch (ex: any) { toast(ex.message); }
       } }, '📷 ', t('תמונה')),
       h('button', { class: 'btn', type: 'button', onclick: () => openShareAchievement(onPosted) }, '🏅 ', t('הישג')),
+      h('button', { class: 'btn', type: 'button', onclick: () => meetupForm(onPosted) }, '📅 ', t('מפגש')),
+      isAdmin() && h('label', { class: 'team-toggle' }, h('input', { type: 'checkbox', id: 'as-team' }), ' ', t('בשם הצוות')),
       vis,
       post,
     ),
