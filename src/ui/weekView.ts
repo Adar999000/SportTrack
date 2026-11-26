@@ -12,12 +12,18 @@ import { fileToDataUrl, pickImage } from '../image';
 import { setPhotoLocal } from '../store';
 import { toast } from './dom';
 import { HASH, navigate } from './router';
+import { mainCfg } from '../trackers';
+import { trackerBar } from './trackerView';
+import { valueCell } from './valueCell';
 
-const MEAL_ROWS: { key: MealKey; full: string; short: string }[] = [
+const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
   { key: 'lunch', full: t('ארוחת צהריים בריאה'), short: t('צהריים') },
   { key: 'dinner', full: t('ארוחת ערב בריאה'), short: t('ערב') },
 ];
+/** Meal rows with the user's own names, if they renamed them. */
+const mealRows = () => { const l = mainCfg().labels ?? {}; return BASE_ROWS.map((r) => (l[r.key] ? { ...r, full: l[r.key]!, short: l[r.key]! } : r)); };
+const rowName = (k: 'sport' | 'smoked', full: string, short: string) => { const v = mainCfg().labels?.[k]; return v ? { full: v, short: v } : { full, short }; };
 
 const DAY_LETTERS = lang === 'en' ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] : ["א'", "ב'", "ג'", "ד'", "ה'", "ו'", "ש'"];
 const MARK_TEXT: Record<string, string> = { V: t('בוצע'), X: t('לא בוצע'), '-': t('לא רלוונטי') };
@@ -49,12 +55,12 @@ function todayPanel(today: string): HTMLElement {
   return h('section', { class: 'card today', 'aria-label': t('היום') },
     h('h2', { class: 'card-title' }, tr`היום · יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
     h('div', { class: 'today-grid' },
-      MEAL_ROWS.map((r) =>
+      mealRows().map((r) =>
         btn(r.short, d[r.key] ?? '', markClass(d[r.key]), () => cycleMeal(sunday, i, r.key), d[r.key] ? MARK_TEXT[d[r.key]!] : t('ריק')),
       ),
-      btn(t('ספורט'), sportShort(d.sport), markClass(d.sport.status) + ' today-sport', () => openSportSheet(sunday, i), sportShort(d.sport) || t('ריק')),
+      btn(rowName('sport', t('פעילות ספורט'), t('ספורט')).short, sportShort(d.sport), markClass(d.sport.status) + ' today-sport', () => openSportSheet(sunday, i), sportShort(d.sport) || t('ריק')),
       settings.showSmoking &&
-        btn(t('מעשן?'), smokeText(d.smoked), d.smoked === true ? 'mark-X' : d.smoked === false ? 'mark-V' : 'mark-empty', () => cycleSmoke(sunday, i), smokeText(d.smoked) || t('ריק')),
+        btn(rowName('smoked', t('מעשן?'), t('מעשן?')).short, smokeText(d.smoked), d.smoked === true ? 'mark-X' : d.smoked === false ? 'mark-V' : 'mark-empty', () => cycleSmoke(sunday, i), smokeText(d.smoked) || t('ריק')),
     ),
   );
 }
@@ -66,7 +72,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
   const colCls = (i: number) => (i === todayIdx ? 'is-today' : '');
 
   const head = h('tr', null,
-    h('th', { class: 'corner', scope: 'col' }, t('משימה')),
+    h('th', { class: 'corner', scope: 'col' }, mainCfg().corner || t('משימה')),
     DAY_NAMES.map((n, i) =>
       h('th', { scope: 'col', class: colCls(i), 'aria-current': i === todayIdx ? 'date' : undefined },
         h('span', { class: 'lbl-full' }, t(n)),
@@ -76,7 +82,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
     ),
   );
 
-  const rows: HTMLElement[] = MEAL_ROWS.map((r) =>
+  const rows: HTMLElement[] = mealRows().map((r) =>
     h('tr', null,
       h('th', { scope: 'row' }, label(r.full, r.short)),
       week.days.map((d, i) => {
@@ -96,7 +102,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
 
   rows.push(
     h('tr', { class: 'sport-row' },
-      h('th', { scope: 'row' }, label(t('פעילות ספורט'), t('ספורט'))),
+      h('th', { scope: 'row' }, (() => { const n = rowName('sport', t('פעילות ספורט'), t('ספורט')); return label(n.full, n.short); })()),
       week.days.map((d, i) => {
         const txt = sportShort(d.sport);
         const rest = d.sport.status === 'V' && !d.sport.countsAsWorkout;
@@ -115,7 +121,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
   if (settings.showSmoking) {
     rows.push(
       h('tr', null,
-        h('th', { scope: 'row' }, label(t('מעשן?'), t('מעשן?'))),
+        h('th', { scope: 'row' }, (() => { const n = rowName('smoked', t('מעשן?'), t('מעשן?')); return label(n.full, n.short); })()),
         week.days.map((d, i) => {
           const text = d.text?.smoked;
           const edit = () => openCellText(sunday, i, 'smoked', t('מעשן?'));
@@ -130,6 +136,18 @@ function weekTable(sunday: string, today: string): HTMLElement {
         }),
       ),
     );
+  }
+
+  for (const r of mainCfg().extraRows ?? []) {
+    rows.push(h('tr', { class: 'extra-row' },
+      h('th', { scope: 'row' }, label(r.label, r.label)),
+      week.days.map((_, i) => h('td', { class: colCls(i) },
+        valueCell(r.type, week.extra?.[r.id]?.[i] ?? null, `${r.label}, ${t(DAY_NAMES[i])}`, r.unit, (v) => editWeek(sunday, (w) => {
+          const ex = w.extra ?? (w.extra = {});
+          const vals = ex[r.id] ?? (ex[r.id] = Array(7).fill(null));
+          vals[i] = v;
+        })))),
+    ));
   }
 
   return h('div', { class: 'table-wrap' },
@@ -242,6 +260,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   }, { passive: true });
 
   root.replaceChildren(
+    trackerBar(null),
     isCurrent ? todayPanel(today) : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,

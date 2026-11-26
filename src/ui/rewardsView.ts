@@ -9,6 +9,7 @@ import { t, tr } from '../i18n';
 import { ACCENTS, BG_THEMES, FRAMES } from '../types';
 import { getSettings, updateSettings } from '../store';
 import { burst } from './confetti';
+import { openShareAchievement } from './shareCard';
 import { ACCESSORIES, MASCOTS, currentOutfit, mascot } from './mascot';
 
 const coin = () => h('span', { class: 'coin', 'aria-hidden': 'true' });
@@ -241,7 +242,9 @@ export function renderRewards(root: HTMLElement): void {
     }
     root.replaceChildren(
       levelCard(rw),
-      h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.share) }, t('הזמן חברים וצבור מטבעות')),
+      h('div', { class: 'row-btns two' },
+        h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.share) }, t('הזמן חברים וצבור מטבעות')),
+        h('button', { class: 'btn', onclick: () => openShareAchievement() }, '📤 ', t('שתף הישג'))),
       challengesCard(rw),
       shopCard(rw, () => draw(getRewards())),
       levelsCard(rw),

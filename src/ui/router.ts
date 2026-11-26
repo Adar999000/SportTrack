@@ -13,7 +13,9 @@ export type Route =
   | { name: 'login' }
   | { name: 'signup' }
   | { name: 'accessibility' }
-  | { name: 'privacy' };
+  | { name: 'privacy' }
+  | { name: 'tracker'; id: string; sunday?: string }
+  | { name: 'feed'; tab?: 'posts' | 'events' };
 
 /** Hashes are plain names: #week-2026-11-22, #history, #stats, #prefs, #profile, #admin, #chat … */
 export const HASH = {
@@ -32,6 +34,9 @@ export const HASH = {
   login: '#login',
   signup: '#signup',
   share: '#share',
+  tracker: (id: string, sunday?: string) => (sunday ? `#tracker-${id}-${sunday}` : `#tracker-${id}`),
+  feed: '#feed',
+  events: '#events',
 };
 
 export function parseRoute(hash: string): Route {
@@ -56,6 +61,10 @@ export function parseRoute(hash: string): Route {
   if (m) return { name: 'chat', scope: 'user', userId: m[1] };
   m = /^member-([\w-]+)$/.exec(h);
   if (m) return { name: 'adminUser', userId: m[1] };
+  m = /^tracker-([a-z0-9]{3,12})(?:-(\d{4}-\d{2}-\d{2}))?$/.exec(h);
+  if (m) return { name: 'tracker', id: m[1], sunday: m[2] };
+  if (h === 'feed') return { name: 'feed', tab: 'posts' };
+  if (h === 'events') return { name: 'feed', tab: 'events' };
   m = /^week[-/](\d{4}-\d{2}-\d{2})$/.exec(h);
   return { name: 'week', sunday: m ? m[1] : undefined };
 }

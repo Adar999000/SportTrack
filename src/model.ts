@@ -1,4 +1,4 @@
-import type { Day, Mark, SportCell, Week } from './types';
+import type { CellVal, Day, Mark, SportCell, Week } from './types';
 
 export const BUILTIN_SPORT_TYPES = [
   'ריצה', 'אימון כוח', 'חד"כ', 'קיקבוקס', 'אגרוף', 'הליכה', 'אימון בוקר', 'חופשה', 'מנוחה',
@@ -62,6 +62,7 @@ export function isWorkout(s: SportCell): boolean {
 /** True when the week has any user data at all. */
 export function weekHasData(w: Week): boolean {
   if (w.startWeight !== undefined || (w.note && w.note.trim()) || w.photoId) return true;
+  if (w.extra && Object.values(w.extra).some((v) => v.some((x) => x !== null))) return true;
   return w.days.some(
     (d) => d.breakfast || d.lunch || d.dinner || d.sport.status || (d.smoked !== null && d.smoked !== undefined) ||
       (d.text && Object.keys(d.text).length),
@@ -112,5 +113,17 @@ export function normalizeWeek(raw: any): Week | null {
   if (typeof raw.note === 'string' && raw.note.trim()) w.note = raw.note;
   if (typeof raw.updatedAt === 'number') w.updatedAt = raw.updatedAt;
   if (typeof raw.photoId === 'string' && raw.photoId) w.photoId = raw.photoId;
+  if (raw.extra && typeof raw.extra === 'object') {
+    const extra: Record<string, CellVal[]> = {};
+    for (const [k, v] of Object.entries(raw.extra)) {
+      if (!/^[\w-]{1,40}$/.test(k) || !Array.isArray(v)) continue;
+      const vals = Array.from({ length: 7 }, (_, i) => {
+        const x = (v as unknown[])[i];
+        return typeof x === 'number' && Number.isFinite(x) ? x : typeof x === 'string' && x ? x.slice(0, 200) : null;
+      });
+      if (vals.some((x) => x !== null)) extra[k] = vals;
+    }
+    if (Object.keys(extra).length) w.extra = extra;
+  }
   return w;
 }

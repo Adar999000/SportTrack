@@ -6,6 +6,7 @@ import { avatar } from './avatar';
 import { aiBadge } from './icons';
 import { fmtPct, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
+import { EVENT_TYPES, eventForm, type CompEvent, type Post } from './feedView';
 
 let usersCache: AdminUserRow[] | null = null;
 
@@ -58,6 +59,43 @@ const AUDIT_LABEL: Record<string, string> = {
   '2fa_on': 'הופעל אימות דו-שלבי', '2fa_off': 'כובה אימות דו-שלבי', password_change: 'שינוי סיסמה', reset_request: 'בקשת איפוס סיסמה',
   reset_done: 'איפוס סיסמה', logout_all: 'ניתוק כל המכשירים', register: 'הרשמה', admin_view: 'צפייה של מנהל', role_change: 'שינוי הרשאה', public_contact: 'פנייה מהאתר',
 };
+
+function communityCard(): HTMLElement {
+  const body = h('div', { class: 'stack' });
+  const det = h('details', null, h('summary', null, t('קהילה: תחרויות ודיווחים')), body);
+  const load = async () => {
+    body.replaceChildren(h('p', { class: 'muted' }, t('טוען…')));
+    try {
+      const [{ events }, { posts }] = await Promise.all([
+        call<{ events: CompEvent[] }>('adminEvents'),
+        call<{ posts: (Post & { reports: { reason: string }[] })[] }>('modQueue'),
+      ]);
+      const act = (fn: () => Promise<unknown>) => async () => { try { await fn(); toast(t('בוצע')); load(); } catch (e: any) { toast(e.message); } };
+      body.replaceChildren(
+        h('h3', { class: 'section-title' }, t('תחרויות')),
+        h('button', { class: 'btn', type: 'button', onclick: () => eventForm(load, true) }, t('+ הוסף תחרות')),
+        events.length ? h('div', { class: 'earn-list' }, events.map((e) => h('div', { class: 'earn-row mod-row' },
+          h('span', null, `${(EVENT_TYPES[e.type] ?? EVENT_TYPES.other)[0]} ${e.title} · ${formatShort(e.date)} `, h('span', { class: 'badge' }, t(e.status === 'approved' ? 'מאושר' : e.status === 'pending' ? 'ממתין' : 'נדחה'))),
+          h('span', { class: 'row-actions' },
+            e.status !== 'approved' && h('button', { class: 'link-btn', type: 'button', onclick: act(() => call('setEventStatus', { id: e.id, status: 'approved' })) }, t('אשר')),
+            e.status === 'pending' && h('button', { class: 'link-btn', type: 'button', onclick: act(() => call('setEventStatus', { id: e.id, status: 'rejected' })) }, t('דחה')),
+            h('button', { class: 'link-btn', type: 'button', onclick: act(() => call('setEventStatus', { id: e.id, status: 'delete' })) }, t('מחק'))),
+        ))) : h('p', { class: 'muted' }, t('אין תחרויות.')),
+        h('h3', { class: 'section-title' }, t('פוסטים שדווחו')),
+        posts.length ? h('div', { class: 'stack' }, posts.map((p) => h('div', { class: 'mod-post' },
+          h('p', null, h('strong', null, p.author.name), ' · ', p.text || (p.data?.title ?? '')),
+          h('p', { class: 'muted small' }, tr`${p.reports.length} דיווחים`, p.status !== 'ok' ? ' · ' + t('מוסתר') : ''),
+          h('div', { class: 'row-actions' },
+            h('button', { class: 'link-btn', type: 'button', onclick: act(() => call('modAction', { id: p.id, do: 'restore' })) }, t('השאר והסר דיווחים')),
+            p.status === 'ok' && h('button', { class: 'link-btn', type: 'button', onclick: act(() => call('modAction', { id: p.id, do: 'hide' })) }, t('הסתר')),
+            h('button', { class: 'link-btn', type: 'button', onclick: act(() => call('modAction', { id: p.id, do: 'delete' })) }, t('מחק'))),
+        ))) : h('p', { class: 'muted' }, t('אין דיווחים.')),
+      );
+    } catch (e: any) { body.replaceChildren(h('p', { class: 'form-error' }, e.message)); }
+  };
+  det.addEventListener('toggle', () => { if (det.open) load(); });
+  return h('section', { class: 'card' }, det);
+}
 
 function auditCard(names: Record<string, string>): HTMLElement {
   const body = h('div', { class: 'earn-list' });
@@ -183,6 +221,7 @@ export function renderAdmin(root: HTMLElement): void {
       list,
     ),
     settingsCard(),
+    communityCard(),
     auditCard(Object.fromEntries((usersCache ?? []).map((u) => [u.userId, u.name]))),
     h('section', { class: 'card stack' },
       h('h2', { class: 'card-title' }, t('קודי הזמנה')),

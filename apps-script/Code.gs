@@ -80,6 +80,21 @@ function route(req) {
     case 'myInvite': return myInvite(me);
     case 'setFrame': return setFrame(me, String(req.frame || ''));
     case 'approveHistory': requireAdmin(me); return approveHistory(me, String(req.userId || ''), !!req.approved);
+    case 'getDocs': return { docs: getDocs(me, Number(req.since) || 0) };
+    case 'putDocs': return putDocs(me, req.docs || []);
+    case 'feed': return feed(me, req);
+    case 'createPost': return createPost(me, req);
+    case 'likePost': return likePost(me, req);
+    case 'commentPost': return commentPost(me, req);
+    case 'deleteComment': return deleteComment(me, req);
+    case 'deletePost': return deletePost(me, req);
+    case 'reportPost': return reportPost(me, req);
+    case 'modQueue': requireAdmin(me); return { posts: modQueue() };
+    case 'modAction': requireAdmin(me); return modAction(me, req);
+    case 'events': return { events: listEvents(me) };
+    case 'suggestEvent': return suggestEvent(me, req);
+    case 'adminEvents': requireAdmin(me); return { events: adminEvents() };
+    case 'setEventStatus': requireAdmin(me); return setEventStatus(me, req);
     case 'contactAdmin': return { message: createMessage(me, String(req.subject || ''), String(req.text || '')) };
     case 'myMessages': return myMessages(me);
     case 'unreadCount': return { unread: messageRows().filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length };
@@ -529,7 +544,7 @@ function getPhoto(me, photoId) {
     rows('Weeks').some((r) => r[W.user] === me.r[U.id] && r[W.photo] === photoId);
   // Profile pictures are shown to everyone (leaderboard); weekly photos stay private to their owner.
   const isProfilePhoto = rows('Users').some((r) => r[U.photo] === photoId);
-  if (!mine && !isProfilePhoto) throw new Error('אין גישה לתמונה');
+  if (!mine && !isProfilePhoto && !postPhotoVisible(me, photoId)) throw new Error('אין גישה לתמונה');
   const blob = DriveApp.getFileById(photoId).getBlob();
   return { dataUrl: 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
 }
@@ -1321,6 +1336,15 @@ function deleteAccount(me, req) {
     deleteRowsWhere(ledgerSheet(), 0, (v) => v === uid);
     deleteRowsWhere(messagesSheet(), M.user, (v) => v === uid);
     deleteRowsWhere(sheet('Invites'), 4, (v) => v === uid);
+    deleteRowsWhere(docsSheet(), D.user, (v) => v === uid);
+    allRows(postsSheet(), POST_W).filter((r) => r[P.user] === uid && r[P.photo]).forEach((r) => { try { DriveApp.getFileById(r[P.photo]).setTrashed(true); } catch (e) {} });
+    deleteRowsWhere(postsSheet(), P.user, (v) => v === uid);
+    const psh = postsSheet();
+    allRows(psh, POST_W).forEach((r, i) => {
+      const likes = parseJSON(r[P.likes], []) || [], comments = parseJSON(r[P.comments], []) || [];
+      const l2 = likes.filter((x) => x !== uid), c2 = comments.filter((x) => x.userId !== uid);
+      if (l2.length !== likes.length || c2.length !== comments.length) psh.getRange(i + 2, P.likes + 1, 1, 2).setValues([[JSON.stringify(l2), JSON.stringify(c2)]]);
+    });
     deleteRowsWhere(sheet('Users'), U.id, (v) => v === uid);
     audit(uid, 'account_deleted', '');
     return { ok: true };
@@ -1591,4 +1615,301 @@ function setup() {
   ensureBackupTrigger(); // daily backup of the spreadsheet into Drive
   backupsFolder();
   Logger.log('OK');
+}
+
+// ------------------------------------------------------------------ custom trackers (synced documents)
+
+const DOC_MAX = 45000; // a sheet cell holds 50,000 characters
+const DOCS_PER_USER = 3000;
+
+function lazySheet(name, header) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.getRange(1, 1, 1, header.length).setValues([header]);
+  }
+  return sh;
+}
+
+function allRows(sh, width) {
+  const n = sh.getLastRow();
+  return n < 2 ? [] : sh.getRange(2, 1, n - 1, width).getValues().map((r) => r.map(cell));
+}
+
+const D = { user: 0, id: 1, updated: 2, json: 3 };
+function docsSheet() { return lazySheet('Docs', ['userId', 'docId', 'updatedAt', 'json']); }
+
+/** A user's tracker documents changed after `since` (data null = deleted). */
+function getDocs(me, since) {
+  return allRows(docsSheet(), 4)
+    .filter((r) => r[D.user] === me.r[U.id] && Number(r[D.updated]) > since)
+    .map((r) => ({ id: String(r[D.id]), updatedAt: Number(r[D.updated]), data: parseJSON(r[D.json], null) }));
+}
+
+function putDocs(me, docs) {
+  if (!Array.isArray(docs) || docs.length > 300) throw new Error('יותר מדי מסמכים בבקשה אחת');
+  return withLock(() => {
+    const sh = docsSheet();
+    const all = allRows(sh, 4);
+    const uid = me.r[U.id];
+    const index = {};
+    let count = 0;
+    all.forEach((r, i) => { if (r[D.user] === uid) { index[String(r[D.id])] = i; count++; } });
+    const appends = [];
+    let accepted = 0;
+    docs.forEach((d) => {
+      const id = String(d && d.id || '');
+      if (!/^[A-Za-z0-9:_\-]{1,80}$/.test(id)) return;
+      const json = d.data === null || d.data === undefined ? '' : JSON.stringify(d.data);
+      if (json.length > DOC_MAX) return;
+      const at = Number(d.updatedAt) || Date.now();
+      const i = index[id];
+      if (i === undefined) {
+        if (count + appends.length >= DOCS_PER_USER) return;
+        appends.push([uid, id, at, json]);
+        accepted++;
+      } else if (Number(all[i][D.updated]) < at) {
+        sh.getRange(i + 2, 3, 1, 2).setValues([[at, json]]);
+        accepted++;
+      }
+    });
+    appendRows(sh, appends);
+    return { accepted: accepted };
+  });
+}
+
+// ------------------------------------------------------------------ community feed
+
+const P = { id: 0, user: 1, at: 2, vis: 3, kind: 4, text: 5, data: 6, photo: 7, likes: 8, comments: 9, reports: 10, status: 11 };
+const POST_W = 12;
+function postsSheet() { return lazySheet('Posts', ['id', 'userId', 'at', 'visibility', 'kind', 'text', 'data', 'photoId', 'likes', 'comments', 'reports', 'status']); }
+
+function dailyCount(key, max, msg) {
+  const cache = CacheService.getScriptCache();
+  const ck = key + '-' + new Date().toISOString().slice(0, 10);
+  const n = Number(cache.get(ck)) || 0;
+  if (n >= max) throw new Error(msg);
+  cache.put(ck, String(n + 1), 6 * 3600);
+}
+
+/** Friends = people who signed up with my code, and whoever's code I used. */
+function friendsOf(uid, users) {
+  const set = {};
+  users.forEach((r) => {
+    if (extraOf(r).invitedBy === uid) set[r[U.id]] = true;
+    if (r[U.id] === uid && extraOf(r).invitedBy) set[extraOf(r).invitedBy] = true;
+  });
+  return set;
+}
+
+function canSeePost(uid, r, friends) {
+  if (r[P.user] === uid) return true;
+  if (r[P.status] !== 'ok') return false;
+  return r[P.vis] === 'all' || !!friends[r[P.user]];
+}
+
+function postOut(r, uid, people) {
+  const a = people[r[P.user]] || { name: '—' };
+  const likes = parseJSON(r[P.likes], []) || [];
+  const comments = (parseJSON(r[P.comments], []) || []).slice(-30).map((c) => ({
+    id: c.id, userId: c.userId, name: (people[c.userId] || {}).name || '—', text: c.text, at: c.at,
+  }));
+  return {
+    id: r[P.id], at: r[P.at], kind: r[P.kind], text: r[P.text], data: parseJSON(r[P.data], null), photoId: r[P.photo] || null,
+    visibility: r[P.vis], status: r[P.status], mine: r[P.user] === uid,
+    author: { userId: r[P.user], name: a.name, photoId: a.photoId || null, frame: a.frame || '', level: a.level || 1, levelName: a.levelName || '' },
+    likes: likes.length, liked: likes.indexOf(uid) >= 0, comments: comments,
+  };
+}
+
+function peopleIndex() {
+  const out = {};
+  leaderboard('all').forEach((l) => { out[l.userId] = l; });
+  return out;
+}
+
+function feed(me, req) {
+  const uid = me.r[U.id];
+  const friends = friendsOf(uid, rows('Users'));
+  const before = String(req.before || '9999');
+  const only = String(req.only || '');
+  const list = allRows(postsSheet(), POST_W)
+    .filter((r) => String(r[P.at]) < before && canSeePost(uid, r, friends))
+    .filter((r) => (only === 'mine' ? r[P.user] === uid : only === 'friends' ? !!friends[r[P.user]] || r[P.user] === uid : true))
+    .sort((a, b) => String(b[P.at]).localeCompare(String(a[P.at])))
+    .slice(0, 20);
+  const people = peopleIndex();
+  return { posts: list.map((r) => postOut(r, uid, people)), more: list.length === 20 };
+}
+
+function createPost(me, req) {
+  const text = String(req.text || '').trim().slice(0, 1000);
+  const kind = ['text', 'achievement', 'tracker', 'event'].indexOf(req.kind) >= 0 ? req.kind : 'text';
+  const data = req.data && typeof req.data === 'object' ? JSON.stringify(req.data) : '';
+  if (data.length > 4000) throw new Error('הפוסט גדול מדי');
+  if (!text && !data && !req.photo) throw new Error('נא לכתוב משהו');
+  dailyCount('post-' + me.r[U.id], 15, 'אפשר לפרסם עד 15 פוסטים ביום');
+  const id = Utilities.getUuid().slice(0, 10);
+  const photoId = req.photo ? savePhoto(String(req.photo), 'post-' + id + '.jpg', '') : '';
+  const row = [id, me.r[U.id], new Date().toISOString(), req.visibility === 'friends' ? 'friends' : 'all', kind, text, data, photoId, '[]', '[]', '[]', 'ok'];
+  withLock(() => appendRows(postsSheet(), [row]));
+  return { post: postOut(row, me.r[U.id], peopleIndex()) };
+}
+
+/** Find a post the caller can see; returns {r, row} or throws. */
+function findPost(me, id) {
+  const all = allRows(postsSheet(), POST_W);
+  const i = all.findIndex((r) => r[P.id] === String(id || ''));
+  if (i < 0) throw new Error('הפוסט לא נמצא');
+  const uid = me.r[U.id];
+  if (!canSeePost(uid, all[i], friendsOf(uid, rows('Users'))) && me.r[U.role] !== 'admin') throw new Error('הפוסט לא נמצא');
+  return { r: all[i], row: i + 2 };
+}
+
+function likePost(me, req) {
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    const likes = parseJSON(p.r[P.likes], []) || [];
+    const uid = me.r[U.id];
+    const k = likes.indexOf(uid);
+    if (k >= 0) likes.splice(k, 1); else likes.push(uid);
+    postsSheet().getRange(p.row, P.likes + 1).setValue(JSON.stringify(likes));
+    return { likes: likes.length, liked: k < 0 };
+  });
+}
+
+function commentPost(me, req) {
+  const text = String(req.text || '').trim().slice(0, 500);
+  if (!text) throw new Error('נא לכתוב תגובה');
+  dailyCount('cmt-' + me.r[U.id], 60, 'אפשר להגיב עד 60 פעמים ביום');
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    const list = parseJSON(p.r[P.comments], []) || [];
+    if (list.length >= 100) throw new Error('הגעת למספר התגובות המרבי לפוסט');
+    const c = { id: Utilities.getUuid().slice(0, 8), userId: me.r[U.id], text: text, at: new Date().toISOString() };
+    list.push(c);
+    postsSheet().getRange(p.row, P.comments + 1).setValue(JSON.stringify(list));
+    return { comment: Object.assign({ name: me.r[U.name] }, c) };
+  });
+}
+
+function deleteComment(me, req) {
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    const list = parseJSON(p.r[P.comments], []) || [];
+    const c = list.find((x) => x.id === req.commentId);
+    if (!c) throw new Error('התגובה לא נמצאה');
+    if (c.userId !== me.r[U.id] && p.r[P.user] !== me.r[U.id] && me.r[U.role] !== 'admin') throw new Error('אין הרשאה');
+    postsSheet().getRange(p.row, P.comments + 1).setValue(JSON.stringify(list.filter((x) => x.id !== req.commentId)));
+    return { ok: true };
+  });
+}
+
+function deletePost(me, req) {
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    if (p.r[P.user] !== me.r[U.id] && me.r[U.role] !== 'admin') throw new Error('אין הרשאה');
+    if (p.r[P.photo]) { try { DriveApp.getFileById(p.r[P.photo]).setTrashed(true); } catch (e) {} }
+    postsSheet().deleteRow(p.row);
+    if (p.r[P.user] !== me.r[U.id]) audit(me.r[U.id], 'post_deleted', p.r[P.id]);
+    return { ok: true };
+  });
+}
+
+/** Three reports hide a post until the admin looks at it. */
+function reportPost(me, req) {
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    if (p.r[P.user] === me.r[U.id]) throw new Error('אי אפשר לדווח על פוסט שלך');
+    const reports = parseJSON(p.r[P.reports], []) || [];
+    if (reports.some((x) => x.userId === me.r[U.id])) return { ok: true };
+    reports.push({ userId: me.r[U.id], reason: String(req.reason || '').slice(0, 200), at: new Date().toISOString() });
+    const sh = postsSheet();
+    sh.getRange(p.row, P.reports + 1).setValue(JSON.stringify(reports));
+    if (reports.length >= 3) sh.getRange(p.row, P.status + 1).setValue('hidden');
+    if (reports.length === 1) {
+      rows('Users').filter((r) => r[U.role] === 'admin').forEach((a) => safeMail(a[U.email], 'דיווח על פוסט בפיד', 'התקבל דיווח על פוסט בפיד. אפשר לבדוק בלוח המנהל ← פיד.'));
+    }
+    return { ok: true };
+  });
+}
+
+function modQueue() {
+  const people = peopleIndex();
+  return allRows(postsSheet(), POST_W)
+    .filter((r) => (parseJSON(r[P.reports], []) || []).length || r[P.status] !== 'ok')
+    .map((r) => Object.assign(postOut(r, '', people), { reports: parseJSON(r[P.reports], []) || [] }));
+}
+
+function modAction(me, req) {
+  if (req.do === 'delete') return deletePost(me, req);
+  return withLock(() => {
+    const p = findPost(me, req.id);
+    const sh = postsSheet();
+    if (req.do === 'hide') sh.getRange(p.row, P.status + 1).setValue('hidden');
+    else if (req.do === 'restore') { sh.getRange(p.row, P.status + 1).setValue('ok'); sh.getRange(p.row, P.reports + 1).setValue('[]'); }
+    else throw new Error('פעולה לא מוכרת');
+    audit(me.r[U.id], 'post_' + req.do, p.r[P.id]);
+    return { ok: true };
+  });
+}
+
+function postPhotoVisible(me, photoId) {
+  const uid = me.r[U.id];
+  const friends = friendsOf(uid, rows('Users'));
+  return allRows(postsSheet(), POST_W).some((r) => r[P.photo] === photoId && canSeePost(uid, r, friends));
+}
+
+// ------------------------------------------------------------------ competitions & events
+
+const E = { id: 0, title: 1, date: 2, location: 3, type: 4, url: 5, details: 6, status: 7, by: 8, at: 9 };
+const EVENT_W = 10;
+const EVENT_TYPES = ['run', 'crossfit', 'triathlon', 'cycling', 'swim', 'other'];
+function eventsSheet() { return lazySheet('Events', ['id', 'title', 'date', 'location', 'type', 'url', 'details', 'status', 'createdBy', 'createdAt']); }
+function eventOut(r) {
+  return { id: r[E.id], title: r[E.title], date: String(r[E.date]), location: r[E.location], type: r[E.type], url: r[E.url], details: r[E.details], status: r[E.status], mine: false };
+}
+
+function listEvents(me) {
+  const today = todayStr();
+  return allRows(eventsSheet(), EVENT_W)
+    .filter((r) => (r[E.status] === 'approved' && String(r[E.date]) >= today) || (r[E.by] === me.r[U.id] && r[E.status] === 'pending'))
+    .sort((a, b) => String(a[E.date]).localeCompare(String(b[E.date])))
+    .map((r) => Object.assign(eventOut(r), { mine: r[E.by] === me.r[U.id] }));
+}
+
+function suggestEvent(me, req) {
+  const title = String(req.title || '').trim().slice(0, 120);
+  const date = String(req.date || '');
+  const url = String(req.url || '').trim();
+  if (!title) throw new Error('נא לכתוב שם לתחרות');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < todayStr()) throw new Error('נא לבחור תאריך עתידי');
+  if (url && !/^https:\/\/[^\s]{3,300}$/.test(url)) throw new Error('הקישור צריך להתחיל ב-https://');
+  const admin = me.r[U.role] === 'admin';
+  if (!admin) dailyCount('evt-' + me.r[U.id], 5, 'אפשר להציע עד 5 תחרויות ביום');
+  const row = [Utilities.getUuid().slice(0, 8), title, date, String(req.location || '').trim().slice(0, 120),
+    EVENT_TYPES.indexOf(req.type) >= 0 ? req.type : 'other', url, String(req.details || '').trim().slice(0, 1000),
+    admin ? 'approved' : 'pending', me.r[U.id], new Date().toISOString()];
+  withLock(() => appendRows(eventsSheet(), [row]));
+  if (!admin) rows('Users').filter((r) => r[U.role] === 'admin').forEach((a) => safeMail(a[U.email], 'הצעה לתחרות חדשה', me.r[U.name] + ' הציע/ה: ' + title + ' (' + date + '). אפשר לאשר בלוח המנהל ← תחרויות.'));
+  return { event: eventOut(row) };
+}
+
+function adminEvents() {
+  return allRows(eventsSheet(), EVENT_W).sort((a, b) => String(a[E.date]).localeCompare(String(b[E.date]))).map(eventOut);
+}
+
+function setEventStatus(me, req) {
+  return withLock(() => {
+    const sh = eventsSheet();
+    const all = allRows(sh, EVENT_W);
+    const i = all.findIndex((r) => r[E.id] === req.id);
+    if (i < 0) throw new Error('התחרות לא נמצאה');
+    if (req.status === 'delete') sh.deleteRow(i + 2);
+    else if (req.status === 'approved' || req.status === 'rejected') sh.getRange(i + 2, E.status + 1).setValue(req.status);
+    else throw new Error('פעולה לא מוכרת');
+    audit(me.r[U.id], 'event_' + req.status, all[i][E.title]);
+    return { ok: true };
+  });
 }

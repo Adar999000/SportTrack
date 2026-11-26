@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.7.0 (2026-11-26)
+- Custom trackers: by-day (rows × Sunday–Saturday, saved per week) or free grid (your own rows and columns). Per-row cell types: V/X/-, check, mood emoji, 1–5 stars, number with unit, text. Templates, icon, corner title, reorder/delete. Synced as small documents (`Docs` sheet, `getDocs`/`putDocs`).
+- Main table: rename rows and the corner title, add your own extra rows (stored in `week.extra`; coins and stats unchanged).
+- Community tab: posts with photo, likes, comments, per-post visibility (everyone / friends = invite relations), report (3 reports hide a post), admin moderation queue.
+- Achievement sharing: in-app post and a 1080×1350 image through the device share sheet (Instagram, WhatsApp…) or download.
+- Competitions: users suggest, the admin approves/adds (`Events` sheet). No external feed yet (no reliable open API for Israeli events).
+- Needs the updated `apps-script/Code.gs`.
+
 ## 3.6.0 (2026-11-26)
 - Assistant characters: lion, robot, dog and panda are free; 12 more (cat, frog, tiger, fox, bear, koala, monkey, penguin, owl, weightlifter, unicorn, dragon) are store items (`mascot` kind).
 - Assistant styles (`acc` kind): glowing auras behind the character (mint, ocean, sunset, gold, galaxy, flames, rainbow) and a corner badge (heart, flame, party, star, medal, trophy). Level 3 now also gives the mint aura.

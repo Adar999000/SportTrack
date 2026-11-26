@@ -24,6 +24,9 @@ import { renderStats } from './ui/statsView';
 import { renderWeek } from './ui/weekView';
 import { renderRewards } from './ui/rewardsView';
 import { renderShare } from './ui/shareView';
+import { renderTracker } from './ui/trackerView';
+import { renderFeed } from './ui/feedView';
+import { dirtyDocCount, loadDocs, setDocsOwner } from './docs';
 import { renderLanding } from './ui/landingView';
 import { initInstall } from './install';
 import { applyA11y } from './a11y';
@@ -41,15 +44,16 @@ interface Tab { names: Route['name'][]; hash: string; label: string; icon: strin
 function tabs(): Tab[] {
   if (!hasBackend()) {
     return [
-      { names: ['week'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
+      { names: ['week', 'tracker'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
       { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
       { names: ['stats'], hash: HASH.stats, label: t('סטטיסטיקה'), icon: 'stats' },
       { names: ['settings'], hash: HASH.settings, label: t('הגדרות'), icon: 'settings' },
     ];
   }
   const list: Tab[] = [
-    { names: ['week'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
+    { names: ['week', 'tracker'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
     { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
+    { names: ['feed'], hash: HASH.feed, label: t('קהילה'), icon: 'feed' },
     { names: ['rewards', 'share'], hash: HASH.rewards, label: t('מטבעות'), icon: 'coin' },
     { names: ['profile', 'stats', 'settings', 'chat'], hash: HASH.profile, label: t('פרופיל'), icon: 'profile' },
   ];
@@ -104,7 +108,7 @@ function applyTheme() {
 function drawSyncBadge() {
   if (!hasBackend() || !currentUser()) return void (syncBadge.textContent = '');
   const { state } = getSyncState();
-  const pending = dirtyCount();
+  const pending = dirtyCount() + dirtyDocCount();
   syncBadge.textContent =
     state === 'syncing' ? t('מסתנכרן…')
       : state === 'offline' ? t('לא מחובר') + (pending ? ' · ' + tr`${pending} ממתינים` : '')
@@ -148,7 +152,7 @@ function render() {
     return;
   }
   // Keep in-progress forms (chat, profile edit) from being wiped by background updates.
-  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share')) return;
+  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share' || route.name === 'feed')) return;
 
   nav.hidden = false;
   nav.replaceChildren(
@@ -179,6 +183,8 @@ function render() {
       break;
     case 'rewards': hasBackend() ? renderRewards(main) : renderWeek(main, sundayOf(todayISO())); break;
     case 'share': hasBackend() ? renderShare(main) : renderWeek(main, sundayOf(todayISO())); break;
+    case 'tracker': renderTracker(main, route.id, route.sunday); break;
+    case 'feed': hasBackend() ? renderFeed(main, route.tab ?? 'posts') : renderWeek(main, sundayOf(todayISO())); break;
   }
   if (key !== lastRoute) {
     window.scrollTo(0, 0);
@@ -196,12 +202,14 @@ async function adoptLocalData(): Promise<void> {
   if (owner || !local) {
     // another user's data, or nothing local: start clean from the server
     setOwner(user.userId, false);
+    setDocsOwner(user.userId, false);
     await resetPullCursor(user.userId);
     return;
   }
   await new Promise<void>((resolve) => {
     const done = (keep: boolean) => {
       setOwner(user.userId, keep);
+      setDocsOwner(user.userId, keep);
       close();
       resolve();
     };
@@ -242,6 +250,7 @@ async function boot() {
     nav,
   );
   await loadStore();
+  await loadDocs();
   await loadSession();
   floating = mountFloatingChat();
   mountA11yWidget();
@@ -260,7 +269,7 @@ async function boot() {
   } catch { /* ignore */ }
   subscribe(() => {
     render();
-    if (dirtyCount()) scheduleSync();
+    if (dirtyCount() || dirtyDocCount()) scheduleSync();
   });
   onSync(() => {
     drawSyncBadge();

@@ -8,6 +8,7 @@ import { normalizeWeek } from './model';
 import { currentUser, endSession } from './session';
 import { allMealsRatio, workoutsInWeek } from './stats';
 import { applyRemote, dirtyWeeks, markSynced } from './store';
+import { applyRemoteDocs, dirtyDocs, markDocsSynced } from './docs';
 import type { Week } from './types';
 
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error';
@@ -70,6 +71,23 @@ export function syncNow(): Promise<void> {
           .filter((w): w is Week => !!w);
         applyRemote(parsed);
         await kvSet(key, started - 60_000).catch(() => {});
+        // custom trackers and table settings
+        try {
+          const dd = dirtyDocs();
+          for (let i = 0; i < dd.length; i += 100) {
+            const batch = dd.slice(i, i + 100);
+            await call('putDocs', { docs: batch });
+            markDocsSynced(batch);
+          }
+          const dkey = 'docsPull:' + currentUser()!.userId;
+          const dsince = (await kvGet<number>(dkey).catch(() => 0)) ?? 0;
+          const dstart = Date.now();
+          const { docs } = await call<{ docs: { id: string; updatedAt: number; data: unknown }[] }>('getDocs', { since: dsince });
+          applyRemoteDocs(docs);
+          await kvSet(dkey, dstart - 60_000).catch(() => {});
+        } catch (e: any) {
+          if (!/לא מוכרת|Unknown action/.test(e.message)) throw e; // server not updated yet: keep trackers on this device
+        }
       } while (again);
       set('idle');
     } catch (e: any) {
@@ -93,4 +111,5 @@ export function scheduleSync(delay = 2500): void {
 
 export async function resetPullCursor(userId: string): Promise<void> {
   await kvSet('lastPull:' + userId, 0).catch(() => {});
+  await kvSet('docsPull:' + userId, 0).catch(() => {});
 }

@@ -80,6 +80,11 @@ function emit() {
   listeners.forEach((l) => l());
 }
 
+/** Re-render listeners after a change kept elsewhere (synced docs). */
+export function notifyChange(): void {
+  listeners.forEach((l) => l());
+}
+
 export function subscribe(l: Listener): () => void {
   listeners.add(l);
   return () => listeners.delete(l);

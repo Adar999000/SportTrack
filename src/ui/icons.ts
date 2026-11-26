@@ -5,6 +5,7 @@ const P: Record<string, string> = {
   history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7.5V12l3 2"/>',
   stats: '<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>',
   chat: '<path d="M12 3.5l1.8 4.7 4.7 1.8-4.7 1.8L12 16.5l-1.8-4.7L5.5 10l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+  feed: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.2 3.2-5 6.5-5s5.9 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.7.1 4.6 1.6 5 4.3"/>',
   profile: '<circle cx="12" cy="8" r="4"/><path d="M4 20.5c.8-3.6 4-5.5 8-5.5s7.2 1.9 8 5.5"/>',
   admin: '<path d="M12 3l8 3v6c0 4.8-3.4 7.9-8 9-4.6-1.1-8-4.2-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',

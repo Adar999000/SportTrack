@@ -32,7 +32,12 @@ export interface Week {
   updatedAt?: number;
   /** Drive file id of the week's photo (accounts only). */
   photoId?: string;
+  /** Values of the user's own extra rows in the main table: rowId → 7 values (Sunday → Saturday). */
+  extra?: Record<string, CellVal[]>;
 }
+
+/** A value in a custom row: a mark, ✓, emoji, number of stars, a number or free text. */
+export type CellVal = string | number | null;
 
 export type MealKey = 'breakfast' | 'lunch' | 'dinner';
 export const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner'];
