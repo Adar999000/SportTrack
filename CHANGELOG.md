@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.6.0 (2026-11-26)
+- Assistant characters: lion, robot, dog and panda are free; 12 more (cat, frog, tiger, fox, bear, koala, monkey, penguin, owl, weightlifter, unicorn, dragon) are store items (`mascot` kind).
+- Assistant styles (`acc` kind): glowing auras behind the character (mint, ocean, sunset, gold, galaxy, flames, rainbow) and a corner badge (heart, flame, party, star, medal, trophy). Level 3 now also gives the mint aura.
+- Needs the updated `apps-script/Code.gs` for the new store items.
+
 ## 3.5.0 (2026-11-26)
 - 3D assistant characters (Microsoft Fluent Emoji 3D, MIT): lion (default), tiger, fox, panda, bear, dog, owl, weightlifter, plus the drawn robot. Picker in Settings → "Assistant character"; changes everywhere at once. Images are local WebP (~7 KB each), cached for offline.
 

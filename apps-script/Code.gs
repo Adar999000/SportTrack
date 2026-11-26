@@ -745,12 +745,14 @@ const CATALOG = {
   bg: { sand: 200, ocean: 200, forest: 200, rose: 200, midnight: 300 },
   frame: { silver: 120, goldframe: 250, fire: 300, rainbow: 350, diamond: 400 },
   effect: { confetti: 200 },
+  mascot: { cat: 120, frog: 120, tiger: 150, fox: 150, bear: 150, koala: 180, monkey: 180, penguin: 180, owl: 200, lifter: 250, unicorn: 300, dragon: 400 },
+  acc: { mint: 120, ocean: 120, sunset: 150, gold: 200, galaxy: 250, flames: 250, rainbow: 300, heart: 100, fire: 120, partyhat: 150, star: 150, medal: 180, trophy: 250 },
 };
 
 /** What each level unlocks (cumulative), enforced on the server. */
 const LEVEL_PERKS = [
   { level: 2, chatBonus: 5, text: '+5 הודעות ביום לעוזר' },
-  { level: 3, free: ['frame:silver'], text: 'מסגרת פרופיל כסופה בחינם' },
+  { level: 3, free: ['frame:silver', 'acc:mint'], text: 'מסגרת פרופיל כסופה והילת מנטה לעוזר בחינם' },
   { level: 4, chatBonus: 5, text: '+5 הודעות ביום לעוזר (סה"כ +10)' },
   { level: 5, free: ['color:gold'], text: 'צבע זהב בחינם' },
   { level: 6, discount: 10, text: '10% הנחה בחנות' },

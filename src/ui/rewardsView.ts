@@ -9,6 +9,7 @@ import { t, tr } from '../i18n';
 import { ACCENTS, BG_THEMES, FRAMES } from '../types';
 import { getSettings, updateSettings } from '../store';
 import { burst } from './confetti';
+import { ACCESSORIES, MASCOTS, currentOutfit, mascot } from './mascot';
 
 const coin = () => h('span', { class: 'coin', 'aria-hidden': 'true' });
 const fmt = (n: number) => n.toLocaleString('en-US');
@@ -99,11 +100,16 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   const catalog = r.catalog ?? [];
   const item = (kind: string, id: string) => catalog.find((c) => c.kind === kind && c.id === id);
   const s = getSettings();
-  const cosmetic = (kind: 'color' | 'bg' | 'frame' | 'effect', id: string, name: string, preview: HTMLElement, using: boolean, use: () => void | Promise<void>) => {
+  const cosmetic = (kind: 'color' | 'bg' | 'frame' | 'effect' | 'mascot' | 'acc', id: string, name: string, preview: HTMLElement, using: boolean, use: () => void | Promise<void>) => {
     const c = item(kind, id);
     if (!c) return '';
     const action = c.owned
-      ? h('button', { class: using ? 'btn btn-primary' : 'btn', type: 'button', disabled: using, onclick: async () => { try { await use(); toast(t('הופעל')); redraw(); } catch (e: any) { toast(e.message); } } }, using ? t('בשימוש') : t('הפעל'))
+      ? (() => {
+          const removable = using && kind !== 'color' && kind !== 'mascot';
+          return h('button', { class: using ? 'btn btn-primary' : 'btn', type: 'button', disabled: using && !removable, 'aria-pressed': using ? 'true' : undefined,
+            onclick: async () => { try { await use(); toast(removable ? t('הוסר') : t('הופעל')); redraw(); } catch (e: any) { toast(e.message); } } },
+            removable ? t('בשימוש · הסר') : using ? t('בשימוש') : t('הפעל'));
+        })()
       : confirmButton(t('קנה'), t('הקש שוב לאישור'), () => buy(() => spend('cosmetic', { kind, id })), 'btn');
     return tile(name, '', c.price, action, preview, c.base);
   };
@@ -127,6 +133,14 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
       cosmetic('bg', b.id, t(b.name), h('span', { class: `shop-preview bg-preview bgp-${b.id}`, style: { background: b.swatch } }), s.bgTheme === b.id, () => updateSettings({ bgTheme: s.bgTheme === b.id ? '' : b.id })))),
     ...section(t('מסגרות פרופיל'), ...FRAMES.map((f) =>
       cosmetic('frame', f.id, t(f.name), h('span', { class: 'shop-preview' }, avatar(currentUser()?.name ?? '?', currentUser()?.photoId, 44, f.id)), r.frame === f.id, () => wearFrame(r.frame === f.id ? '' : f.id)))),
+    ...section(t('דמויות לעוזר'), ...MASCOTS.filter((m) => !m.free).map((m) =>
+      cosmetic('mascot', m.id, t(m.name), h('span', { class: 'shop-preview' }, mascot(56, '', m.id, currentOutfit())), (s.mascot ?? 'lion') === m.id, () => updateSettings({ mascot: m.id })))),
+    ...section(t('סטייל לעוזר: הילות ותגים'), ...ACCESSORIES.map((a) => {
+      const on = currentOutfit()[a.slot] === a.id;
+            return cosmetic('acc', a.id, t(a.name),
+        h('span', { class: 'shop-preview' }, mascot(56, '', s.mascot ?? 'lion', { ...currentOutfit(), [a.slot]: a.id })), on,
+        () => updateSettings({ mascotOutfit: { ...(s.mascotOutfit ?? {}), [a.slot]: on ? '' : a.id } }));
+    })),
     ...section(t('אפקטים'),
       cosmetic('effect', 'confetti', t('קונפטי חגיגי'), h('span', { class: 'shop-preview', 'aria-hidden': 'true' }, '🎉'), !!s.effects, () => updateSettings({ effects: !s.effects }))),
     (r.frozenDays.length || r.frozenWeeks.length) ? h('p', { class: 'hint' },

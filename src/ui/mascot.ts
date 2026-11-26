@@ -1,60 +1,106 @@
 import { getSettings } from '../store';
+import { owns } from '../rewards';
 
 let uid = 0;
 
-/** Characters the user can pick for the assistant (3D art: Microsoft Fluent Emoji, MIT). */
-export const MASCOTS: { id: string; name: string }[] = [
-  { id: 'lion', name: 'אריה' },
+export type Slot = 'aura' | 'badge';
+export type Outfit = Partial<Record<Slot, string>>;
+
+/** Characters for the assistant (3D art: Microsoft Fluent Emoji, MIT). `free` ones need no purchase. */
+export const MASCOTS: { id: string; name: string; free?: boolean }[] = [
+  { id: 'lion', name: 'אריה', free: true },
+  { id: 'robot', name: 'רובוט', free: true },
+  { id: 'dog', name: 'כלב', free: true },
+  { id: 'panda', name: 'פנדה', free: true },
+  { id: 'cat', name: 'חתול' },
+  { id: 'frog', name: 'צפרדע' },
   { id: 'tiger', name: 'נמר' },
   { id: 'fox', name: 'שועל' },
-  { id: 'panda', name: 'פנדה' },
   { id: 'bear', name: 'דוב' },
-  { id: 'dog', name: 'כלב' },
+  { id: 'koala', name: 'קואלה' },
+  { id: 'monkey', name: 'קוף' },
+  { id: 'penguin', name: 'פינגווין' },
   { id: 'owl', name: 'ינשוף' },
   { id: 'lifter', name: 'מרים משקולות' },
-  { id: 'robot', name: 'רובוט' },
+  { id: 'unicorn', name: 'חד־קרן' },
+  { id: 'dragon', name: 'דרקון' },
 ];
-const current = () => { const m = getSettings().mascot; return MASCOTS.some((x) => x.id === m) ? m! : 'lion'; };
 
-/** The assistant's character, in the chosen look (animated with CSS; still under reduced motion). */
-export function mascot(size = 32, extra = '', kind = current()): HTMLElement {
-  if (kind === 'robot') return robot(size, extra);
+/** Styles for the assistant: a glowing aura behind it, and a small badge in the corner. */
+export const ACCESSORIES: { id: string; name: string; slot: Slot }[] = [
+  { id: 'mint', name: 'הילת מנטה', slot: 'aura' },
+  { id: 'ocean', name: 'הילת אוקיינוס', slot: 'aura' },
+  { id: 'sunset', name: 'הילת שקיעה', slot: 'aura' },
+  { id: 'gold', name: 'הילת זהב', slot: 'aura' },
+  { id: 'galaxy', name: 'הילת גלקסיה', slot: 'aura' },
+  { id: 'flames', name: 'הילת להבות', slot: 'aura' },
+  { id: 'rainbow', name: 'הילת קשת', slot: 'aura' },
+  { id: 'heart', name: 'לב נוצץ', slot: 'badge' },
+  { id: 'fire', name: 'להבה', slot: 'badge' },
+  { id: 'partyhat', name: 'מסיבה', slot: 'badge' },
+  { id: 'star', name: 'כוכב זוהר', slot: 'badge' },
+  { id: 'medal', name: 'מדליית זהב', slot: 'badge' },
+  { id: 'trophy', name: 'גביע', slot: 'badge' },
+];
+
+export const ownsMascot = (id: string) => !!MASCOTS.find((m) => m.id === id)?.free || owns('mascot:' + id);
+const currentKind = () => { const m = getSettings().mascot; return m && MASCOTS.some((x) => x.id === m) && ownsMascot(m) ? m : 'lion'; };
+/** The accessories the user has on, keeping only ones they still own. */
+export function currentOutfit(): Outfit {
+  const o = getSettings().mascotOutfit ?? {};
+  const out: Outfit = {};
+  for (const k of ['aura', 'badge'] as Slot[]) if (o[k] && owns('acc:' + o[k])) out[k] = o[k];
+  return out;
+}
+const sig = (kind: string, o: Outfit) => [kind, o.aura ?? '', o.badge ?? ''].join('|');
+
+/**
+ * The assistant's character in the chosen look, with its accessories.
+ * Pass `kind`/`outfit` for a fixed preview (it won't follow later changes).
+ */
+export function mascot(size = 32, extra = '', kind?: string, outfit?: Outfit): HTMLElement {
+  const fixed = kind !== undefined || outfit !== undefined;
+  const k = kind ?? currentKind();
+  const o = outfit ?? (fixed ? {} : currentOutfit());
   const el = document.createElement('span');
-  el.className = 'mascot mascot-3d ' + extra;
-  el.dataset.kind = kind;
-  el.dataset.size = String(size);
-  el.dataset.extra = extra;
+  el.className = `mascot mascot-${k === 'robot' ? 'svg' : '3d'} ${extra}`;
+  Object.assign(el.dataset, { kind: k, size: String(size), extra, sig: sig(k, o) });
+  if (fixed) el.dataset.fixed = '1';
   el.setAttribute('aria-hidden', 'true');
   el.style.width = el.style.height = size + 'px';
-  const img = document.createElement('img');
-  img.src = `${import.meta.env.BASE_URL}mascots/${kind}.webp`;
-  img.alt = '';
-  img.width = img.height = size;
-  img.decoding = 'async';
-  img.draggable = false;
-  el.append(img);
+  const body = document.createElement('span');
+  body.className = 'm-body';
+  if (k === 'robot') body.innerHTML = robotSvg(size);
+  else body.append(img(`mascots/${k}.webp`, 'm-art'));
+  if (o.aura) { el.classList.add('has-aura', 'aura-' + o.aura); el.prepend(Object.assign(document.createElement('span'), { className: 'm-aura' })); }
+  if (o.badge) body.append(img(`mascots/acc/${o.badge}.webp`, 'm-acc m-badge'));
+  el.append(body);
   return el;
 }
 
-/** Swap every mascot on the page when the chosen character changes. */
+function img(path: string, cls: string): HTMLImageElement {
+  const i = document.createElement('img');
+  i.src = import.meta.env.BASE_URL + path;
+  i.alt = '';
+  i.className = cls;
+  i.decoding = 'async';
+  i.draggable = false;
+  return i;
+}
+
+/** Swap every live mascot on the page when the character or outfit changes. */
 export function refreshMascots(): void {
-  const k = current();
-  document.querySelectorAll<HTMLElement>('.mascot[data-kind]:not(.mascot-pick .mascot)').forEach((el) => {
-    if (el.dataset.kind !== k) el.replaceWith(mascot(Number(el.dataset.size), el.dataset.extra ?? '', k));
+  const k = currentKind();
+  const s = sig(k, currentOutfit());
+  document.querySelectorAll<HTMLElement>('.mascot[data-kind]:not([data-fixed])').forEach((el) => {
+    if (el.dataset.sig !== s) el.replaceWith(mascot(Number(el.dataset.size), el.dataset.extra ?? ''));
   });
 }
 
-/** The original drawn robot (blinks, floats, antenna glow). */
-function robot(size: number, extra: string): HTMLElement {
+/** The original drawn robot (blinks, antenna glow). */
+function robotSvg(size: number): string {
   const id = 'm' + ++uid;
-  const el = document.createElement('span');
-  el.className = 'mascot ' + extra;
-  el.dataset.kind = 'robot';
-  el.dataset.size = String(size);
-  el.dataset.extra = extra;
-  el.setAttribute('aria-hidden', 'true');
-  el.style.width = el.style.height = size + 'px';
-  el.innerHTML = `
+  return `
 <svg viewBox="0 0 100 100" width="${size}" height="${size}">
   <defs>
     <radialGradient id="${id}b" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#9ee6d2"/><stop offset=".45" stop-color="#3fa58c"/><stop offset="1" stop-color="#5b3fb0"/></radialGradient>
@@ -82,5 +128,4 @@ function robot(size: number, extra: string): HTMLElement {
     <path class="m-mouth" d="M43 63 Q50 70 57 63" fill="none" stroke="#11132a" stroke-width="2.6" stroke-linecap="round"/>
   </g>
 </svg>`;
-  return el;
 }

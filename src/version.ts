@@ -9,6 +9,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '3.6.0',
+    date: '2026-11-26',
+    items: [
+      'דמויות ועיצובים לעוזר: 16 דמויות (4 בחינם), הילות זוהרות ותגים בחנות',
+    ],
+  },
+  {
     version: '3.5.0',
     date: '2026-11-26',
     items: [

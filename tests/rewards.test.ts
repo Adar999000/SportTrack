@@ -103,6 +103,19 @@ describe('rewards', () => {
     expect(be.post({ action: 'leaderboard', token: t, period: 'all' }).leaders[0].frame).toBe('fire');
   });
 
+  it('assistant characters and accessories are store items', () => {
+    const { be, t } = setup();
+    const lots = Array.from({ length: 10 }, (_, i) => wk(new Date(Date.UTC(2026, 9, 4 + 7 * i)).toISOString().slice(0, 10), Array.from({ length: 7 }, () => full(true)), 100));
+    be.post({ action: 'putWeeks', token: t, weeks: lots });
+    const r = be.post({ action: 'rewards', token: t }).rewards;
+    expect(r.catalog.find((c: any) => c.kind === 'mascot' && c.id === 'dragon').base).toBe(400);
+    expect(r.catalog.find((c: any) => c.kind === 'mascot' && c.id === 'lion')).toBeUndefined(); // free, not sold
+    const after = be.post({ action: 'spend', token: t, item: 'cosmetic', kind: 'mascot', id: 'tiger' }).rewards;
+    expect(after.unlocked).toContain('mascot:tiger');
+    expect(be.post({ action: 'spend', token: t, item: 'cosmetic', kind: 'acc', id: 'galaxy' }).rewards.unlocked).toContain('acc:galaxy');
+    expect(be.post({ action: 'spend', token: t, item: 'cosmetic', kind: 'acc', id: 'nope' }).error).toMatch(/לא מוכר/);
+  });
+
   it('rewards weight progress at most one kg per week, then the goal', () => {
     const { be, t } = setup();
     be.post({ action: 'updateProfile', token: t, profile: { goalWeight: 97 } });

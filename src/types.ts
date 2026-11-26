@@ -83,6 +83,8 @@ export interface Settings {
   effects?: boolean;
   /** The assistant's character (see MASCOTS). */
   mascot?: string;
+  /** Accessories the assistant wears, by slot. */
+  mascotOutfit?: { aura?: string; badge?: string };
   /** User-added sport types, remembered for the sport picker. */
   customSportTypes: string[];
   dailyReminder: boolean;
