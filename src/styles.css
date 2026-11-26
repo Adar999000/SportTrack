@@ -1781,3 +1781,5 @@ body:not(.is-landing) .content { padding-bottom: calc(150px + env(safe-area-inse
 .story-preview .story-card { padding: 16px 14px 12px; }
 .gender-pick { display: flex; flex-wrap: wrap; gap: 8px; }
 .gender-pick .goal-chip[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.mi-icon:has(.mi-mascot) { background: transparent; overflow: visible; }
+.mi-mascot { width: 40px !important; height: 40px !important; }

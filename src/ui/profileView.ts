@@ -1,3 +1,4 @@
+import { mascot } from './mascot';
 import { goalChips } from './goalChips';
 import { genderPicker } from './genderPicker';
 import { t, tr } from '../i18n';
@@ -208,7 +209,7 @@ export function renderProfile(root: HTMLElement): void {
       menuItem('feed', t('קהילה ואתגרים'), t('פיד, אתגרים עם חברים ותחרויות'), go(HASH.feed)),
       menuItem('music', t('מוזיקה'), t('Spotify ו-Apple Music לאימונים'), go(HASH.music)),
       menuItem('star', t('המטרות שלי'), t('מה חשוב לך, והאפליקציה מתאימה את עצמה'), go(HASH.goals)),
-      menuItem('chat', t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),
+      menuItem(mascot(34, 'mi-mascot'), t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),
       menuItem('info', t('פנייה למנהל'), t('שאלה, בעיה או הצעה'), () => openAssistant('support')),
       menuItem('mail', t('הזמנת חברים'), t('קישור אישי, ומטבעות לשניכם'), go(HASH.share)),
       menuItem('access', t('נגישות'), t('גודל טקסט, ניגודיות, עצירת אנימציות'), () => openAccessibility()),

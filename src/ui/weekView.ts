@@ -288,9 +288,9 @@ function openWeekMenu(): void {
   ));
 }
 
-export function menuItem(iconName: string, title: string, sub: string, onclick: () => void): HTMLElement {
+export function menuItem(iconName: string | Node, title: string, sub: string, onclick: () => void): HTMLElement {
   return h('button', { class: 'menu-item', type: 'button', onclick },
-    h('span', { class: 'mi-icon', 'aria-hidden': 'true' }, /^[a-z]+$/.test(iconName) ? icon(iconName, 20) : iconName),
+    h('span', { class: 'mi-icon', 'aria-hidden': 'true' }, typeof iconName === 'string' && /^[a-z]+$/.test(iconName) ? icon(iconName, 20) : iconName),
     h('span', { class: 'mi-text' }, h('strong', null, title), sub ? h('span', { class: 'muted small' }, sub) : ''),
     h('span', { class: 'mi-chev', 'aria-hidden': 'true' }, isRTL ? '‹' : '›'));
 }
