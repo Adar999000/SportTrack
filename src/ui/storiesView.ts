@@ -22,7 +22,8 @@ import { track } from '../analytics';
 import type { Post } from './feedView';
 
 export interface StoryData {
-  tpl: 'photo' | 'text' | 'rings' | 'workout' | 'achievement';
+  tpl: 'photo' | 'text' | 'rings' | 'workout' | 'achievement' | 'week';
+  workouts?: number; full?: number;
   bg: string;
   meals?: number; sport?: number; week?: number; streak?: number;
   type?: WorkoutType; distanceM?: number; durationS?: number; name?: string; route?: [number, number][];
@@ -95,6 +96,12 @@ export function storyCard(d: StoryData, text: string, photo: string | null, who:
       d.route?.length ? routeSvg(d.route) : '',
       h('div', { class: 'st-hero-num' }, h('b', null, fmtKm(d.distanceM ?? 0)), h('span', null, t('ק"מ'))),
       h('div', { class: 'st-stats' }, big(fmtDuration(d.durationS ?? 0), t('זמן')), big(ps.value, t(ps.label))));
+  } else if (d.tpl === 'week') {
+    body = h('div', { class: 'st-body' },
+      h('p', { class: 'st-kicker' }, t('סיכום השבוע')),
+      h('div', { class: 'st-hero-num' }, h('b', null, String(d.workouts ?? 0)), h('span', null, t('אימונים'))),
+      h('div', { class: 'st-week-dots', 'aria-hidden': 'true' }, Array.from({ length: 7 }, (_, i) => h('span', { class: i < (d.full ?? 0) ? 'on' : '' }))),
+      h('div', { class: 'st-stats' }, big(`${d.full ?? 0}/7`, t('ימים מלאים')), big(`${d.meals ?? 0}%`, t('ארוחות'))));
   } else if (d.tpl === 'achievement') {
     body = h('div', { class: 'st-body st-center' }, h('div', { class: 'st-emoji', 'aria-hidden': 'true' }, d.emoji || '🏆'), h('p', { class: 'st-title' }, d.title || ''));
   } else if (d.tpl === 'photo') {
@@ -165,7 +172,23 @@ function openViewer(groups: Group[], gi: number, onClose: () => void): void {
         if (r.liked) { five.classList.remove('burst'); void five.offsetWidth; five.classList.add('burst'); navigator.vibrate?.(15); }
       } catch (e: any) { toast(e.message); }
     });
-    foot.replaceChildren(five,
+    const reply = h('form', { class: 'sv-reply' },
+      h('input', { class: 'sv-reply-in', maxlength: 300, placeholder: tr`תגובה פרטית ל${g.author.name.split(' ')[0]}…`, 'aria-label': t('תגובה פרטית') }),
+      h('button', { class: 'sv-send', type: 'submit', 'aria-label': t('שליחה') }, '➤'));
+    const rin = reply.querySelector('input') as HTMLInputElement;
+    rin.addEventListener('focus', pause);
+    rin.addEventListener('blur', () => { if (!rin.value) resume(); });
+    reply.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = rin.value.trim();
+      if (!text) return;
+      try { await call('commentPost', { id: p.id, text }); rin.value = ''; rin.blur(); toast(t('התגובה נשלחה')); resume(); } catch (ex: any) { toast(ex.message); }
+    });
+    const replies = p.mine && p.comments.length ? h('button', { class: 'sv-views', type: 'button', onclick: () => {
+      pause();
+      openSheet(tr`תגובות (${p.comments.length})`, h('ul', { class: 'plain-list sv-replies' }, p.comments.map((c) => h('li', null, h('b', null, c.name), ': ', c.text))));
+    } }, '💬 ', String(p.comments.length)) : '';
+    foot.replaceChildren(p.mine ? '' : reply, five, replies,
       p.mine ? h('button', { class: 'sv-views', type: 'button', onclick: () => {
         pause();
         openSheet(tr`צפו ${d.viewCount ?? 0}`, h('div', { class: 'stack' }, (d.viewers ?? []).length ? h('ul', { class: 'plain-list' }, (d.viewers ?? []).map((n) => h('li', null, n))) : h('p', { class: 'muted' }, t('עוד אף אחד.'))));

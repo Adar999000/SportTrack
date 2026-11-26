@@ -14,8 +14,14 @@ let openA11yMenu: () => void = () => {};
 let showA11yButton: (on: boolean) => void = () => {};
 /** Open the accessibility menu from anywhere (works even when its button is hidden). */
 export const openAccessibility = () => openA11yMenu();
-export const setA11yButtonVisible = (on: boolean) => showA11yButton(on);
-export const a11yButtonVisible = () => { try { return localStorage.getItem(HIDE_KEY) !== '1'; } catch { return true; } };
+/** Inside the app the floating button is off by default (the menu lives under "Me"); on the landing page it shows. */
+const INAPP_KEY = 'mishmaat-a11y-inapp';
+export const setA11yButtonVisible = (on: boolean) => {
+  try { if (on) { localStorage.setItem(INAPP_KEY, '1'); localStorage.removeItem(HIDE_KEY); } else localStorage.removeItem(INAPP_KEY); } catch { /* ignore */ }
+  document.body.classList.toggle('a11y-inapp', on);
+  showA11yButton(true);
+};
+export const a11yButtonVisible = () => { try { return localStorage.getItem(INAPP_KEY) === '1'; } catch { return false; } };
 
 /** Accessibility menu: a fixed button on every screen (signed in or not). */
 export function mountA11yWidget(): void {
@@ -32,6 +38,7 @@ export function mountA11yWidget(): void {
     btn.hidden = hide.hidden = hidden;
   };
   document.body.append(btn, hide, panel);
+  document.body.classList.toggle('a11y-inapp', a11yButtonVisible());
   sync();
   openA11yMenu = () => open();
   showA11yButton = (on: boolean) => { try { if (on) localStorage.removeItem(HIDE_KEY); else localStorage.setItem(HIDE_KEY, '1'); } catch { /* ignore */ } sync(); };

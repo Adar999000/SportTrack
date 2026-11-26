@@ -10,6 +10,7 @@ import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { duelsTab } from './duelsView';
 import { storiesBar } from './storiesView';
+import { leagueCard } from './leagueView';
 import { track } from '../analytics';
 import { cardPreview, openShareAchievement, shareOutside, visibilitySelect, type Achievement } from './shareCard';
 
@@ -277,7 +278,7 @@ export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels')
     h('a', { href: HASH.events, 'aria-current': tab === 'events' ? 'page' : undefined }, t('תחרויות')));
   root.replaceChildren(seg, box);
   if (tab === 'events') return eventsTab(box);
-  if (tab === 'duels') return duelsTab(box);
+  if (tab === 'duels') { root.replaceChildren(seg, leagueCard(), box); return duelsTab(box); }
 
   let only = '';
   let posts: Post[] = [];

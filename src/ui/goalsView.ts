@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import { call, type User } from '../api';
 import { currentUser, setUser } from '../session';
 import { goalChips } from './goalChips';
+import { applyGoals } from '../goalEffects';
 import { icon } from './icons';
 import { HASH, navigate } from './router';
 
@@ -15,7 +16,8 @@ export function renderGoals(main: HTMLElement): void {
     try {
       const res = await call<{ user: User }>('updateProfile', { profile: { goals: chips.value() } });
       await setUser(res.user);
-      toast(t('נשמר'));
+      const changed = applyGoals(chips.value());
+      toast(changed.length ? t('נשמר. הוספנו לפי המטרות: ') + changed.join(', ') : t('נשמר'));
       navigate(HASH.profile);
     } catch (e: any) { toast(e.message); save.disabled = false; }
   });

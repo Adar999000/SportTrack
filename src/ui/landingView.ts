@@ -14,7 +14,7 @@ function isDark(): boolean {
 
 /** Top menu: section links (scroll, not routes), theme, language, sign in / sign up; a ☰ menu on phones. */
 function landingHeader(go: (to: 'login' | 'signup') => void): HTMLElement {
-  const links: [string, string][] = [['features', 'תכונות'], ['how', 'איך זה עובד'], ['coins', 'מטבעות ואתגרים'], ['trust', 'אבטחה ופרטיות'], ['faq', 'שאלות נפוצות']];
+  const links: [string, string][] = [['features', 'תכונות'], ['peek', 'הצצה'], ['how', 'איך זה עובד'], ['coins', 'מטבעות ואתגרים'], ['trust', 'אבטחה ופרטיות'], ['faq', 'שאלות נפוצות']];
   const jump = (id: string) => {
     menu.hidden = true; burger.setAttribute('aria-expanded', 'false');
     const el = document.getElementById(id);
@@ -145,6 +145,28 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       ),
       h('ol', { class: 'level-ladder', 'aria-label': t('רמות') },
         ...['מתחיל', 'מתמיד', 'ממושמע', 'לוחם', 'אלוף השכונה', 'אגדה'].map((n, i) => h('li', null, h('b', null, String([1, 2, 3, 4, 5, 9][i])), t(n)))),
+    ),
+
+    h('section', { class: 'shots', id: 'peek', 'aria-labelledby': 'shots-title' },
+      h('h2', { id: 'shots-title' }, t('הצצה לאפליקציה')),
+      h('div', { class: 'shots-row', tabindex: '0', role: 'region', 'aria-label': t('צילומי מסך, אפשר לגלול לצדדים') },
+        ...([['today', 'היום: מסמנים בהקשה, וטבעות מראות כמה נשאר'], ['progress', 'התקדמות: משקל, אימונים וימים מלאים'], ['story', 'סטורי של אימון: מסלול ונתונים, בלי מיקום'], ['store', 'רמות, מטבעות וחנות']] as const).map(([n, cap]) =>
+          h('figure', { class: 'shot' }, h('img', { src: `shots/${n}.webp`, alt: t(cap), loading: 'lazy', width: 300, height: 512 }), h('figcaption', null, t(cap))))),
+    ),
+
+    h('section', { class: 'install-guide', id: 'install', 'aria-labelledby': 'install-title' },
+      h('h2', { id: 'install-title' }, t('מתקינים בלי חנות אפליקציות')),
+      h('div', { class: 'install-cols' },
+        h('div', { class: 'install-col' }, h('h3', null, 'iPhone'), h('ol', null,
+          h('li', null, t('פותחים את האתר ב-Safari')),
+          h('li', null, t('לוחצים על כפתור השיתוף (ריבוע עם חץ למעלה)')),
+          h('li', null, t('גוללים ובוחרים "הוסף למסך הבית"')),
+          h('li', null, t('לוחצים "הוסף", והאייקון מופיע כמו אפליקציה')))),
+        h('div', { class: 'install-col' }, h('h3', null, 'Android'), h('ol', null,
+          h('li', null, t('פותחים את האתר ב-Chrome')),
+          h('li', null, t('לוחצים על "התקנה" שמופיע למטה, או בתפריט ⋮ על "התקנת אפליקציה"')),
+          h('li', null, t('האפליקציה נפתחת ממסך הבית, גם בלי אינטרנט')))),
+      ),
     ),
 
     h('section', { class: 'steps', id: 'how' },

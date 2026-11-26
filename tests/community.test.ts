@@ -280,3 +280,26 @@ describe('stories, goals and music settings', () => {
     expect(be.post({ action: 'setSiteConfig', token: u.token, spotifyClientId: 'b'.repeat(32) }).error).toBeTruthy();
   });
 });
+
+describe('leagues and story replies', () => {
+  it('keeps story replies private and puts people in a weekly league', () => {
+    const be = createBackend();
+    be.properties.set('TEAM_SEEDED', '1');
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });
+    const c = be.post({ action: 'register', email: 'c@x.com', password: 'secret12', name: 'גימל' });
+    const { post } = be.post({ action: 'createPost', token: a.token, kind: 'story', data: { tpl: 'week', workouts: 4, full: 5, meals: 88 } });
+    expect(post.data).toMatchObject({ tpl: 'week', workouts: 4, full: 5, meals: 88 });
+    expect(post.author.name).toBe('אלף'); // new user, name shown even before the leaderboard cache refreshes
+    be.post({ action: 'commentPost', token: b.token, id: post.id, text: 'כל הכבוד' });
+    be.post({ action: 'commentPost', token: c.token, id: post.id, text: 'וואו' });
+    const story = (tok: string) => be.post({ action: 'stories', token: tok }).groups[0].items[0];
+    expect(story(a.token).comments).toHaveLength(2);
+    expect(story(b.token).comments.map((x: any) => x.text)).toEqual(['כל הכבוד']);
+    const lg = be.post({ action: 'league', token: b.token });
+    expect(lg.members.length).toBe(4);
+    expect(lg.members.filter((m: any) => m.me)).toHaveLength(1);
+    expect(lg.tier).toBe('זהב');
+  });
+});

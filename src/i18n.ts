@@ -3,6 +3,7 @@
  * The language is read synchronously at startup (localStorage), so module-level
  * labels are already translated; switching language reloads the page.
  */
+import { FEM } from './i18n-fem';
 import { EN } from './i18n-en';
 import type { Lang } from './types';
 
@@ -34,8 +35,17 @@ export function applyDocumentLang(): void {
 }
 
 /** t('נשמרו {n} שבועות', { n: 5 }) */
+let gender: 'male' | 'female' | '' = '';
+/** Set from the signed-in user's profile; Hebrew strings then address them as a man or a woman. */
+export function setGender(g: 'male' | 'female' | '' | undefined): void { gender = g || ''; }
+/** "סמן/י", "את/ה", "קרוב/ה" → the form that fits (left as is when no gender is set). */
+export function genderize(s: string): string {
+  if (!gender || !s.includes('/')) return s;
+  return s.replace(/(^|[^\u0590-\u05FF])את\/ה(?![\u0590-\u05FF])/g, (_, p) => p + (gender === 'female' ? 'את' : 'אתה'))
+    .replace(/([\u0590-\u05FF]+)\/(ה|י|ית|ות)(?![\u0590-\u05FF])/g, (_, w, suf) => (gender === 'female' ? w.replace(/[ךםןףץ]$/, (c: string) => 'כמנפצ'['ךםןףץ'.indexOf(c)]) + suf : w));
+}
 export function t(he: string, vars?: Record<string, string | number>): string {
-  let s = lang === 'en' ? EN[he] ?? he : he;
+  let s = lang === 'en' ? EN[he] ?? he : genderize(gender === 'female' ? FEM[he] ?? he : he);
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
   return s;
 }

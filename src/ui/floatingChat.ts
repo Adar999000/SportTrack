@@ -116,6 +116,16 @@ export function mountFloatingChat(): { refresh: () => void } {
   // phones: tapping the dimmed page behind the sheet closes it
   document.addEventListener('click', (e) => { if (!panel.hidden && isPhone() && e.target === document.body) close(); });
 
+  // While the page scrolls the character tucks into the nearest edge so it never covers what you read.
+  let tuckTimer = 0;
+  addEventListener('scroll', () => {
+    if (!panel.hidden || fab.classList.contains('dragging')) return;
+    const r = fab.getBoundingClientRect();
+    fab.dataset.side = r.left + r.width / 2 < innerWidth / 2 ? 'left' : 'right';
+    fab.classList.add('tucked');
+    clearTimeout(tuckTimer);
+    tuckTimer = window.setTimeout(() => fab.classList.remove('tucked'), 1100);
+  }, { passive: true });
   openPanel = (tab0?: 'ai' | 'support') => { if (tab0) tab = tab0; open(); };
   const refresh = () => {
     const signedIn = !!currentUser();

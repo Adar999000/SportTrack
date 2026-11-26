@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.7.0 (2026-11-27)
+- Gendered Hebrew: `setGender` + `genderize` in i18n ("סמן/י", "את/ה", "קרוב/ה" resolve to the chosen form, final letters handled) and a feminine dictionary (`src/i18n-fem.ts`) for strings written in the masculine.
+- Weekly recap card (Saturday evening to Monday) with deltas vs the previous week, one focus, and a new `week` story template.
+- Weekly leagues (`league`): groups of 15 by lifetime coins, ranked by this week's coins, top/bottom 3 move.
+- Private story replies (author sees all, others only their own); `peopleIndex` falls back to the Users sheet so new users never show as "—".
+- Goals take effect: smoking row + smoke-free streak chip, Body & mind / Habits / Gym trackers added once.
+- Floating character tucks to the edge while scrolling; the floating accessibility button is off inside the app by default (menu under Me; landing unchanged).
+- Landing: real screenshots and iPhone / Android install steps. Admin, settings, store and invite screens load on demand (main bundle −66 KB).
+
 ## 5.6.1 (2026-11-27)
 - Gender (male / female / not set) in onboarding and profile edit, stored as `profile.gender` (whitelisted); used for Hebrew wording and passed to the assistant.
 

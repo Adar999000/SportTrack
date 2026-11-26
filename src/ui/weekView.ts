@@ -20,6 +20,8 @@ import { trackerBar } from './trackerView';
 import { valueCell } from './valueCell';
 import { track } from '../analytics';
 import { gx } from '../gender';
+import { smokeFreeStreak } from '../goalEffects';
+import { weeklySummaryCard } from './weeklySummary';
 
 const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
@@ -97,6 +99,7 @@ function smartChips(sunday: string): HTMLElement | '' {
   const chips: string[] = [];
   if (ls.current >= 2) chips.push(tr`🔥 ${ls.current} ימים ברצף`);
   chips.push(wo >= 3 ? tr`✓ ${wo} אימונים השבוע` : tr`${wo}/3 אימונים השבוע`);
+  if (currentUser()?.profile?.goals?.includes('smoke') && getSettings().showSmoking) { const n = smokeFreeStreak(); if (n) chips.push(tr`🚭 ${n} ימים בלי עישון`); }
   return h('div', { class: 'smart-chips' }, chips.map((c) => h('span', { class: 'smart-chip' }, c)));
 }
 
@@ -409,6 +412,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
 
   root.replaceChildren(
     listTrackers().length ? trackerBar(null) : '',
+    isCurrent ? weeklySummaryCard() : '',
     isCurrent ? todayPanel(today) : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,

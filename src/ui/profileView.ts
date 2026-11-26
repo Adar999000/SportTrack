@@ -1,5 +1,6 @@
 import { mascot } from './mascot';
 import { goalChips } from './goalChips';
+import { applyGoals } from '../goalEffects';
 import { genderPicker } from './genderPicker';
 import { t, tr } from '../i18n';
 import { call, type User } from '../api';
@@ -86,7 +87,8 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
       });
       if (photo && res.user.photoId) rememberPhoto(res.user.photoId, photo);
       await setUser(res.user);
-      toast('הפרופיל נשמר');
+      if (onboarding) applyGoals(chips.value());
+      toast(t('הפרופיל נשמר'));
       navigate(onboarding ? HASH.week() : HASH.profile);
     } catch (ex: any) {
       err.textContent = ex.message;

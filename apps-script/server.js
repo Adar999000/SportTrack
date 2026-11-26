@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.6.1';
+const SERVER_VERSION = '5.7.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -89,6 +89,7 @@ function route(req) {
     case 'feed': return feed(me, req);
     case 'createPost': return createPost(me, req);
     case 'stories': return stories(me);
+    case 'league': return league(me);
     case 'viewStory': return viewStory(me, req);
     case 'likePost': return likePost(me, req);
     case 'commentPost': return commentPost(me, req);
@@ -1207,6 +1208,21 @@ function leaderboard(period) {
   return list.slice().sort((a, b) => b[k] - a[k]);
 }
 
+/** Weekly league: people with similar lifetime coins in groups of 15, ranked by this week's coins. */
+const LEAGUE_SIZE = 15;
+const LEAGUE_TIERS = ['יהלום', 'פלטינה', 'זהב', 'כסף', 'ארד'];
+function league(me) {
+  const uid = me.r[U.id];
+  const all = leaderboard('all');
+  const groups = Math.max(1, Math.ceil(all.length / LEAGUE_SIZE));
+  const idx = Math.max(0, all.findIndex((l) => l.userId === uid));
+  const g = Math.min(groups - 1, Math.floor(idx / LEAGUE_SIZE));
+  const members = all.slice(g * LEAGUE_SIZE, (g + 1) * LEAGUE_SIZE).sort((a, b) => b.week - a.week || b.lifetime - a.lifetime)
+    .map((l, i) => ({ rank: i + 1, userId: l.userId, name: l.name, photoId: l.photoId, frame: l.frame, level: l.level, week: l.week, me: l.userId === uid }));
+  const tier = LEAGUE_TIERS[Math.min(LEAGUE_TIERS.length - 1, Math.round((g / Math.max(1, groups - 1)) * (LEAGUE_TIERS.length - 1)) || 0)];
+  return { tier: groups === 1 ? LEAGUE_TIERS[2] : tier, members: members, up: g > 0 ? 3 : 0, down: g < groups - 1 ? 3 : 0 };
+}
+
 // ------------------------------------------------------------------ messages to the admin (support)
 
 const M = { id: 0, user: 1, at: 2, from: 3, subject: 4, text: 5, status: 6 };
@@ -1780,7 +1796,8 @@ const TEAM_ID = 'team';
 function postOut(r, uid, people) {
   const a = r[P.user] === TEAM_ID ? { name: 'צוות משמעת אישית', team: true } : (people[r[P.user]] || { name: '—' });
   const likes = parseJSON(r[P.likes], []) || [];
-  const comments = (parseJSON(r[P.comments], []) || []).slice(-30).map((c) => ({
+  // story replies are private: the author sees all of them, everyone else only their own
+  const comments = (parseJSON(r[P.comments], []) || []).filter((c) => r[P.kind] !== 'story' || r[P.user] === uid || c.userId === uid).slice(-30).map((c) => ({
     id: c.id, userId: c.userId, name: (people[c.userId] || {}).name || '—', text: c.text, at: c.at,
   }));
   let data = parseJSON(r[P.data], null);
@@ -1801,6 +1818,8 @@ function postOut(r, uid, people) {
 function peopleIndex() {
   const out = {};
   leaderboard('all').forEach((l) => { out[l.userId] = l; });
+  // the leaderboard is cached for a few minutes; people who joined since still get their name
+  rows('Users').forEach((r) => { if (!out[r[U.id]]) out[r[U.id]] = { userId: r[U.id], name: r[U.name], photoId: r[U.photo] || null, frame: extraOf(r).frame || '', level: 1, levelName: '' }; });
   return out;
 }
 
@@ -1821,7 +1840,7 @@ function ensureTeamPosts() {
 // ------------------------------------------------------------------ stories (24h)
 
 const STORY_MS = 24 * 3600 * 1000;
-const STORY_TPL = ['photo', 'text', 'rings', 'workout', 'achievement'];
+const STORY_TPL = ['photo', 'text', 'rings', 'workout', 'achievement', 'week'];
 const STORY_BG = ['ink', 'lime', 'sunset', 'ocean', 'berry', 'forest'];
 function cleanStory(d) {
   const num = (x, max) => Math.max(0, Math.min(max, Number(x) || 0));
@@ -1832,6 +1851,7 @@ function cleanStory(d) {
       name: String(d.name || '').slice(0, 60) });
     if (Array.isArray(d.route)) out.route = d.route.slice(0, 80).map((p) => [Math.round(num(p[0], 100) * 10) / 10, Math.round(num(p[1], 100) * 10) / 10]);
   }
+  if (out.tpl === 'week') Object.assign(out, { workouts: num(d.workouts, 50), full: num(d.full, 7), meals: num(d.meals, 100) });
   if (out.tpl === 'achievement') Object.assign(out, { title: String(d.title || '').slice(0, 80), emoji: String(d.emoji || '🏆').slice(0, 4) });
   return out;
 }

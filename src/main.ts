@@ -8,22 +8,18 @@ import { checkReminders } from './reminders';
 import { currentUser, isAdmin, loadSession, onSession, refreshUser } from './session';
 import { allWeeks, dirtyCount, flush, getSettings, loadStore, setDayCompleteHandler, setLockedHandler, setOwner, subscribe, weeksOwner } from './store';
 import { getSyncState, onSync, resetPullCursor, scheduleSync, syncNow } from './sync';
-import { renderAdmin, renderAdminUser } from './ui/adminView';
 import { renderAuth } from './ui/authView';
 import { renderChat } from './ui/chatView';
 import { h, openSheet, toast } from './ui/dom';
 import { icon, logo } from './ui/icons';
-import { applyDocumentLang, isRTL, t, tr } from './i18n';
+import { applyDocumentLang, isRTL, t, tr, setGender } from './i18n';
 import { APP_VERSION } from './version';
 import { updateSettings } from './store';
 import { renderHistory } from './ui/historyView';
 import { renderProfile, renderProfileForm } from './ui/profileView';
 import { HASH, navigate, parseRoute, type Route } from './ui/router';
-import { renderSettings } from './ui/settingsView';
 import { renderStats } from './ui/statsView';
 import { renderWeek } from './ui/weekView';
-import { renderRewards } from './ui/rewardsView';
-import { renderShare } from './ui/shareView';
 import { avatar } from './ui/avatar';
 import { renderTracker } from './ui/trackerView';
 import { renderWorkout, workoutsCard } from './ui/workoutView';
@@ -140,6 +136,7 @@ function drawSyncBadge() {
 }
 
 function render() {
+  setGender(currentUser()?.profile?.gender);
   drawBrand();
   queueMicrotask(() => { floating?.refresh(); maybeStartTour(); });
   applyTheme();
@@ -234,6 +231,13 @@ function render() {
 }
 
 let lastTab = -1;
+
+/** Screens that most visits never open load on demand, so the app starts faster. */
+const renderAdmin = (m: HTMLElement) => void import('./ui/adminView').then((x) => x.renderAdmin(m));
+const renderAdminUser = (m: HTMLElement, id: string) => void import('./ui/adminView').then((x) => x.renderAdminUser(m, id));
+const renderSettings = (m: HTMLElement) => void import('./ui/settingsView').then((x) => x.renderSettings(m));
+const renderRewards = (m: HTMLElement) => void import('./ui/rewardsView').then((x) => x.renderRewards(m));
+const renderShare = (m: HTMLElement) => void import('./ui/shareView').then((x) => x.renderShare(m));
 
 /** Level up or a new badge since the last time we looked: celebrate it once. */
 function checkMilestones() {
