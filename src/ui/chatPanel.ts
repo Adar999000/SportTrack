@@ -4,6 +4,7 @@ import { applyActions, type AgentAction } from '../actions';
 import { currentUser } from '../session';
 import { h, toast } from './dom';
 import { mascot } from './mascot';
+import { NOTE_EVENT_NAME } from '../nudges';
 import { track } from '../analytics';
 import { lang, t } from '../i18n';
 import { formatShort } from '../dates';
@@ -99,8 +100,18 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
   });
   const reset = h('button', { class: 'link-btn', type: 'button', onclick: () => { messages = []; kvSet(key, []).catch(() => {}); draw(); } }, t('שיחה חדשה'));
   kvGet<Msg[]>(key).then((m) => { messages = m ?? []; draw(); }).catch(draw);
+  const wrapRef = h('div', { class: 'chat-panel' });
+  // notes the assistant starts on its own (see nudges.ts) land in the open conversation
+  window.addEventListener(NOTE_EVENT_NAME, ((e: CustomEvent<{ key: string; text: string; handled: boolean }>) => {
+    if (e.detail.key !== key) return;
+    e.detail.handled = true;
+    messages.push({ role: 'assistant', content: e.detail.text });
+    kvSet(key, messages.slice(-40).map(({ undo: _u, ...rest }) => rest)).catch(() => {});
+    draw();
+  }) as EventListener);
   draw();
-  const wrap = h('div', { class: 'chat-panel' }, log, form, h('div', { class: 'chat-foot' }, h('span', { class: 'hint' }, t('התשובות נוצרות על ידי AI ועלולות לטעות. זה לא ייעוץ רפואי.')), reset));
+  const wrap = wrapRef;
+  wrap.append(log, form, h('div', { class: 'chat-foot' }, h('span', { class: 'hint' }, t('התשובות נוצרות על ידי AI ועלולות לטעות. זה לא ייעוץ רפואי.')), reset));
   return wrap;
 }
 

@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '4.2.0';
+const SERVER_VERSION = '5.2.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -771,6 +771,7 @@ const CATALOG = {
   bg: { sand: 200, ocean: 200, forest: 200, rose: 200, mint: 200, lavender: 200, sunrise: 240, midnight: 300, carbon: 300, aurora: 380 },
   frame: { silver: 120, goldframe: 250, neon: 280, fire: 300, ice: 300, rainbow: 350, laurel: 380, diamond: 400, champion: 450, legend: 600 },
   effect: { confetti: 200, stars: 220, fireworks: 300 },
+  skin: { bubbly: 300, feminine: 300, stadium: 350, anime: 400, retro: 400, neon: 450, leopard: 500, luxe: 800 },
   mascot: { cat: 120, frog: 120, rabbit: 120, hamster: 120, tiger: 150, fox: 150, bear: 150, horse: 160, koala: 180, monkey: 180, penguin: 180, polarbear: 180,
     owl: 200, octopus: 200, runner: 200, biker: 220, swimmer: 220, yogi: 220, lifter: 250, climber: 260, surfer: 260, unicorn: 300, gorilla: 300, wolf: 320,
     shark: 350, eagle: 380, dragon: 400, ninja: 450 },
@@ -781,6 +782,7 @@ const CATALOG = {
 
 /** Items you can only buy from a certain level (a level perk that makes it free still applies). */
 const ITEM_LEVEL = {
+  'skin:bubbly': 2, 'skin:feminine': 2, 'skin:stadium': 3, 'skin:anime': 4, 'skin:retro': 5, 'skin:neon': 6, 'skin:leopard': 7, 'skin:luxe': 10,
   'color:emerald': 3, 'color:graphite': 4, 'color:ruby': 6,
   'bg:sunrise': 3, 'bg:carbon': 5, 'bg:aurora': 9,
   'frame:neon': 4, 'frame:ice': 5, 'frame:diamond': 7, 'frame:laurel': 8, 'frame:champion': 10, 'frame:legend': 13,

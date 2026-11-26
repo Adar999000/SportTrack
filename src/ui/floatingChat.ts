@@ -6,7 +6,8 @@ import { contactForm } from './legalPages';
 import { h } from './dom';
 import { aiMark, icon } from './icons';
 import { mascot } from './mascot';
-import { t } from '../i18n';
+import { t, tr } from '../i18n';
+import { checkNudges, markNudgesRead, nudgeUnread, onNudgeUnread } from '../nudges';
 
 /** Floating assistant button on every signed-in screen: AI chat + messages to the admin. */
 let openPanel: (tab?: 'ai' | 'support') => void = () => {};
@@ -24,12 +25,15 @@ export function mountFloatingChat(): { refresh: () => void } {
   let lastCheck = 0;
   let aiEl: HTMLElement | null = null;
   let aiOwner = '';
-  const setUnread = (n: number) => { unread = n; badge.hidden = !n; badge.textContent = String(n); };
+  const drawBadge = () => { const n = unread + nudgeUnread(); badge.hidden = !n; badge.textContent = n > 9 ? '9+' : String(n); badge.setAttribute('aria-label', tr`${n} הודעות שלא נקראו`); };
+  const setUnread = (n: number) => { unread = n; drawBadge(); };
+  onNudgeUnread(() => { drawBadge(); refresh(); });
 
   function draw() {
     const guest = !currentUser();
+    if (tab === 'ai' && !guest && !panel.hidden) markNudgesRead();
     const tabs = h('div', { class: 'seg fab-tabs', role: 'group', 'aria-label': t('עוזר AI') },
-      h('button', { type: 'button', 'aria-pressed': String(tab === 'ai'), onclick: () => { tab = 'ai'; draw(); } }, aiMark(14), ' ', guest ? t('שאלות') : t('עוזר AI')),
+      h('button', { type: 'button', 'aria-pressed': String(tab === 'ai'), onclick: () => { tab = 'ai'; draw(); } }, aiMark(14), ' ', guest ? t('שאלות') : t('עוזר AI'), !guest && nudgeUnread() ? h('span', { class: 'fab-badge inline' }, String(nudgeUnread())) : ''),
       h('button', { type: 'button', 'aria-pressed': String(tab === 'support'), onclick: () => { tab = 'support'; draw(); } },
         icon('info', 14), ' ', t('פנייה למנהל'), unread ? h('span', { class: 'fab-badge inline' }, String(unread)) : ''),
     );
@@ -78,7 +82,8 @@ export function mountFloatingChat(): { refresh: () => void } {
     const show = hasBackend() && !/^#chat/.test(location.hash) && (!signedIn || !!currentUser()?.profile?.completed);
     if ((signedIn ? currentUser()!.userId : '') !== aiOwner) aiEl = null; // signed in/out: start a fresh conversation
     // On unless the user turned it off in settings (an unread admin reply always shows it).
-    fab.hidden = !show || (signedIn && getSettings().showFab === false && !unread);
+    fab.hidden = !show || (signedIn && getSettings().showFab === false && !unread && !nudgeUnread());
+    if (show && signedIn) checkNudges();
     if (!show) panel.hidden = true;
     if (show && signedIn && !isAdmin() && Date.now() - lastCheck > 60_000) {
       lastCheck = Date.now();

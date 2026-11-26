@@ -29,6 +29,7 @@ import { renderTracker } from './ui/trackerView';
 import { renderFeed } from './ui/feedView';
 import { dirtyDocCount, loadDocs, setDocsOwner } from './docs';
 import { initAnalytics, track } from './analytics';
+import { markNudgesRead } from './nudges';
 import { renderLanding } from './ui/landingView';
 import { initInstall } from './install';
 import { applyA11y } from './a11y';
@@ -36,10 +37,18 @@ import { mountA11yWidget } from './ui/a11yWidget';
 import { renderAccessibility, renderPrivacy } from './ui/legalPages';
 import { mountFloatingChat } from './ui/floatingChat';
 import { maybeStartTour } from './ui/tour';
-import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
-import { burst } from './ui/confetti';
+import { BADGES, getRewards, levelLabel, loadCachedRewards, onRewards, owns, refreshRewards } from './rewards';
+import { celebrate } from './ui/celebrate';
 import { refreshMascots } from './ui/mascot';
-setDayCompleteHandler(() => burst());
+setDayCompleteHandler(() => {
+  const today = todayISO();
+  const w = allWeeks().find((x) => x.sundayDate === sundayOf(today));
+  if (new Date().getDay() === 6 && w) {
+    const full = w.days.filter((d) => (d.breakfast || d.text?.breakfast) && (d.lunch || d.text?.lunch) && (d.dinner || d.text?.dinner) && d.sport.status).length;
+    const wo = w.days.filter((d) => d.sport.status === 'V' && d.sport.countsAsWorkout).length;
+    celebrate('week', t('השבוע נסגר'), tr`${full} ימים מלאים · ${wo} אימונים`);
+  } else celebrate('day', t('יום מלא'), t('כל המשימות של היום סומנו'));
+});
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
 
@@ -103,6 +112,8 @@ function applyTheme() {
   else root.setAttribute('data-accent', accent);
   const bg = getSettings().bgTheme;
   if (bg) root.setAttribute('data-bg', bg); else root.removeAttribute('data-bg');
+  const skin = getSettings().skin;
+  if (skin && owns('skin:' + skin)) root.setAttribute('data-skin', skin); else root.removeAttribute('data-skin');
   const brand = getComputedStyle(root).getPropertyValue('--brand').trim();
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     if (!(m as HTMLMetaElement).media.includes('dark')) m.setAttribute('content', brand || '#2f6f5e');
@@ -192,7 +203,7 @@ function render() {
     case 'adminUser': isAdmin() ? renderAdminUser(main, route.userId) : renderWeek(main, sundayOf(todayISO())); break;
     case 'chat':
       if (!hasBackend()) renderWeek(main, sundayOf(todayISO()));
-      else renderChat(main, route.scope, route.userId);
+      else { renderChat(main, route.scope, route.userId); if (route.scope === 'me') markNudgesRead(); }
       break;
     case 'rewards': hasBackend() ? renderRewards(main) : renderWeek(main, sundayOf(todayISO())); break;
     case 'share': hasBackend() ? renderShare(main) : renderWeek(main, sundayOf(todayISO())); break;
@@ -213,6 +224,21 @@ function render() {
 }
 
 let lastTab = -1;
+
+/** Level up or a new badge since the last time we looked: celebrate it once. */
+function checkMilestones() {
+  const r = getRewards();
+  const u = currentUser();
+  if (!r || !u) return;
+  const key = 'milestones:' + u.userId;
+  let prev: { level: number; badges: Record<string, number> } | null = null;
+  try { prev = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* ignore */ }
+  try { localStorage.setItem(key, JSON.stringify({ level: r.level.n, badges: r.badges })); } catch { /* ignore */ }
+  if (!prev) return; // first look: just remember
+  if (r.level.n > prev.level) { celebrate('level', tr`עלית לרמה ${r.level.n}`, levelLabel(r.level.name), { num: r.level.n }); return; }
+  const id = Object.keys(r.badges).find((b) => (r.badges[b] ?? 0) > (prev!.badges[b] ?? 0));
+  if (id && BADGES[id]) celebrate('badge', t('תג חדש'), t(BADGES[id].name), { icon: BADGES[id].icon });
+}
 const tabIndex = (name: Route['name']) => tabs().findIndex((tb) => tb.names.includes(name));
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('a11y-motion');
 
@@ -221,6 +247,9 @@ function pageTransition(dir: number) {
   if (reducedMotion() || !main.animate) return;
   const x = dir * (isRTL ? -28 : 28);
   main.animate([{ opacity: 0, transform: `translateX(${x}px)` }, { opacity: 1, transform: 'none' }], { duration: dir ? 240 : 180, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  // cards rise in one after another
+  main.classList.remove('stagger'); void main.offsetWidth; main.classList.add('stagger');
+  setTimeout(() => main.classList.remove('stagger'), 900);
 }
 
 /** Phones: swipe sideways anywhere outside tables/scrollers to move between the tabs. */
@@ -334,7 +363,7 @@ async function boot() {
     drawSyncBadge();
     if (getSyncState().state === 'idle' && currentUser()) refreshRewards();
   });
-  onRewards(() => { drawCoinChip(); drawBrand(); });
+  onRewards(() => { drawCoinChip(); drawBrand(); checkMilestones(); applyTheme(); });
   let wasLoggedIn = !!currentUser();
   onSession(() => {
     const now = !!currentUser();

@@ -1,7 +1,8 @@
 import { isRTL, lang, t, tr } from '../i18n';
 import { DAY_NAMES, addDays, dayIndex, formatShort, sundayOf, todayISO, weekRangeLabel } from '../dates';
 import { cycleMark, cycleSmoked, sportShort } from '../model';
-import { editWeek, getSettings, getWeek } from '../store';
+import { allWeeks, editWeek, getSettings, getWeek } from '../store';
+import { lunchStreak, workoutsInWeek } from '../stats';
 import type { Day, Mark, MealKey } from '../types';
 import { h, openSheet } from './dom';
 import { icon } from './icons';
@@ -63,6 +64,38 @@ function label(full: string, short: string, key?: string) {
 /** How much of a day is filled in (meals + sport), 0–4. */
 const dayDone = (d: Day) => (['breakfast', 'lunch', 'dinner'] as const).filter((k) => d[k] || d.text?.[k]).length + (d.sport.status ? 1 : 0);
 
+/** "Good morning, Dana" by the time of day. */
+function greeting(): string {
+  const hr = new Date().getHours();
+  const name = currentUser()?.name?.split(' ')[0];
+  const g = hr < 5 ? t('לילה טוב') : hr < 12 ? t('בוקר טוב') : hr < 17 ? t('צהריים טובים') : hr < 21 ? t('ערב טוב') : t('לילה טוב');
+  return name ? `${g}, ${name}` : g;
+}
+
+/** What to mark next, by the time of day and what's still empty. */
+function nextTask(d: Day): string {
+  const hr = new Date().getHours();
+  const missing = (['breakfast', 'lunch', 'dinner'] as const).filter((k) => !d[k] && !d.text?.[k]);
+  const label = { breakfast: t('ארוחת בוקר'), lunch: t('ארוחת צהריים'), dinner: t('ארוחת ערב') };
+  const due = missing.filter((k) => (k === 'breakfast') || (k === 'lunch' && hr >= 12) || (k === 'dinner' && hr >= 18));
+  if (due.length) return tr`הבא בתור: ${label[due[0]]}`;
+  if (!d.sport.status && hr >= 16) return t('הבא בתור: ספורט');
+  const left = missing.length + (d.sport.status ? 0 : 1);
+  return left === 1 ? t('עוד משימה אחת ליום מלא') : tr`עוד ${left} משימות ליום מלא`;
+}
+
+/** Small live facts: streak, this week's workouts. */
+function smartChips(sunday: string): HTMLElement | '' {
+  const weeks = allWeeks();
+  const today = todayISO();
+  const ls = lunchStreak(weeks, today);
+  const wo = workoutsInWeek(getWeek(sunday));
+  const chips: string[] = [];
+  if (ls.current >= 2) chips.push(tr`🔥 ${ls.current} ימים ברצף`);
+  chips.push(wo >= 3 ? tr`✓ ${wo} אימונים השבוע` : tr`${wo}/3 אימונים השבוע`);
+  return h('div', { class: 'smart-chips' }, chips.map((c) => h('span', { class: 'smart-chip' }, c)));
+}
+
 function ring(done: number, total: number, size = 64): SVGSVGElement {
   const NS = 'http://www.w3.org/2000/svg';
   const r = 26, c = 2 * Math.PI * r;
@@ -90,8 +123,10 @@ function todayPanel(today: string): HTMLElement {
   return h('section', { class: 'card today', 'aria-label': t('היום') },
     h('div', { class: 'today-head' },
       h('div', null,
-        h('h2', { class: 'card-title' }, tr`היום · יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
-        h('p', { class: 'today-motto' }, done >= 4 ? t('יום מלא. אלוף/ה') : done === 3 ? t('עוד משימה אחת ליום מלא') : tr`עוד ${4 - done} משימות ליום מלא`),
+        h('p', { class: 'greet' }, greeting()),
+        h('h2', { class: 'card-title' }, tr`יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
+        h('p', { class: 'today-motto' }, done >= 4 ? t('יום מלא. אלוף/ה') : nextTask(d)),
+        smartChips(sunday),
       ),
       h('div', { class: 'today-ring', role: 'img', 'aria-label': tr`${done} מתוך 4 משימות היום` }, ring(done, 4, 72)),
     ),

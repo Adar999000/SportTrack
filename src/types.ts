@@ -92,6 +92,18 @@ export const FRAMES: { id: string; name: string }[] = [
   { id: 'legend', name: 'אגדי' },
 ];
 
+/** Full design skins (store items). */
+export const SKINS: { id: string; name: string; desc: string; preview: [string, string, string] }[] = [
+  { id: 'bubbly', name: 'בועתי', desc: 'עגול, רך ופסטלי', preview: ['#f2f6ff', '#4b55d6', '#ffc2d9'] },
+  { id: 'feminine', name: 'אלגנטי נשי', desc: 'ורוד-זהב, אותיות מעודנות', preview: ['#fbf5f2', '#a8576a', '#e8b4c0'] },
+  { id: 'stadium', name: 'אצטדיון', desc: 'דשא, קווי מגרש וצהוב', preview: ['#eef5ec', '#1e6b2f', '#ffd23f'] },
+  { id: 'anime', name: 'אנימה', desc: 'קווי מתאר, צללים קומיקסיים ונקודות', preview: ['#fff9e8', '#ff4f8b', '#ffe14d'] },
+  { id: 'retro', name: 'רטרו 80', desc: 'שקיעה, פסים ואותיות גדולות', preview: ['#fff3e6', '#e2366b', '#ffb000'] },
+  { id: 'neon', name: 'ניאון לילה', desc: 'כהה עם ציאן ומג׳נטה זוהרים', preview: ['#07070f', '#00e5ff', '#ff2bd6'] },
+  { id: 'leopard', name: 'מנומר', desc: 'הדפס נמר, קרמל ושחור', preview: ['#f6efe4', '#2a1d12', '#e9b35a'] },
+  { id: 'luxe', name: 'יוקרה', desc: 'שחור וזהב, אלגנטי ושקט', preview: ['#0c0b09', '#d4af37', '#f4ead7'] },
+];
+
 export interface Settings {
   showSmoking: boolean;
   theme: Theme;
@@ -100,6 +112,8 @@ export interface Settings {
   bgTheme?: string;
   /** Celebration effects (if owned). */
   effects?: boolean;
+  /** A full design skin bought in the store (see SKINS). */
+  skin?: string;
   /** Which celebration effect plays (when effects is on). */
   effectKind?: 'confetti' | 'stars' | 'fireworks';
   /** Show the floating assistant button (off by default to keep the screen clean). */

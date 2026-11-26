@@ -31,7 +31,7 @@ export interface Rewards {
   fullHistory?: boolean;
   perks?: { chatBonus: number; discount: number };
   levels?: { n: number; name: string; from: number; perks: string[] }[];
-  catalog?: { kind: 'color' | 'bg' | 'frame' | 'effect' | 'mascot' | 'acc'; id: string; base: number; price: number; owned: boolean; minLevel?: number; locked?: boolean }[];
+  catalog?: { kind: 'color' | 'bg' | 'frame' | 'effect' | 'mascot' | 'acc' | 'skin'; id: string; base: number; price: number; owned: boolean; minLevel?: number; locked?: boolean }[];
   unlocked?: string[];
   frame?: string;
 }

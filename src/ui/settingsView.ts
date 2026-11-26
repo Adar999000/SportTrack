@@ -6,7 +6,7 @@ import { todayISO } from '../dates';
 import { download, parseBackup, toBackup, toCSV } from '../io';
 import { checkReminders, notificationsSupported, registerBackgroundCheck, requestPermission } from '../reminders';
 import { allWeeks, getSettings, putWeeks, replaceAll, updateSettings } from '../store';
-import { ACCENTS, BG_THEMES, type Theme } from '../types';
+import { ACCENTS, BG_THEMES, SKINS, type Theme } from '../types';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION, CHANGELOG } from '../version';
@@ -113,6 +113,15 @@ export function renderSettings(root: HTMLElement): void {
             });
           })),
       ),
+      hasBackend() && SKINS.some((k) => owns('skin:' + k.id)) && h('div', { class: 'setting' },
+        h('label', { for: 'skin-select' }, t('סקין')),
+        (() => {
+          const sel = h('select', { class: 'input', id: 'skin-select' },
+            h('option', { value: '' }, t('מועדון (רגיל)')),
+            ...SKINS.filter((k) => owns('skin:' + k.id)).map((k) => h('option', { value: k.id, selected: st.skin === k.id }, t(k.name)))) as HTMLSelectElement;
+          sel.addEventListener('change', () => updateSettings({ skin: sel.value }));
+          return sel;
+        })()),
       hasBackend() && toggle(t('כפתור עוזר AI צף'), st.showFab !== false, (v) => updateSettings({ showFab: v }), t('גם כשהוא כבוי, העוזר זמין במסך "אני"')),
       hasBackend() && ['confetti', 'stars', 'fireworks'].some((k) => owns('effect:' + k)) && toggle(t('חגיגה ביום מלא'), !!st.effects, (v) => updateSettings({ effects: v })),
       h('div', { class: 'setting setting-col' },

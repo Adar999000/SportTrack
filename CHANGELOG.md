@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.2.0 (2026-11-26)
+- Skins (store kind `skin`, level-locked): bubbly (Varela Round, pastel, round), feminine elegant (Bellefair serif, rose gold), stadium (pitch stripes), anime (ink outlines, comic shadows, halftone), retro 80s (Karantina, sunset stripes), neon night, leopard (print background), luxe (black and gold). Light and dark variants (neon and luxe are always dark); try-on in the store; picker in Settings.
+- Celebrations: overlay for a full day, closing the week (Saturday), level up and new badges (compared with what was seen last), with confetti/stars/fireworks and haptics.
+- Transitions: sheets slide in and out, screen cards rise in sequence.
+- Smart Today: greeting by time of day, the next task to mark, live chips (lunch streak, workouts this week).
+- Proactive assistant: up to two personal notes a day (morning / afternoon / evening / Saturday summary) built on the device from the user's data, delivered into the assistant chat, with a red unread count on the floating button.
+
 ## 5.1.0 (2026-11-26)
 - Phones: swipe sideways (outside the week table and other scrollers) to move between Today / Progress / Me, following the tab bar direction; slide transition between tabs, fade between other pages.
 - Tactile UI: cells and today buttons have a key-like bottom edge and press down; the cell just marked pops; the today ring draws itself on first view; coins page numbers count up; progress bars animate; realistic coin; soft card shadows in light mode; short vibration on taps where supported. All motion respects reduced-motion.

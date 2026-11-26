@@ -6,7 +6,7 @@ import { confirmButton, countUp, h, openSheet, toast } from './dom';
 import { aiMark } from './icons';
 import { HASH, navigate } from './router';
 import { t, tr } from '../i18n';
-import { ACCENTS, BG_THEMES, FRAMES } from '../types';
+import { ACCENTS, BG_THEMES, FRAMES, SKINS } from '../types';
 import { getSettings, updateSettings } from '../store';
 import { burst } from './confetti';
 import { openShareAchievement } from './shareCard';
@@ -93,16 +93,16 @@ function pickSheet(title: string, options: { value: string; label: string }[], o
   const close = openSheet(title, body);
 }
 
-type Cat = 'all' | 'useful' | 'mascot' | 'acc' | 'color' | 'bg' | 'frame' | 'effect' | 'levels';
+type Cat = 'all' | 'useful' | 'skin' | 'mascot' | 'acc' | 'color' | 'bg' | 'frame' | 'effect' | 'levels';
 let shopCat: Cat = 'all';
 let shopOnlyAffordable = false;
-const NEW_ITEMS = new Set(['mascot', 'acc']);
+const NEW_ITEMS = new Set(['skin']);
 const POPULAR = new Set(['mascot:tiger', 'mascot:dragon', 'acc:galaxy', 'acc:rainbow', 'frame:fire', 'bg:midnight', 'color:indigo', 'effect:confetti']);
 
 /** Try a color or background for a few seconds before buying. */
-function tryOn(kind: 'color' | 'bg', id: string): void {
+function tryOn(kind: 'color' | 'bg' | 'skin', id: string): void {
   const root = document.documentElement;
-  const key = kind === 'color' ? 'accent' : 'bg';
+  const key = kind === 'color' ? 'accent' : kind;
   const before = root.dataset[key];
   root.dataset[key] = id;
   track('store:try');
@@ -139,7 +139,7 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
     { cat: 'useful', key: 'chat10', name: t('10 הודעות לבוט'), desc: tr`מעבר למגבלה היומית · יש לך ${r.chatCredits}`, price: r.costs.chat10, preview: h('span', { class: 'shop-emoji' }, aiMark(40)),
       action: buyBtn(r.costs.chat10, () => spend('chat10')) },
   );
-  const cosmetic = (cat: Cat, kind: 'color' | 'bg' | 'frame' | 'effect' | 'mascot' | 'acc', id: string, name: string, preview: HTMLElement, using: boolean, use: () => void | Promise<void>, tryFn?: () => void) => {
+  const cosmetic = (cat: Cat, kind: 'color' | 'bg' | 'frame' | 'effect' | 'mascot' | 'acc' | 'skin', id: string, name: string, preview: HTMLElement, using: boolean, use: () => void | Promise<void>, tryFn?: () => void) => {
     const c = item(kind, id);
     if (!c) return;
     const removable = using && kind !== 'color' && kind !== 'mascot';
@@ -152,6 +152,12 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
       : buyBtn(c.price, () => spend('cosmetic', { kind, id }));
     products.push({ cat, key: `${kind}:${id}`, name, preview, price: c.price, base: c.base, owned: c.owned, using, action, try: c.owned ? undefined : tryFn, minLevel: c.minLevel, locked: c.locked });
   };
+  SKINS.forEach((k) => {
+    const [bgc, a, sig] = k.preview;
+    const prev = h('span', { class: 'skin-preview', style: { background: bgc } }, h('i', { class: 'sp-a', style: { background: a } }), h('i', { class: 'sp-b', style: { background: sig } }), h('i', { class: 'sp-c', style: { background: a, opacity: '.35' } }));
+    const using = s.skin === k.id;
+    cosmetic('skin', 'skin', k.id, t(k.name), prev, using, () => updateSettings({ skin: using ? '' : k.id }), () => tryOn('skin', k.id));
+  });
   MASCOTS.filter((m) => !m.free).forEach((m) => cosmetic('mascot', 'mascot', m.id, t(m.name), mascot(64, '', m.id, currentOutfit()), (s.mascot ?? 'lion') === m.id, () => updateSettings({ mascot: m.id })));
   ACCESSORIES.forEach((a) => {
     const on = currentOutfit()[a.slot] === a.id;
@@ -167,7 +173,7 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
       () => updateSettings(using ? { effects: false } : { effects: true, effectKind: id }), () => burst(true, id));
   });
 
-  const CATS: [Cat, string, string][] = [['all', '🛍️', 'הכל'], ['levels', '🔒', 'לפי רמה'], ['useful', '🧊', 'שימושי'], ['mascot', '🦁', 'דמויות'], ['acc', '✨', 'סטייל לעוזר'], ['color', '🎨', 'צבעים'], ['bg', '🖼️', 'רקעים'], ['frame', '🖼', 'מסגרות'], ['effect', '🎉', 'אפקטים']];
+  const CATS: [Cat, string, string][] = [['all', '🛍️', 'הכל'], ['skin', '🎨', 'סקינים'], ['levels', '🔒', 'לפי רמה'], ['useful', '🧊', 'שימושי'], ['mascot', '🦁', 'דמויות'], ['acc', '✨', 'סטייל לעוזר'], ['color', '🎨', 'צבעים'], ['bg', '🖼️', 'רקעים'], ['frame', '🖼', 'מסגרות'], ['effect', '🎉', 'אפקטים']];
   const grid = h('div', { class: 'shop' });
   const tabs = h('div', { class: 'shop-tabs', role: 'group', 'aria-label': t('קטגוריות') });
   const affordable = h('input', { type: 'checkbox', id: 'shop-afford', checked: shopOnlyAffordable }) as HTMLInputElement;
@@ -216,7 +222,7 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
 /** Display name of a store item (for the levels table). */
 function itemName(kind: string, id: string): string {
   const list: Record<string, { id: string; name: string }[]> = {
-    mascot: MASCOTS, acc: ACCESSORIES, color: ACCENTS, bg: BG_THEMES, frame: FRAMES,
+    mascot: MASCOTS, acc: ACCESSORIES, color: ACCENTS, bg: BG_THEMES, frame: FRAMES, skin: SKINS,
     effect: [{ id: 'confetti', name: 'קונפטי חגיגי' }, { id: 'stars', name: 'גשם כוכבים' }, { id: 'fireworks', name: 'זיקוקים' }],
   };
   const n = list[kind]?.find((x) => x.id === id)?.name;

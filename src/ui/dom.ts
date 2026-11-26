@@ -47,10 +47,14 @@ export function toast(msg: string): void {
 /** Bottom sheet / modal. Returns a close function. */
 export function openSheet(title: string, body: Node, opts: { full?: boolean } = {}): () => void {
   const prevFocus = document.activeElement as HTMLElement | null;
+  let closing = false;
   const close = () => {
-    backdrop.remove();
+    if (closing) return;
+    closing = true;
     document.removeEventListener('keydown', onKey);
-    prevFocus?.focus?.();
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('a11y-motion');
+    backdrop.classList.add('closing');
+    setTimeout(() => { backdrop.remove(); prevFocus?.focus?.(); }, still ? 0 : 200);
   };
   const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
   const sheet = h(
