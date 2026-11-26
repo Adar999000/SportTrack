@@ -24,12 +24,19 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     expect(be.post({ action: 'status' }).hasUsers).toBe(true);
   });
 
-  it('requires a valid unused invite for later users', () => {
-    expect(be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב' }).error).toMatch(/הזמנה/);
+  it('lets anyone sign up; an invite code is optional but must be valid', () => {
+    expect(be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב' }).user.role).toBe('user');
+    expect(be.post({ action: 'register', email: 'c@x.com', password: 'secret1', name: 'ג', invite: 'NOPE99' }).error).toMatch(/קוד ההזמנה לא תקין/);
+    // an admin-created code works once
     const { code } = be.post({ action: 'createInvite', token: admin.token });
-    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב', invite: code.toLowerCase() });
-    expect(b.user.role).toBe('user');
-    expect(be.post({ action: 'register', email: 'c@x.com', password: 'secret1', name: 'ג', invite: code }).error).toMatch(/נוצל/);
+    expect(be.post({ action: 'register', email: 'd@x.com', password: 'secret1', name: 'ד', invite: code.toLowerCase() }).user).toBeTruthy();
+    expect(be.post({ action: 'register', email: 'e@x.com', password: 'secret1', name: 'ה', invite: code }).error).toMatch(/לא תקין/);
+    // a personal code works for many sign-ups
+    const mine = be.post({ action: 'myInvite', token: admin.token });
+    for (const e of ['f@x.com', 'g@x.com', 'h@x.com']) {
+      expect(be.post({ action: 'register', email: e, password: 'secret1', name: 'x', invite: mine.code }).user).toBeTruthy();
+    }
+    expect(be.post({ action: 'myInvite', token: admin.token })).toMatchObject({ code: mine.code, used: 4 }); // includes the admin-panel code
   });
 
   it('logs in with the right password only', () => {

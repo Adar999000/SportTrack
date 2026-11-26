@@ -72,31 +72,30 @@ describe('rewards', () => {
     expect(r.badges.goal).toBe(1);
   });
 
-  it('referral: +50 when a friend joins with your link, +50 after their first full week', () => {
-    const { be, t, admin } = setup();
+  it('referral: +50 to both when a friend joins with your code, +50 more after their first full week', () => {
+    const { be, t } = setup();
     const inv = be.post({ action: 'myInvite', token: t });
     expect(inv.code).toMatch(/^[A-Z0-9]{6}$/);
-    expect(be.post({ action: 'myInvite', token: t }).code).toBe(inv.code); // reused until used
+    expect(be.post({ action: 'myInvite', token: t }).code).toBe(inv.code); // permanent personal code
     const friend = be.post({ action: 'register', email: 'f@x.com', password: 'secret1', name: 'נועה', invite: inv.code });
     backdate(be);
     let r = be.post({ action: 'rewards', token: t }).rewards;
     expect(r.items.filter((x: any) => x.kind === 'referral').map((x: any) => x.amount)).toEqual([50]);
+    const fr = be.post({ action: 'rewards', token: friend.token }).rewards;
+    expect(fr.items.find((x: any) => x.label === 'הצטרפת עם קוד הזמנה').amount).toBe(50);
     be.post({ action: 'putWeeks', token: friend.token, weeks: [wk('2026-12-06', [full(), full(), full(), full(), full(), day(), day()])] });
     r = be.post({ action: 'rewards', token: t }).rewards;
     expect(r.items.filter((x: any) => x.kind === 'referral')).toHaveLength(2);
-    expect(be.post({ action: 'myInvite', token: t }).code).not.toBe(inv.code);
-    void admin;
   });
 
-  it('regular users can invite at most 5 friends', () => {
+  it('pays the sender for at most 5 friends, but the code keeps working', () => {
     const { be, t } = setup();
-    const { code } = be.post({ action: 'createInvite', token: t });
-    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret1', name: 'U', invite: code });
-    for (let i = 0; i < 5; i++) {
-      const c = be.post({ action: 'myInvite', token: u.token }).code;
-      be.post({ action: 'register', email: `f${i}@x.com`, password: 'secret1', name: 'F', invite: c });
-    }
-    expect(be.post({ action: 'myInvite', token: u.token })).toMatchObject({ code: null, left: 0 });
+    const { code } = be.post({ action: 'myInvite', token: t });
+    for (let i = 0; i < 7; i++) be.post({ action: 'register', email: `f${i}@x.com`, password: 'secret1', name: 'F', invite: code });
+    backdate(be);
+    const r = be.post({ action: 'rewards', token: t }).rewards;
+    expect(r.items.filter((x: any) => x.kind === 'referral')).toHaveLength(5);
+    expect(be.post({ action: 'myInvite', token: t })).toMatchObject({ used: 7, rewarded: 5 });
   });
 
   it('spends coins: freeze a day for the lunch streak, buy bot messages, unlock a color', () => {

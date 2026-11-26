@@ -4,6 +4,7 @@ import { h } from './dom';
 import { icon, logo } from './icons';
 import { isRTL, lang, setLang, t } from '../i18n';
 import { APP_VERSION } from '../version';
+import { installButton } from './installButton';
 
 /** Landing page for visitors who aren't signed in. */
 export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') => void): void {
@@ -56,7 +57,8 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
             h('button', { class: 'btn btn-primary btn-lg', type: 'button', onclick: () => go('signup') }, t('להרשמה')),
             h('button', { class: 'btn btn-lg', type: 'button', onclick: () => go('login') }, t('יש לי חשבון')),
           ),
-          h('p', { class: 'hint' }, t('ההרשמה בהזמנה בלבד: מקבלים קישור מחבר שכבר משתמש באפליקציה.')),
+          installButton('btn btn-lg btn-ghost'),
+          h('p', { class: 'hint' }, t('ההרשמה חופשית. קיבלתם קוד הזמנה מחבר? שניכם מקבלים מטבעות בונוס.')),
         ),
         h('div', { class: 'hero-visual' },
           h('div', { class: 'demo-card' },
@@ -78,7 +80,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
           feature('stats', t('סטטיסטיקה אמיתית'), t('גרף משקל לאורך זמן, אחוזי הצלחה לכל ארוחה, אימונים בשבוע, רצפים ומגמה לכל רבעון. עובדות, בלי הטפות.')),
           feature('chat', t('עוזר AI אישי'), t('שואלים בשפה פשוטה, למשל "באיזה חודש התאמנתי הכי הרבה?", ומקבלים תשובה מתוך הנתונים שלכם.')),
           feature('admin', t('מטבעות, רמות ואתגרים'), t('צוברים מטבעות על ימים מלאים, אימונים ורצפים, עולים ברמות ופותחים אתגרים שבועיים, חודשיים ושנתיים.')),
-          feature('profile', t('חברים ודירוג'), t('מזמינים חברים בקישור אישי, מתחרים בטבלת דירוג ומקבלים מטבעות על כל חבר שמצטרף.')),
+          feature('profile', t('חברים ודירוג'), t('מזמינים חברים בקוד אישי, מתחרים בטבלת דירוג, ושניכם מקבלים מטבעות כשחבר מצטרף.')),
           feature('history', t('עובד גם בלי אינטרנט'), t('מתקינים כאפליקציה על הטלפון, מסמנים גם בלי קליטה, והכול מסתנכרן כשחוזרת הרשת.')),
         ),
       ),
@@ -86,7 +88,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       h('section', { class: 'steps' },
         h('h2', null, t('איך מתחילים')),
         h('ol', { class: 'step-list' },
-          h('li', null, h('h3', null, t('מקבלים הזמנה')), h('p', null, t('חבר שולח לכם קישור אישי. נרשמים עם אימייל וסיסמה.'))),
+          h('li', null, h('h3', null, t('נרשמים')), h('p', null, t('אימייל וסיסמה, ומתקינים על הטלפון בלחיצה. עם קוד הזמנה מחבר מקבלים 50 מטבעות.'))),
           h('li', null, h('h3', null, t('מסמנים כל יום')), h('p', null, t('V, X או "-" בכל שורה. שקילה פעם בשבוע ביום ראשון.'))),
           h('li', null, h('h3', null, t('רואים את התמונה הגדולה')), h('p', null, t('גרפים, רצפים ואתגרים מראים מה עובד, שבוע אחרי שבוע.'))),
         ),
@@ -107,6 +109,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
           h('button', { class: 'btn btn-primary btn-lg', type: 'button', onclick: () => go('signup') }, t('להרשמה')),
           h('button', { class: 'btn btn-lg', type: 'button', onclick: () => go('login') }, t('כניסה')),
         ),
+        installButton('btn btn-lg btn-ghost'),
       ),
 
       h('footer', { class: 'landing-foot' }, `${t('משמעת אישית')} · v${APP_VERSION}`),

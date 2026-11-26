@@ -67,7 +67,7 @@ export async function spend(item: 'freezeDay' | 'freezeWeek' | 'chat10' | 'color
 }
 
 export const leaderboard = (period: 'week' | 'month' | 'all') => call<{ leaders: Leader[] }>('leaderboard', { period }).then((r) => r.leaders);
-export const myInvite = () => call<{ code: string | null; used: number; left: number | null }>('myInvite');
+export const myInvite = () => call<{ code: string; used: number; rewarded: number; cap: number }>('myInvite');
 
 export const BADGES: Record<string, { name: string; icon: string }> = {
   day3: { name: 'יום מושלם', icon: '⭐' },

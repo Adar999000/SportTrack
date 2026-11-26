@@ -207,15 +207,21 @@ function register(req) {
   return withLock(() => {
     const first = sheet('Users').getLastRow() < 2;
     if (findUser((r) => r[U.email] === email)) throw new Error('כבר קיים משתמש עם האימייל הזה');
+    // Sign-up is open. An invite code is optional and gives both sides bonus coins.
     let inviteRow = null;
     let invitedBy = '';
-    if (!first) {
-      const code = String(req.invite || '').trim().toUpperCase();
+    const code = String(req.invite || '').trim().toUpperCase();
+    if (code) {
       const inv = rows('Invites');
       for (let i = 0; i < inv.length; i++) {
-        if (String(inv[i][0]).toUpperCase() === code && !inv[i][2]) { inviteRow = i + 2; invitedBy = String(inv[i][4] || ''); break; }
+        const multi = String(inv[i][5] || '') === '1';
+        if (String(inv[i][0]).toUpperCase() === code && (multi || !inv[i][2])) {
+          inviteRow = multi ? null : i + 2;
+          invitedBy = String(inv[i][4] || '');
+          break;
+        }
       }
-      if (!inviteRow) throw new Error('קוד הזמנה לא תקין או שכבר נוצל');
+      if (!invitedBy && !inviteRow) throw new Error('קוד ההזמנה לא תקין. אפשר להשאיר את השדה ריק ולהירשם בלי קוד.');
     }
     const id = Utilities.getUuid().slice(0, 8);
     const salt = Utilities.getUuid();
@@ -502,17 +508,22 @@ function createInvite(me) {
 
 const INVITES_PER_USER = 5;
 
-/** A personal invite code for sharing: reuses an unused one, up to 5 successful invites (admins: unlimited). */
+/**
+ * The user's permanent personal invite code (works for any number of sign-ups).
+ * Referral coins are paid for the first INVITES_PER_USER friends.
+ */
 function myInvite(me) {
   return withLock(() => {
-    const mine = rows('Invites').filter((r) => String(r[4] || '') === me.r[U.id]);
-    const used = mine.filter((r) => r[2]).length;
-    const open = mine.filter((r) => !r[2]);
-    const isAdmin = me.r[U.role] === 'admin';
-    const left = isAdmin ? null : Math.max(0, INVITES_PER_USER - used);
-    if (open.length) return { code: String(open[0][0]), used: used, left: left };
-    if (!isAdmin && used >= INVITES_PER_USER) return { code: null, used: used, left: 0 };
-    return { code: newInviteCode(me.r[U.id]), used: used, left: left };
+    const uid = me.r[U.id];
+    const personal = rows('Invites').filter((r) => String(r[4] || '') === uid && String(r[5] || '') === '1');
+    let code = personal.length ? String(personal[0][0]) : '';
+    if (!code) {
+      code = newInviteCode(uid);
+      const sh = sheet('Invites');
+      sh.getRange(sh.getLastRow(), 6).setValue('1');
+    }
+    const used = rows('Users').filter((r) => extraOf(r).invitedBy === uid).length;
+    return { code: code, used: used, rewarded: Math.min(used, INVITES_PER_USER), cap: INVITES_PER_USER };
   });
 }
 
@@ -728,9 +739,12 @@ function rewardsFor(userRow, cache) {
     });
   }
 
-  // referrals
-  users.forEach((r) => {
-    if (extraOf(r).invitedBy !== uid) return;
+  // referrals: the first INVITES_PER_USER friends pay the sender; joining with a code pays the new user
+  if (extra.invitedBy) add(created || start, 50, 'referral', 'הצטרפת עם קוד הזמנה');
+  const friends = users.filter((r) => extraOf(r).invitedBy === uid)
+    .sort((a, b) => String(a[U.created]).localeCompare(String(b[U.created])))
+    .slice(0, INVITES_PER_USER);
+  friends.forEach((r) => {
     add(String(r[U.created]).slice(0, 10), 50, 'referral', 'חבר הצטרף: ' + r[U.name]);
     const theirs = all.filter((w) => w[W.user] === r[U.id]);
     for (let i = 0; i < theirs.length; i++) {

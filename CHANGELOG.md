@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.0 (2026-11-26)
+- Open sign-up: no invite code needed. A code is optional; joining with one gives the new user 50 coins and the inviter 50 (+50 after the friend's first full week, paid for up to 5 friends).
+- Each user has one permanent personal invite code that works for any number of sign-ups (admin-panel codes stay single-use).
+- "Install the app" button on the landing page and in Settings: uses the browser's install prompt where available (Android/Chrome/Edge) and shows step-by-step instructions on iPhone.
+- Needs the updated `apps-script/Code.gs` (Invites tab gets a `multi` column).
+
 ## 2.3.0 (2026-11-26)
 - Daily challenge: all three meals V on a day earns 15 coins and a "Perfect day" badge; today's progress is shown with the other challenges.
 - The coins page explains when the server hasn't been updated yet instead of loading forever.

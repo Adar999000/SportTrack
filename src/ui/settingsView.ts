@@ -11,6 +11,7 @@ import { confirmButton, h, openSheet, toast } from './dom';
 import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION, CHANGELOG } from '../version';
 import { showDocxPreview } from './importPreview';
+import { installButton } from './installButton';
 import { IS_DEMO } from '../env';
 import { clearDemo } from '../demo';
 
@@ -94,6 +95,7 @@ export function renderSettings(root: HTMLElement): void {
           })),
       ),
       h('div', { class: 'setting' }, h('label', { for: 'lang-select' }, t('שפה / Language')), langSel),
+      installButton('btn install-setting'),
     ),
 
     h('section', { class: 'card' },

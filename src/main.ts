@@ -25,6 +25,7 @@ import { renderWeek } from './ui/weekView';
 import { renderRewards } from './ui/rewardsView';
 import { renderShare } from './ui/shareView';
 import { renderLanding } from './ui/landingView';
+import { initInstall } from './install';
 import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
@@ -204,6 +205,7 @@ async function onLogin() {
 
 async function boot() {
   applyDocumentLang();
+  initInstall();
   const app = document.getElementById('app')!;
   const demoBar = h('div', { class: 'demo-bar', hidden: true },
     h('span', null, t('אלה נתוני דוגמה. ייבוא קובץ Word בהגדרות יחליף אותם.')),

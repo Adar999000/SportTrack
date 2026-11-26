@@ -509,3 +509,13 @@ body.is-landing .content { max-width: none; padding: 0; }
 }
 @media (min-width: 900px) { body.is-landing { padding-inline-start: 0; } }
 @media (prefers-reduced-motion: reduce) { .demo-cell { transition: none; } }
+.install-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-ghost { background: transparent; border-style: dashed; }
+.hero .install-btn, .final-cta .install-btn { margin-top: 10px; }
+.final-cta .install-btn { margin-inline: auto; }
+.install-setting { width: 100%; margin-top: 10px; }
+.install-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.install-steps li { display: flex; gap: 12px; align-items: flex-start; line-height: 1.5; }
+.step-n { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
+.ios-share { display: inline-flex; vertical-align: middle; color: #0a84ff; margin-inline-start: 4px; }
+.code-inline { font-family: ui-monospace, monospace; letter-spacing: 0.15em; font-size: 1.1rem; }

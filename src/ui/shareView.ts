@@ -11,15 +11,11 @@ export function renderShare(root: HTMLElement): void {
   root.replaceChildren(
     h('section', { class: 'card stack' },
       h('h2', { class: 'card-title' }, t('הזמנת חברים')),
-      h('p', null, t('שלח לחברים את הקישור האישי שלך. כשחבר נרשם דרכו תקבל 50 מטבעות, ועוד 50 כשהוא משלים שבוע ראשון בטבלה.')),
+      h('p', null, t('שלח לחברים את הקישור או הקוד האישי שלך. כשחבר נרשם איתו, שניכם מקבלים 50 מטבעות, ואתה מקבל עוד 50 כשהוא משלים שבוע ראשון. הקוד עובד לכמה חברים שתרצה; מטבעות על הזמנות ניתנים עד 5 חברים.')),
       box,
     ),
   );
   myInvite().then((inv) => {
-    if (!inv.code) {
-      box.replaceChildren(h('p', { class: 'form-error' }, t('ניצלת את כל ההזמנות שלך (5).')));
-      return;
-    }
     const link = `${SITE}#join-${inv.code}`;
     const name = currentUser()?.name ?? '';
     const text = tr`${name} מזמין אותך למשמעת אישית: מעקב שבועי פשוט אחר אימונים, ארוחות ומשקל. ההרשמה בקישור:`;
@@ -33,7 +29,8 @@ export function renderShare(root: HTMLElement): void {
       h('a', { class: 'share-btn', href, target: '_blank', rel: 'noopener' }, h('span', { class: 'dot', style: { background: color } }), label);
     box.replaceChildren(
       h('div', { class: 'invite-link' }, input, h('button', { class: 'btn', type: 'button', onclick: copy }, t('העתק'))),
-      h('p', { class: 'hint' }, inv.left === null ? tr`הוזמנו עד עכשיו: ${inv.used}` : tr`הוזמנו: ${inv.used} · נשארו: ${inv.left}`),
+      h('p', null, t('הקוד שלך: '), h('b', { dir: 'ltr', class: 'code-inline' }, inv.code)),
+      h('p', { class: 'hint' }, tr`הצטרפו עם הקוד שלך: ${inv.used} · קיבלת מטבעות על ${inv.rewarded} מתוך ${inv.cap}`),
       'share' in navigator
         ? h('button', { class: 'btn btn-primary', type: 'button', onclick: () => navigator.share({ title: t('משמעת אישית'), text, url: link }).catch(() => {}) }, t('שתף…'))
         : '',
