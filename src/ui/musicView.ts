@@ -3,7 +3,7 @@ import { t } from '../i18n';
 import { icon } from './icons';
 import {
   connectSpotify, disconnectSpotify, embedUrl, myPlaylists, nextTrack, nowPlaying, pause, playContext, prevTrack,
-  resume, savedLink, saveLink, spotifyClientId, spotifyConnected, type NowPlaying,
+  resume, savedLink, saveLink, spotifyClientId, spotifyConnected, NoDeviceError, type NowPlaying,
 } from '../music';
 
 const run = (p: Promise<unknown>) => p.catch((e) => toast(e.message));
@@ -43,22 +43,39 @@ export function miniPlayer(): HTMLElement {
 }
 
 export function renderMusic(main: HTMLElement): void {
+  const preview = h('div', null, embed(savedLink()));
   const spotify = h('section', { class: 'card stack' });
   const drawSpotify = async () => {
     if (spotifyConnected()) {
       const list = h('div', { class: 'playlist-grid' }, h('p', { class: 'muted' }, t('טוען…')));
+      const spotifyOpen = h('div', { class: 'stack', 'aria-live': 'polite' });
       spotify.replaceChildren(
         h('div', { class: 'row-between' }, h('h2', { class: 'section-title' }, 'Spotify'),
           h('button', { class: 'link-btn', type: 'button', onclick: () => { disconnectSpotify(); drawSpotify(); } }, t('ניתוק'))),
         miniPlayer(),
+        spotifyOpen,
         h('h3', { class: 'section-title' }, t('הפלייליסטים שלך')),
         list,
         h('p', { class: 'hint' }, t('הניגון יוצא מאפליקציית Spotify שפתוחה אצלך (טלפון, מחשב או רמקול). שליטה מכאן דורשת Premium.')),
       );
       myPlaylists().then((pls) => list.replaceChildren(...(pls.length ? pls.map((p) =>
-        h('button', { class: 'playlist', type: 'button', onclick: () => run(playContext(p.uri).then(() => { toast(t('מנגן: ') + p.name); saveLink('https://open.spotify.com/playlist/' + p.id); })) },
+        h('button', { class: 'playlist', type: 'button', onclick: async () => {
+          const link = 'https://open.spotify.com/playlist/' + p.id;
+          saveLink(link);
+          try { await playContext(p.uri); toast(t('מנגן: ') + p.name); }
+          catch (e: any) {
+            if (!(e instanceof NoDeviceError)) { toast(e.message); return; }
+            // nothing is open to play on: open the playlist in the Spotify app, and keep the embedded player here
+            // (iPhone blocks opening apps after a network wait, so also offer a real tap-to-open link)
+            const w = window.open(link, '_blank', 'noopener');
+            spotifyOpen.replaceChildren(h('p', { class: 'muted' }, t('אין מכשיר שמנגן כרגע. פותחים את Spotify על הפלייליסט, ואז הכפתורים כאן ישלטו בניגון.')),
+              h('a', { class: 'btn btn-primary spotify-btn', href: link, target: '_blank', rel: 'noopener' }, t('פתיחה ב-Spotify')));
+            if (!w) toast(t('לחצו "פתיחה ב-Spotify"'));
+            preview.replaceChildren(embed(link));
+          }
+        } },
           p.image ? h('img', { src: p.image, alt: '', loading: 'lazy' }) : h('span', { class: 'mp-art-empty' }, icon('music')),
-          h('b', null, p.name), h('span', { class: 'muted small' }, t('{0} שירים').replace('{0}', String(p.tracks))))) : [h('p', { class: 'muted' }, t('אין פלייליסטים בחשבון.'))])))
+          h('b', null, p.name), p.tracks >= 0 ? h('span', { class: 'muted small' }, t('{0} שירים').replace('{0}', String(p.tracks))) : '')) : [h('p', { class: 'muted' }, t('אין פלייליסטים בחשבון.'))])))
         .catch((e) => list.replaceChildren(h('p', { class: 'form-error' }, e.message)));
       return;
     }
@@ -73,7 +90,6 @@ export function renderMusic(main: HTMLElement): void {
   };
   drawSpotify();
 
-  const preview = h('div', null, embed(savedLink()));
   const input = h('input', { class: 'input', id: 'music-link', dir: 'ltr', placeholder: 'https://open.spotify.com/playlist/…', value: savedLink(), inputmode: 'url' }) as HTMLInputElement;
   const linkCard = h('section', { class: 'card stack' },
     h('h2', { class: 'section-title' }, t('פלייליסט לאימון')),

@@ -1711,4 +1711,8 @@ export const EN: Record<string, string> = {
   "Spotify חסם את הבקשה (403)": "Spotify blocked the request (403)",
   "יותר מדי בקשות ל-Spotify. נסו שוב בעוד דקה.": "Too many requests to Spotify. Try again in a minute.",
   "Spotify לא זמין כרגע ({0})": "Spotify is unavailable right now ({0})",
+  "פותח את הפלייליסט ב-Spotify…": "Opening the playlist in Spotify…",
+  "אין מכשיר שמנגן כרגע. פותחים את Spotify על הפלייליסט, ואז הכפתורים כאן ישלטו בניגון.": "Nothing is playing on any device. Open the playlist in Spotify, then the buttons here control playback.",
+  "פתיחה ב-Spotify": "Open in Spotify",
+  "לחצו \"פתיחה ב-Spotify\"": "Tap \"Open in Spotify\"",
 };

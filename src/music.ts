@@ -101,7 +101,7 @@ async function api<T = any>(path: string, opts: RequestInit = {}): Promise<T | n
 export interface Playlist { id: string; name: string; uri: string; image: string; tracks: number }
 export async function myPlaylists(): Promise<Playlist[]> {
   const j = await api<{ items: any[] }>('/me/playlists?limit=40');
-  return (j?.items ?? []).filter(Boolean).map((p) => ({ id: p.id, name: p.name, uri: p.uri, image: p.images?.[0]?.url ?? '', tracks: p.tracks?.total ?? 0 }));
+  return (j?.items ?? []).filter(Boolean).map((p) => ({ id: p.id, name: p.name, uri: p.uri, image: p.images?.[0]?.url ?? '', tracks: p.tracks?.total ?? p.items?.total ?? -1 }));
 }
 export interface NowPlaying { title: string; artist: string; image: string; playing: boolean }
 export async function nowPlaying(): Promise<NowPlaying | null> {
@@ -109,7 +109,19 @@ export async function nowPlaying(): Promise<NowPlaying | null> {
   if (!j?.item) return null;
   return { title: j.item.name, artist: (j.item.artists ?? []).map((a: any) => a.name).join(', '), image: j.item.album?.images?.[2]?.url ?? j.item.album?.images?.[0]?.url ?? '', playing: !!j.is_playing };
 }
-export const playContext = (uri: string) => api('/me/player/play', { method: 'PUT', body: JSON.stringify({ context_uri: uri }) });
+/** Thrown when no Spotify app is open anywhere to play on. */
+export class NoDeviceError extends Error {}
+/** Play on the active device; if none is active, wake the first available one; if there is none, NoDeviceError. */
+export async function playContext(uri: string): Promise<void> {
+  const body = JSON.stringify({ context_uri: uri });
+  try { await api('/me/player/play', { method: 'PUT', body }); return; } catch (e: any) {
+    if (!/פתחו את Spotify/.test(e.message)) throw e;
+  }
+  const d = await api<{ devices: { id: string; is_restricted: boolean }[] }>('/me/player/devices');
+  const dev = (d?.devices ?? []).find((x) => !x.is_restricted);
+  if (!dev) throw new NoDeviceError('no device');
+  await api('/me/player/play?device_id=' + encodeURIComponent(dev.id), { method: 'PUT', body });
+}
 export const resume = () => api('/me/player/play', { method: 'PUT' });
 export const pause = () => api('/me/player/pause', { method: 'PUT' });
 export const nextTrack = () => api('/me/player/next', { method: 'POST' });
