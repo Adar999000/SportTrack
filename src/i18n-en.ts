@@ -1353,4 +1353,8 @@ export const EN: Record<string, string> = {
   "לפי רמה": "By level",
   "חנות מורחבת: 16 דמויות חדשות, הילות, תגים, צבעים, רקעים, מסגרות וזיקוקים. חלק מהפריטים נפתחים רק מרמה מסוימת": "Bigger store: 16 new characters, auras, badges, colors, backgrounds, frames and fireworks. Some items open only from a certain level",
   "בטלפון, חלון הבוט נפתח על כל המסך ונשאר מסודר גם כשהמקלדת פתוחה": "On phones, the bot window opens full screen and stays tidy while the keyboard is open",
+  "יום מלא. אלוף/ה": "Full day. Champion",
+  "עוד משימה אחת ליום מלא": "One more task for a full day",
+  "עיצוב חדש בסגנון מועדון ספורט: שחור, אוף-וויט וליים, כותרות עבות, מספרים כמו בלוח תוצאות, ובלי גרדיאנטים ונצנוצים": "New sports-club design: black, off-white and lime, bold headings, scoreboard numbers, and no gradients or sparkles",
+  "טבלה": "Table",
 };

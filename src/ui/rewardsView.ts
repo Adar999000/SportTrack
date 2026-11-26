@@ -187,7 +187,8 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   CATS.forEach(([c, ic, name]) => {
     if (c !== 'all' && c !== 'levels' && !products.some((p) => p.cat === c)) return;
     if (c === 'levels' && !products.some((p) => (p.minLevel ?? 0) > 0)) return;
-    const b = h('button', { type: 'button', 'aria-pressed': String(c === shopCat), onclick: () => { shopCat = c; draw(); } }, ic, ' ', t(name));
+    const b = h('button', { type: 'button', 'aria-pressed': String(c === shopCat), onclick: () => { shopCat = c; draw(); } }, t(name));
+    void ic;
     b.dataset.cat = c;
     tabs.append(b);
   });
@@ -196,7 +197,7 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   const ownedCount = products.filter((p) => p.owned).length;
   return h('section', { class: 'card store' },
     h('div', { class: 'store-hero' },
-      h('div', null, h('h2', null, '🛍️ ', t('החנות')), h('p', null, t('משדרגים את האפליקציה ואת העוזר עם המטבעות שצברת.'))),
+      h('div', null, h('h2', null, t('החנות')), h('p', null, t('משדרגים את האפליקציה ואת העוזר עם המטבעות שצברת.'))),
       h('div', { class: 'store-wallet' }, h('span', { class: 'muted small' }, t('היתרה שלך')), h('b', null, coin(), fmt(r.balance)),
         r.perks?.discount ? h('span', { class: 'tag tag-sale' }, tr`${r.perks.discount}% הנחה`) : ''),
     ),
@@ -315,7 +316,7 @@ export function renderRewards(root: HTMLElement): void {
       levelCard(rw),
       h('div', { class: 'row-btns two' },
         h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.share) }, t('הזמן חברים וצבור מטבעות')),
-        h('button', { class: 'btn', onclick: () => openShareAchievement() }, '📤 ', t('שתף הישג'))),
+        h('button', { class: 'btn', onclick: () => openShareAchievement() }, t('שתף הישג'))),
       challengesCard(rw),
       shopCard(rw, () => draw(getRewards())),
       levelsCard(rw),

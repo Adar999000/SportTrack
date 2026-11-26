@@ -115,7 +115,7 @@ function newDuelSheet(onDone: () => void): void {
     h('div', { class: 'field' }, h('label', { for: 'duel-title' }, t('שם לאתגר (לא חובה)')), title),
     h('h3', { class: 'section-title' }, t('את מי להזמין')), friendsBox,
     h('p', { class: 'hint' }, tr`הניקוד מחושב אוטומטית מהטבלה של כל משתתף. המנצח מקבל ${100} מטבעות.`),
-    h('button', { class: 'btn btn-primary', type: 'submit' }, '🏁 ', t('צור אתגר')),
+    h('button', { class: 'btn btn-primary', type: 'submit' }, t('צור אתגר')),
   ), { full: true });
 }
 
@@ -133,7 +133,7 @@ export function duelsTab(box: HTMLElement): void {
   }).catch((e) => list.replaceChildren(h('p', { class: 'form-error' }, /לא מוכרת|Unknown action/.test(e.message) ? t('האתגרים עוד לא הופעלו בשרת. הם יופיעו אחרי שמנהל האפליקציה יעדכן את קוד השרת.') : e.message)));
   box.replaceChildren(
     h('section', { class: 'card duel-hero' },
-      h('div', null, h('h2', null, '🏆 ', t('אתגרים עם חברים')), h('p', null, t('מתחרים על אימונים, ריצות, תזונה או מטבעות. הניקוד מתעדכן לבד מהטבלה.'))),
+      h('div', null, h('h2', null, t('אתגרים עם חברים')), h('p', null, t('מתחרים על אימונים, ריצות, תזונה או מטבעות. הניקוד מתעדכן לבד מהטבלה.'))),
       h('button', { class: 'btn btn-primary', type: 'button', onclick: () => newDuelSheet(load) }, t('+ אתגר חדש')),
     ),
     h('form', { class: 'join-code', onsubmit: async (e: Event) => {

@@ -47,7 +47,7 @@ export type Lang = 'he' | 'en';
 export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate' | 'gold' | 'teal' | 'crimson' | 'indigo' | 'coral' | 'olive' | 'plum' | 'sky' | 'emerald' | 'graphite' | 'ruby';
 
 export const ACCENTS: { id: Accent; name: string; swatch: string; premium?: boolean }[] = [
-  { id: 'green', name: 'ירוק', swatch: '#2f6f5e' },
+  { id: 'green', name: 'ספורט', swatch: '#c6f432' },
   { id: 'blue', name: 'כחול', swatch: '#2a5fa8' },
   { id: 'purple', name: 'סגול', swatch: '#6a4aa5' },
   { id: 'orange', name: 'כתום', swatch: '#a94f17' },

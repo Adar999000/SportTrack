@@ -192,9 +192,9 @@ function eventsTab(box: HTMLElement): void {
 export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels'): void {
   const box = h('div', { class: 'stack' });
   const seg = h('div', { class: 'seg feed-tabs', role: 'group', 'aria-label': t('קהילה') },
-    h('a', { href: HASH.feed, 'aria-current': tab === 'posts' ? 'page' : undefined }, '💬 ', t('פיד')),
-    h('a', { href: HASH.duels, 'aria-current': tab === 'duels' ? 'page' : undefined }, '🏆 ', t('אתגרים')),
-    h('a', { href: HASH.events, 'aria-current': tab === 'events' ? 'page' : undefined }, '🏁 ', t('תחרויות')));
+    h('a', { href: HASH.feed, 'aria-current': tab === 'posts' ? 'page' : undefined }, t('פיד')),
+    h('a', { href: HASH.duels, 'aria-current': tab === 'duels' ? 'page' : undefined }, t('אתגרים')),
+    h('a', { href: HASH.events, 'aria-current': tab === 'events' ? 'page' : undefined }, t('תחרויות')));
   root.replaceChildren(seg, box);
   if (tab === 'events') return eventsTab(box);
   if (tab === 'duels') return duelsTab(box);

@@ -47,7 +47,7 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
       ...(messages.length
         ? messages.map(bubble)
         : [h('div', { class: 'stack chat-empty' },
-            h('div', { class: 'chat-hero' }, mascot(92, 'mascot-wave'), h('span', { class: 'sparkle s1' }, '✦'), h('span', { class: 'sparkle s2' }, '✦'), h('span', { class: 'sparkle s3' }, '✧')),
+            h('div', { class: 'chat-hero' }, mascot(84, 'mascot-wave')),
             h('p', { class: 'chat-hello' }, scope === 'all' ? t('העוזר מכיר סיכומים סטטיסטיים על כל המשתמשים.')
               : scope === 'guest' ? t('שלום! אפשר לשאול כל שאלה על האפליקציה: הרשמה, התקנה, מטבעות, פרטיות ועוד.')
               : t('אפשר לשאול על הנתונים שלך, לבקש לסמן משהו בטבלה, או לפנות למנהל.')),

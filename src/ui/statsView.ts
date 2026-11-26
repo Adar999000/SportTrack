@@ -69,7 +69,7 @@ export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: strin
 
     h('section', { class: 'card' },
       h('h2', { class: 'card-title' }, t('לפי חודש')),
-      h('div', { class: 'table-scroll' },
+      h('div', { class: 'table-scroll', tabindex: 0, role: 'region', 'aria-label': t('טבלה') },
         h('table', { class: 'data-table' },
           h('thead', null, h('tr', null,
             [t('חודש'), t('משקל ממוצע'), t('אימונים לשבוע'), t('ימי ספורט'), t('בוקר V%'), t('צהריים V%'), t('ערב V%'), showSmoke && t('עישון כן%')]
@@ -93,7 +93,7 @@ export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: strin
     h('section', { class: 'card' },
       h('h2', { class: 'card-title' }, t('שלבים (מגמה לפי רבעון)')),
       quarters.length
-        ? h('div', { class: 'table-scroll' },
+        ? h('div', { class: 'table-scroll', tabindex: 0, role: 'region', 'aria-label': t('טבלה') },
             h('table', { class: 'data-table' },
               h('thead', null, h('tr', null, [t('רבעון'), t('שקילות'), t('שינוי במגמה'), t('ק"ג לשבוע')].map((c) => h('th', { scope: 'col' }, c)))),
               h('tbody', null, quarters.map((q) => h('tr', null,

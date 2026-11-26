@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.0.0 (2026-11-26)
+**New visual identity: "sports club"** (feedback: the look felt generic/AI-made).
+- Ink + off-white with one signal colour (lime #c6f432); the default accent ("Sport") is this look. Dark mode: lime accent on near-black.
+- Heebo 800–900 headings and scoreboard numbers; a lime bar before card titles; sharper corners (8–12px), fewer pills.
+- Removed purple gradients, glows, aurora backgrounds and sparkles; decorative emoji in navigation/menus replaced by line icons.
+- Landing hero: ink band with track lines, lime call-to-action. `--brand` is always ink.
+- Scrollable tables are keyboard-focusable regions.
+
 ## 4.2.1 (2026-11-26)
 - Phones: the assistant opens as a full-screen sheet sized to the visual viewport (follows the on-screen keyboard), no auto-focus on open, 16px input (no iOS zoom), page scroll locked and floating buttons hidden while open.
 

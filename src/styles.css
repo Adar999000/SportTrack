@@ -1191,3 +1191,103 @@ body.is-landing .fab-panel { bottom: calc(150px + env(safe-area-inset-bottom)); 
   .fab-panel .chat-empty .chat-hero { padding-top: 0; }
   .fab-panel .chat-foot .hint { font-size: 0.72rem; }
 }
+
+/* =====================================================================
+   v5 — "sports club" identity: ink + off-white, one signal colour (lime),
+   heavy condensed headings, scoreboard numbers, sharper corners,
+   no gradients / glows / sparkles. The default accent ("green") is this look.
+   ===================================================================== */
+:root {
+  --bg: #f3f2ec; --surface: #ffffff; --surface-2: #ecebe4; --text: #121410; --muted: #5a5d55; --line: #dedcd3;
+  --accent: #14160f; --brand: #14160f; --accent-ink: #c6f432; --today: #eef8c6; --signal: #c6f432;
+  --v-bg: #e6f6bd; --v-ink: #3a5000; --x-bg: #fde2de; --x-ink: #b3261e; --d-bg: #ebe9e2; --d-ink: #5f625a;
+  --radius: 10px;
+  font-family: "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d0e0b; --surface: #161813; --surface-2: #1f221b; --text: #f1f2ea; --muted: #a3a79b; --line: #2b2f26;
+    --accent: #c6f432; --brand: #14160f; --accent-ink: #10120c; --today: #232a10; --signal: #c6f432;
+    --v-bg: #26300d; --v-ink: #c6f432; --x-bg: #3f1d1a; --x-ink: #ff9d92; --d-bg: #23261f; --d-ink: #a3a79b;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d0e0b; --surface: #161813; --surface-2: #1f221b; --text: #f1f2ea; --muted: #a3a79b; --line: #2b2f26;
+  --accent: #c6f432; --brand: #14160f; --accent-ink: #10120c; --today: #232a10; --signal: #c6f432;
+  --v-bg: #26300d; --v-ink: #c6f432; --x-bg: #3f1d1a; --x-ink: #ff9d92; --d-bg: #23261f; --d-ink: #a3a79b;
+}
+body { font-family: "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif; letter-spacing: -0.005em; }
+
+/* type: heavy headings, scoreboard numbers */
+h1, h2, h3, .card-title, .level-name, .week-title h2, .store-hero h2, .duel-hero h2 { font-weight: 800; letter-spacing: -0.02em; }
+.topbar h1 { color: var(--text); font-weight: 900; font-size: 1.2rem; }
+.balance, .tile-value, .level-num b, .today-val, .st-score, .ring .ring-text, .store-wallet b, .price, .ev-date b, .coin-chip {
+  font-family: "Heebo", system-ui, sans-serif; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.card-title { font-size: 1.05rem; gap: 8px; }
+.card-title::before { content: ""; width: 4px; height: 1.05em; border-radius: 1px; background: var(--signal); flex: none; }
+
+/* shapes: fewer pills, sharper corners */
+.card { border-radius: 12px; border-color: var(--line); }
+.btn, .input, .seg, .shop-item, .menu-item, .today-btn, .event-mini, .comment, .mod-post, .friend-opt, .metric-opt { border-radius: 8px; }
+.cell { border-radius: 6px; }
+.chip, .shop-tabs button, .tag, .badge { border-radius: 6px; }
+.seg button[aria-pressed="true"], .feed-tabs a[aria-current="page"], .shop-tabs button[aria-pressed="true"], .tracker-bar .chip[aria-current="page"] {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn-primary, .btn-buy { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 800; }
+.link-btn { color: var(--text); text-decoration-thickness: 2px; text-decoration-color: var(--signal); text-underline-offset: 3px; }
+
+/* top bar + tab bar */
+.coin-chip { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.coin-chip .muted, .coin-chip span { color: inherit; }
+.tab[aria-current="page"] { color: var(--text); font-weight: 800; }
+.tab[aria-current="page"] .tab-icon { background: var(--signal); color: #10120c; border-radius: 6px; padding: 2px 14px; }
+
+/* today + table */
+.today-motto { color: var(--text); }
+.ring-full .ring-fg { stroke: var(--signal); filter: none; }
+.week-table thead th.is-today { background: var(--accent); color: var(--accent-ink); }
+.week-table td.is-today { background: var(--today); }
+.level-card { background: var(--surface); }
+.level-num { background: var(--accent); color: var(--accent-ink); box-shadow: none; border-radius: 10px; }
+
+/* no glows, gradients or sparkles */
+.fab { background: var(--accent); border: 3px solid var(--signal); box-shadow: 0 6px 16px -8px rgb(0 0 0 / .5); }
+.fab-ring, .fab-panel::before, .fab-panel::after, .chat-hero::before, .sparkle { display: none !important; }
+.fab-panel .chat-input:focus { box-shadow: 0 0 0 2px var(--accent); }
+.chat-log .bubble-user { background: var(--accent); color: var(--accent-ink); }
+.chat-log .bubble-assistant { background: var(--surface-2); }
+.store-hero, .duel-hero { background: var(--accent); color: var(--accent-ink); box-shadow: none; border-radius: 12px; }
+:root .store-hero p, :root .duel-hero p { color: inherit; opacity: .85; }
+.store-wallet { background: transparent; border: 2px solid var(--accent-ink); backdrop-filter: none; border-radius: 10px; }
+.store-wallet .muted { color: inherit; }
+.duel-hero .btn-primary { background: var(--accent-ink); color: var(--accent); border-color: var(--accent-ink); }
+.tag-sale { background: var(--accent-ink); color: var(--accent); }
+.shop-art { background: var(--surface-2); border-radius: 8px 8px 0 0; }
+.shop-item:hover { transform: none; box-shadow: none; border-color: var(--text); }
+.ribbon { border-radius: 0 4px 4px 0; background: var(--accent); color: var(--accent-ink); }
+.ribbon.hot { background: #d6304a; color: #fff; }
+.ribbon.lvl { background: #555b66; color: #fff; }
+.ribbon.lvl-open { background: var(--signal); color: #10120c; }
+.st-bar span { background: var(--accent); }
+.duel-icon, .mi-icon { background: var(--surface-2); color: var(--text); border-radius: 8px; }
+.prize { background: var(--signal); color: #10120c; border-radius: 6px; }
+.duel-winner.me { background: var(--signal); color: #10120c; }
+.chat-empty .chip:hover { box-shadow: none; border-color: var(--text); }
+.post-act.on { color: var(--x-ink); }
+.coin-chip { white-space: nowrap; font-size: 0.88rem; padding: 6px 12px; gap: 6px; }
+.coin-chip .coin { width: 18px; height: 18px; }
+.topbar { gap: 10px; }
+.topbar h1 { min-width: 0; }
+@media (max-width: 460px) {
+  .topbar h1 > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* landing in the sports-club look */
+.hero-band { background: #10120c; background-image: repeating-linear-gradient(90deg, transparent 0 46px, rgb(198 244 50 / .05) 46px 48px); }
+.hero .btn-primary { background: var(--signal); color: #10120c; border-color: var(--signal); }
+.quote blockquote { background: #10120c; color: #fff; border-inline-start: 6px solid var(--signal); }
+.btn-white { background: var(--signal); color: #10120c; border-color: var(--signal); }
+.ai-badge { background: var(--signal); color: #10120c; }
+.ai-badge svg { stroke: #10120c; }
+.mock-coins, .phone .coin-chip, .lp-chip { white-space: nowrap; }
+.coin-pill { white-space: nowrap; }

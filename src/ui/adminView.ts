@@ -115,7 +115,7 @@ function serverCard(): HTMLElement {
     btn.disabled = false;
   });
   return h('section', { class: 'card stack' },
-    h('h2', { class: 'card-title' }, '🖥️ ', t('שרת')),
+    h('h2', { class: 'card-title' }, t('שרת')),
     info,
     h('p', { class: 'hint' }, t('השרת מושך את הקוד העדכני מ-GitHub לבד (תוך עד 10 דקות מכל עדכון), באותה כתובת ובלי פריסה מחדש.')),
     btn,
@@ -131,7 +131,7 @@ function analyticsCard(): HTMLElement {
       const feats = a.events.filter((e) => !e.event.startsWith('screen:'));
       const screens = a.events.filter((e) => e.event.startsWith('screen:'));
       const maxF = Math.max(1, ...feats.map((e) => e.count)), maxS = Math.max(1, ...screens.map((e) => e.count));
-      const table = (list: Analytics['events'], max: number) => list.length ? h('div', { class: 'table-scroll' }, h('table', { class: 'data-table an-table' },
+      const table = (list: Analytics['events'], max: number) => list.length ? h('div', { class: 'table-scroll', tabindex: 0, role: 'region', 'aria-label': t('טבלה') }, h('table', { class: 'data-table an-table' },
         h('thead', null, h('tr', null, [t('פיצ\'ר'), tr`${a.days} ימים`, t('7 ימים'), t('משתמשים')].map((c) => h('th', { scope: 'col' }, c)))),
         h('tbody', null, list.slice(0, 20).map((e) => h('tr', null,
           h('th', { scope: 'row' }, h('span', { class: 'an-name' }, eventLabel(e.event)), h('span', { class: 'an-bar', style: { width: Math.round((e.count / max) * 100) + '%' } })),
@@ -150,7 +150,7 @@ function analyticsCard(): HTMLElement {
     } catch (e: any) { body.replaceChildren(h('p', { class: 'form-error' }, /לא מוכרת|Unknown action/.test(e.message) ? t('האנליטיקס יופעל אחרי עדכון קוד השרת.') : e.message)); }
   };
   load();
-  return h('section', { class: 'card' }, h('h2', { class: 'card-title' }, '📊 ', t('אנליטיקס שימוש')), body);
+  return h('section', { class: 'card' }, h('h2', { class: 'card-title' }, t('אנליטיקס שימוש')), body);
 }
 
 function communityCard(): HTMLElement {
@@ -386,7 +386,7 @@ export function renderAdminUser(root: HTMLElement, userId: string): void {
         historyCard(userId, !!s.historyApproved),
         h('section', { class: 'card' },
           h('h2', { class: 'card-title' }, t('לפי חודש')),
-          h('div', { class: 'table-scroll' },
+          h('div', { class: 'table-scroll', tabindex: 0, role: 'region', 'aria-label': t('טבלה') },
             h('table', { class: 'data-table' },
               h('thead', null, h('tr', null, [t('חודש'), t('שבועות'), t('אימונים לשבוע'), t('ארוחות בריאות'), t('שינוי משקל')].map((c) => h('th', { scope: 'col' }, c)))),
               h('tbody', null, [...s.months].reverse().map((m) => h('tr', null,
