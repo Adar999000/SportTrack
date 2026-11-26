@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.1.2 (2026-11-26)
+- Floating assistant is on by default again (Settings toggle turns it off); back in the first-run tour.
+
 ## 4.1.1 (2026-11-26)
 - App points at the loader deployment.
 

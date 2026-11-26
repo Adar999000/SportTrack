@@ -54,8 +54,8 @@ export function mountFloatingChat(): { refresh: () => void } {
     const signedIn = !!currentUser();
     const show = hasBackend() && !/^#chat/.test(location.hash) && (!signedIn || !!currentUser()?.profile?.completed);
     if ((signedIn ? currentUser()!.userId : '') !== aiOwner) aiEl = null; // signed in/out: start a fresh conversation
-    // Signed-in users see the floating button only if they turned it on (or there's an unread reply).
-    fab.hidden = !show || (signedIn && !getSettings().showFab && !unread);
+    // On unless the user turned it off in settings (an unread admin reply always shows it).
+    fab.hidden = !show || (signedIn && getSettings().showFab === false && !unread);
     if (!show) panel.hidden = true;
     if (show && signedIn && !isAdmin() && Date.now() - lastCheck > 60_000) {
       lastCheck = Date.now();

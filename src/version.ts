@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.1.2',
+    date: '2026-11-26',
+    items: ['הבוט הצף חזר לפינה (אפשר לכבות בהגדרות)'],
+  },
+  {
     version: '4.1.0',
     date: '2026-11-26',
     items: ['השרת מתעדכן לבד מ-GitHub תוך עד 10 דקות, בלי להדביק קוד ובלי פריסה מחדש'],

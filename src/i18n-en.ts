@@ -1294,4 +1294,7 @@ export const EN: Record<string, string> = {
   "הקוד החדש לא תקין, השרת ממשיך בגרסה הקודמת": "The new code isn't valid; the server keeps running the previous version",
   "צריך להדביק פעם אחת את Code.gs החדש (הטוען) ולפרסם גרסה": "Paste the new Code.gs (the loader) once and deploy a version",
   "השרת מתעדכן לבד מ-GitHub תוך עד 10 דקות, בלי להדביק קוד ובלי פריסה מחדש": "The server updates itself from GitHub within 10 minutes, with no pasting and no redeploy",
+  "גם כשהוא כבוי, העוזר זמין במסך \"אני\"": "Even when off, the assistant is available on the \"Me\" screen",
+  "העוזר האישי: שואלים על הנתונים, מבקשים \"תסמן לי צהריים V\", או פונים למנהל.": "Your personal assistant: ask about your data, say \"mark lunch V\", or contact the admin.",
+  "הבוט הצף חזר לפינה (אפשר לכבות בהגדרות)": "The floating bot is back in the corner (can be turned off in settings)",
 };
