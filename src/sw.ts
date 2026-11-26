@@ -1,12 +1,17 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { clientsClaim } from 'workbox-core';
 import { KEYS, kvGet, kvSet } from './db';
 import { todayISO } from './dates';
 import { dueReminders, type ReminderLog } from './reminders-core';
 import { DEFAULT_SETTINGS, type Settings, type Week } from './types';
 
 declare const self: ServiceWorkerGlobalScope;
+
+// Take over immediately so a new version reaches open tabs without closing them all.
+self.skipWaiting();
+clientsClaim();
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
