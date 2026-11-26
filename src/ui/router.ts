@@ -9,7 +9,9 @@ export type Route =
   | { name: 'chat'; scope: 'me' | 'all' | 'user'; userId?: string }
   | { name: 'rewards' }
   | { name: 'share' }
-  | { name: 'join'; code: string };
+  | { name: 'join'; code: string }
+  | { name: 'login' }
+  | { name: 'signup' };
 
 /** Hashes are plain names: #week-2026-11-22, #history, #stats, #prefs, #profile, #admin, #chat … */
 export const HASH = {
@@ -25,6 +27,8 @@ export const HASH = {
   chatAll: '#chat-all',
   chatUser: (id: string) => `#chat-member-${id}`,
   rewards: '#rewards',
+  login: '#login',
+  signup: '#signup',
   share: '#share',
 };
 
@@ -37,6 +41,8 @@ export function parseRoute(hash: string): Route {
   if (h === 'profile-edit') return { name: 'profile', edit: true };
   if (h === 'admin') return { name: 'admin' };
   if (h === 'rewards') return { name: 'rewards' };
+  if (h === 'login') return { name: 'login' };
+  if (h === 'signup') return { name: 'signup' };
   if (h === 'share') return { name: 'share' };
   const j = /^join-([A-Za-z0-9]{4,12})$/.exec(h);
   if (j) return { name: 'join', code: j[1].toUpperCase() };

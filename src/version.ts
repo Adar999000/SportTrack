@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.2.0',
+    date: '2026-11-26',
+    items: ['דף בית למבקרים עם הדגמה, תכונות וכפתורי כניסה והרשמה, ותמונת תצוגה לשיתוף קישורים'],
+  },
+  {
     version: '2.1.0',
     date: '2026-11-26',
     items: [

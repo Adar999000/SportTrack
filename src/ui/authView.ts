@@ -115,6 +115,7 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode =
       mode === 'register' && inviteCode && h('p', { class: 'hint' }, t('הוזמנת על ידי חבר. קוד ההזמנה כבר מולא.')),
       form,
       h('p', { class: 'center' },
+        h('a', { class: 'link-btn', href: '#' }, t('לדף הבית')), ' · ',
         mode === 'login' ? t('אין לך חשבון? ') : t('כבר רשום? '),
         h('button', { class: 'link-btn', type: 'button', onclick: () => renderAuth(root, mode === 'login' ? 'register' : 'login', inviteCode) },
           mode === 'login' ? t('הרשמה עם קוד הזמנה') : t('כניסה')),

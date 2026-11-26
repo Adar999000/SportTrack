@@ -24,6 +24,7 @@ import { renderStats } from './ui/statsView';
 import { renderWeek } from './ui/weekView';
 import { renderRewards } from './ui/rewardsView';
 import { renderShare } from './ui/shareView';
+import { renderLanding } from './ui/landingView';
 import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
@@ -106,20 +107,27 @@ function render() {
   drawSyncBadge();
   const route = parseRoute(location.hash);
 
+  const key = location.hash;
   if (hasBackend() && !currentUser()) {
     nav.hidden = true;
+    const landing = route.name !== 'join' && route.name !== 'login' && route.name !== 'signup';
+    document.body.classList.toggle('is-landing', landing);
     if (route.name === 'join') { if (!main.querySelector('#reg-invite')) renderAuth(main, 'register', route.code); }
-    else if (!main.querySelector('.auth-card')) renderAuth(main);
+    else if (route.name === 'signup') { if (!main.querySelector('#reg-name')) renderAuth(main, 'register'); }
+    else if (route.name === 'login') { if (!main.querySelector('#auth-email') || main.querySelector('#reg-name')) renderAuth(main, 'login'); }
+    else if (!main.querySelector('.landing')) renderLanding(main, (to) => (location.hash = to === 'login' ? HASH.login : HASH.signup));
+    if (key !== lastRoute) { window.scrollTo(0, 0); lastRoute = key; }
     return;
   }
+  document.body.classList.remove('is-landing');
   if (route.name === 'join') { location.hash = HASH.share; return; }
+  if (route.name === 'login' || route.name === 'signup') { location.hash = HASH.week(); return; }
   if (hasBackend() && !currentUser()!.profile?.completed) {
     nav.hidden = true;
     if (!main.querySelector('form')) renderProfileForm(main, true);
     return;
   }
   // Keep in-progress forms (chat, profile edit) from being wiped by background updates.
-  const key = location.hash;
   if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share')) return;
 
   nav.hidden = false;

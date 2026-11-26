@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.0 (2026-11-26)
+- Landing page for signed-out visitors: hero with an interactive weekly-table demo, features, how to start, the "you don't drown by falling" quote, privacy note, and sign-in / sign-up buttons. `#login` and `#signup` open the forms directly; invite links still go straight to sign-up.
+- Open Graph / Twitter tags and a 1200×630 preview image (`public/og.png`) for shared links.
+
 ## 2.1.0 (2026-11-26)
 - AI assistant is limited to the app: the user's data and progress, using the app, coins/levels/challenges and the tracked habits. Anything else gets a one-line refusal.
 - Admin privacy: admins get aggregates only. That means monthly workouts per week, healthy-meal %, weight change, activity and level. No raw weeks, notes, cell text, weekly photos, birth date, height, goal text or absolute weight. Enforced on the server (`getWeeks`/`rewards` are self-only, new `userSummary`, `listUsers` trimmed, weekly photos owner-only) and in the admin assistant's context.
