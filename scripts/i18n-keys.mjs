@@ -42,7 +42,7 @@ for (const m of gs.matchAll(/text: '((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 for (const m of gs.matchAll(/title: '((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 for (const m of gs.matchAll(/add\([^,]+, \d+, '\w+', '((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]).replace(/: $/, ''));
 for (const m of gs.matchAll(/\[\d+, '((?:[^'\\]|\\.)*)'\]/g)) keys.add(unq(m[1]));
-for (const f of ['src/types.ts', 'src/rewards.ts']) for (const m of readFileSync(f, 'utf8').matchAll(/name: '((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
+for (const f of ['src/types.ts', 'src/rewards.ts', 'src/ui/mascot.ts']) for (const m of readFileSync(f, 'utf8').matchAll(/name: '((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 // files whose Hebrew literals are all shown through t(...) at runtime
 for (const f of ['src/ui/tour.ts', 'src/ui/chatPanel.ts', 'src/actions.ts', 'src/ui/legalPages.ts']) {
   for (const m of readFileSync(f, 'utf8').matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) if (HEB.test(m[1])) keys.add(unq(m[1]));

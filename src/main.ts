@@ -33,6 +33,7 @@ import { mountFloatingChat } from './ui/floatingChat';
 import { maybeStartTour } from './ui/tour';
 import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
 import { burst } from './ui/confetti';
+import { refreshMascots } from './ui/mascot';
 setDayCompleteHandler(() => burst());
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
@@ -115,6 +116,7 @@ function drawSyncBadge() {
 function render() {
   queueMicrotask(() => { floating?.refresh(); maybeStartTour(); });
   applyTheme();
+  refreshMascots();
   drawThemeBtn();
   drawSyncBadge();
   const route = parseRoute(location.hash);

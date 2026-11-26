@@ -81,6 +81,8 @@ export interface Settings {
   bgTheme?: string;
   /** Celebration effects (if owned). */
   effects?: boolean;
+  /** The assistant's character (see MASCOTS). */
+  mascot?: string;
   /** User-added sport types, remembered for the sport picker. */
   customSportTypes: string[];
   dailyReminder: boolean;

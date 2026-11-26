@@ -12,6 +12,7 @@ import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION, CHANGELOG } from '../version';
 import { showDocxPreview } from './importPreview';
 import { installButton } from './installButton';
+import { MASCOTS, mascot } from './mascot';
 import { resetTours } from './tour';
 import { IS_DEMO } from '../env';
 import { clearDemo } from '../demo';
@@ -113,6 +114,15 @@ export function renderSettings(root: HTMLElement): void {
           })),
       ),
       hasBackend() && owns('effect:confetti') && toggle(t('קונפטי ביום מלא'), !!st.effects, (v) => updateSettings({ effects: v })),
+      h('div', { class: 'setting setting-col' },
+        h('span', { id: 'mascot-label' }, t('דמות העוזר')),
+        h('div', { class: 'mascot-pick', role: 'radiogroup', 'aria-labelledby': 'mascot-label' },
+          MASCOTS.map((m) => h('button', {
+            class: 'mascot-opt', type: 'button', role: 'radio', title: t(m.name), 'aria-label': t(m.name),
+            'aria-checked': String((st.mascot ?? 'lion') === m.id),
+            onclick: () => updateSettings({ mascot: m.id }),
+          }, mascot(44, '', m.id)))),
+      ),
       h('div', { class: 'setting' }, h('label', { for: 'lang-select' }, t('שפה / Language')), langSel),
       installButton('btn install-setting'),
     ),

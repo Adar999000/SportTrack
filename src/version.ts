@@ -9,6 +9,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '3.5.0',
+    date: '2026-11-26',
+    items: [
+      'דמויות תלת־ממדיות לעוזר: אריה, נמר, שועל, פנדה, דוב, כלב, ינשוף ומרים משקולות. בוחרים בהגדרות ← דמות העוזר',
+    ],
+  },
+  {
     version: '3.4.0',
     date: '2026-11-26',
     items: [

@@ -126,3 +126,6 @@ src/
   ui/                            vanilla-TS views (week, sport sheet, history, stats/chart, settings, import preview)
 tests/                           vitest unit tests for stats and the docx parser
 ```
+
+## Credits
+- Assistant characters (3D): [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji), MIT License, © Microsoft Corporation.

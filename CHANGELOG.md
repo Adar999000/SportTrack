@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.5.0 (2026-11-26)
+- 3D assistant characters (Microsoft Fluent Emoji 3D, MIT): lion (default), tiger, fox, panda, bear, dog, owl, weightlifter, plus the drawn robot. Picker in Settings → "Assistant character"; changes everywhere at once. Images are local WebP (~7 KB each), cached for offline.
+
 ## 3.4.0 (2026-11-26)
 - Original animated AI mascot (round robot: blinks, floats, waves, glowing antenna) for the floating button, chat replies and the empty-chat hero.
 - Livelier chat panel: aurora background, pop-in panel/bubbles/suggestions, colorful typing dots, sparkles, input glow. All motion stops with reduced motion / the accessibility "stop animations" option.

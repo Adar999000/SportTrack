@@ -1,13 +1,57 @@
+import { getSettings } from '../store';
+
 let uid = 0;
 
-/**
- * The app's AI mascot: an original, round little robot with big glossy eyes.
- * Animated with CSS (blink, float, antenna glow); the motion stops under reduced-motion.
- */
-export function mascot(size = 32, extra = ''): HTMLElement {
+/** Characters the user can pick for the assistant (3D art: Microsoft Fluent Emoji, MIT). */
+export const MASCOTS: { id: string; name: string }[] = [
+  { id: 'lion', name: 'אריה' },
+  { id: 'tiger', name: 'נמר' },
+  { id: 'fox', name: 'שועל' },
+  { id: 'panda', name: 'פנדה' },
+  { id: 'bear', name: 'דוב' },
+  { id: 'dog', name: 'כלב' },
+  { id: 'owl', name: 'ינשוף' },
+  { id: 'lifter', name: 'מרים משקולות' },
+  { id: 'robot', name: 'רובוט' },
+];
+const current = () => { const m = getSettings().mascot; return MASCOTS.some((x) => x.id === m) ? m! : 'lion'; };
+
+/** The assistant's character, in the chosen look (animated with CSS; still under reduced motion). */
+export function mascot(size = 32, extra = '', kind = current()): HTMLElement {
+  if (kind === 'robot') return robot(size, extra);
+  const el = document.createElement('span');
+  el.className = 'mascot mascot-3d ' + extra;
+  el.dataset.kind = kind;
+  el.dataset.size = String(size);
+  el.dataset.extra = extra;
+  el.setAttribute('aria-hidden', 'true');
+  el.style.width = el.style.height = size + 'px';
+  const img = document.createElement('img');
+  img.src = `${import.meta.env.BASE_URL}mascots/${kind}.webp`;
+  img.alt = '';
+  img.width = img.height = size;
+  img.decoding = 'async';
+  img.draggable = false;
+  el.append(img);
+  return el;
+}
+
+/** Swap every mascot on the page when the chosen character changes. */
+export function refreshMascots(): void {
+  const k = current();
+  document.querySelectorAll<HTMLElement>('.mascot[data-kind]:not(.mascot-pick .mascot)').forEach((el) => {
+    if (el.dataset.kind !== k) el.replaceWith(mascot(Number(el.dataset.size), el.dataset.extra ?? '', k));
+  });
+}
+
+/** The original drawn robot (blinks, floats, antenna glow). */
+function robot(size: number, extra: string): HTMLElement {
   const id = 'm' + ++uid;
   const el = document.createElement('span');
   el.className = 'mascot ' + extra;
+  el.dataset.kind = 'robot';
+  el.dataset.size = String(size);
+  el.dataset.extra = extra;
   el.setAttribute('aria-hidden', 'true');
   el.style.width = el.style.height = size + 'px';
   el.innerHTML = `
