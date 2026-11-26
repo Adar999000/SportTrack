@@ -1284,4 +1284,6 @@ export const EN: Record<string, string> = {
   "מסך היום: רק הסימון והטבלה. הערה, תמונה והתאמה אישית בקישורים קטנים מתחת לטבלה": "Today screen: just marking and the table. Note, photo and customization are small links under the table",
   "התקדמות: גרף, סטטיסטיקה והיסטוריה במסך אחד": "Progress: chart, statistics and history on one screen",
   "כפתור העוזר הצף כבוי כברירת מחדל (אפשר להפעיל בהגדרות)": "The floating assistant button is off by default (can be turned on in settings)",
+  "הפרופיל של {0}": "Profile of {0}",
+  "תמונת הפרופיל שלך מופיעה בכותרת למעלה במקום הלוגו. הקשה עליה פותחת את \"אני\"": "Your profile picture now appears in the top bar instead of the logo. Tap it to open \"Me\"",
 };

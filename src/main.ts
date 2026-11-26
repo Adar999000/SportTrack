@@ -24,6 +24,7 @@ import { renderStats } from './ui/statsView';
 import { renderWeek } from './ui/weekView';
 import { renderRewards } from './ui/rewardsView';
 import { renderShare } from './ui/shareView';
+import { avatar } from './ui/avatar';
 import { renderTracker } from './ui/trackerView';
 import { renderFeed } from './ui/feedView';
 import { dirtyDocCount, loadDocs, setDocsOwner } from './docs';
@@ -50,6 +51,19 @@ function tabs(): Tab[] {
 }
 
 const main = h('main', { id: 'main', class: 'content' });
+/** Top-left mark: the user's profile picture once signed in (opens the Me screen), else the app logo. */
+const brandMark = h('span', { class: 'brand-mark' });
+let brandKey = '';
+function drawBrand() {
+  const u = currentUser();
+  const frame = getRewards()?.frame ?? '';
+  const key = u ? `${u.userId}|${u.photoId ?? ''}|${u.name}|${frame}` : 'logo';
+  if (key === brandKey) return;
+  brandKey = key;
+  brandMark.replaceChildren(u && hasBackend()
+    ? h('a', { href: HASH.profile, class: 'brand-avatar', 'aria-label': tr`הפרופיל של ${u.name}` }, avatar(u.name, u.photoId, 34, frame))
+    : logo(26));
+}
 /** A back link to the Me screen on pages opened from it. */
 const crumb = h('div', { class: 'crumb', hidden: true });
 const nav = h('nav', { class: 'tabbar', 'aria-label': t('ניווט ראשי') });
@@ -108,6 +122,7 @@ function drawSyncBadge() {
 }
 
 function render() {
+  drawBrand();
   queueMicrotask(() => { floating?.refresh(); maybeStartTour(); });
   applyTheme();
   refreshMascots();
@@ -244,7 +259,7 @@ async function boot() {
   app.replaceChildren(
     h('a', { class: 'skip-link', href: '#main', onclick: (e: Event) => { e.preventDefault(); main.setAttribute('tabindex', '-1'); main.focus(); } }, t('דלג לתוכן הראשי')),
     h('header', { class: 'topbar' },
-      h('h1', null, logo(26), h('span', null, t('משמעת אישית'))),
+      h('h1', null, brandMark, h('span', null, t('משמעת אישית'))),
       h('div', { class: 'topbar-end' }, syncBadge, coinChip, themeBtn),
     ),
     demoBar,
@@ -279,7 +294,7 @@ async function boot() {
     drawSyncBadge();
     if (getSyncState().state === 'idle' && currentUser()) refreshRewards();
   });
-  onRewards(drawCoinChip);
+  onRewards(() => { drawCoinChip(); drawBrand(); });
   let wasLoggedIn = !!currentUser();
   onSession(() => {
     const now = !!currentUser();

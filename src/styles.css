@@ -1104,3 +1104,8 @@ body.is-landing .fab-panel { bottom: calc(150px + env(safe-area-inset-bottom)); 
 .fold[open] summary { margin-bottom: 8px; }
 .a11y-btn { width: 44px; height: 44px; box-shadow: 0 4px 12px -6px rgb(0 0 0 / .45); }
 .a11y-btn svg { width: 22px; height: 22px; }
+.brand-mark { display: inline-flex; align-items: center; }
+.brand-avatar { display: inline-flex; border-radius: 50%; }
+.brand-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.brand-avatar .avatar { font-size: 0.95rem; }
+.brand-avatar, .brand-avatar:visited { text-decoration: none; color: var(--accent); }

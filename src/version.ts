@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '4.0.1',
+    date: '2026-11-26',
+    items: ['תמונת הפרופיל שלך מופיעה בכותרת למעלה במקום הלוגו. הקשה עליה פותחת את "אני"'],
+  },
+  {
     version: '4.0.0',
     date: '2026-11-26',
     items: [
