@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.1.0 (2026-11-26)
+- Phones: swipe sideways (outside the week table and other scrollers) to move between Today / Progress / Me, following the tab bar direction; slide transition between tabs, fade between other pages.
+- Tactile UI: cells and today buttons have a key-like bottom edge and press down; the cell just marked pops; the today ring draws itself on first view; coins page numbers count up; progress bars animate; realistic coin; soft card shadows in light mode; short vibration on taps where supported. All motion respects reduced-motion.
+
 ## 5.0.0 (2026-11-26)
 **New visual identity: "sports club"** (feedback: the look felt generic/AI-made).
 - Ink + off-white with one signal colour (lime #c6f432); the default accent ("Sport") is this look. Dark mode: lime accent on near-black.

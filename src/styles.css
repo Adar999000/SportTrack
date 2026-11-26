@@ -1291,3 +1291,35 @@ h1, h2, h3, .card-title, .level-name, .week-title h2, .store-hero h2, .duel-hero
 .ai-badge svg { stroke: #10120c; }
 .mock-coins, .phone .coin-chip, .lp-chip { white-space: nowrap; }
 .coin-pill { white-space: nowrap; }
+
+/* ===== v5.1 tactile: real buttons, depth, motion ===== */
+/* cards sit on the page with a soft, real shadow (light mode) */
+:root:not([data-theme="dark"]) .card { box-shadow: 0 1px 0 rgb(0 0 0 / .03), 0 10px 24px -18px rgb(20 22 15 / .35); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card { box-shadow: 0 1px 0 rgb(255 255 255 / .03) inset; } }
+/* table cells and today buttons press like physical keys */
+.cell, .today-btn {
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / .09);
+  transition: transform .08s ease, box-shadow .08s ease, background-color .15s ease;
+}
+.cell.mark-V, .today-btn.mark-V { box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--v-ink) 28%, transparent); }
+.cell.mark-X, .today-btn.mark-X { box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--x-ink) 25%, transparent); }
+.cell.mark-empty { box-shadow: none; }
+.cell:active, .today-btn:active { transform: translateY(2px); box-shadow: inset 0 -1px 0 rgb(0 0 0 / .08); }
+/* the cell you just marked pops */
+.pop { animation: cell-pop .32s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes cell-pop { 0% { transform: scale(.82); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+/* buttons and rows give feedback */
+.btn, .menu-item, .tab, .chip, .shop-tabs button, .post-act, .icon-btn { transition: transform .08s ease, background-color .15s ease; }
+.btn:active, .chip:active, .icon-btn:active, .shop-tabs button:active { transform: scale(.96); }
+.menu-item:active { transform: scale(.985); background: var(--surface-2); }
+.tab:active .tab-icon { transform: scale(.9); }
+.tab-icon { transition: transform .1s ease, background-color .2s ease; }
+/* the ring draws itself the first time */
+.ring-intro .ring-fg { animation: ring-draw .9s cubic-bezier(.2, .8, .2, 1); }
+@keyframes ring-draw { from { stroke-dashoffset: var(--c); } }
+/* a real-looking coin */
+.coin { background: radial-gradient(circle at 34% 30%, #fff6c4 0 12%, #f3cf55 30%, #d9a520 62%, #a8770c 100%); box-shadow: inset 0 0 0 2px #9a6c08, inset 0 0 0 4px rgb(255 240 180 / .35), 0 1px 1px rgb(0 0 0 / .25); }
+/* progress bars fill in */
+.bar span { transition: width .7s cubic-bezier(.2, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { .pop, .ring-intro .ring-fg { animation: none; } .cell, .today-btn, .btn, .bar span { transition: none; } }
+.a11y-motion .pop, .a11y-motion .ring-intro .ring-fg { animation: none; }

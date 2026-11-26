@@ -33,11 +33,24 @@ const MARK_TEXT: Record<string, string> = { V: t('בוצע'), X: t('לא בוצ�
 const markClass = (m: Mark | null) => (m === 'V' ? 'mark-V' : m === 'X' ? 'mark-X' : m === '-' ? 'mark-dash' : 'mark-empty');
 const smokeText = (s: boolean | null | undefined) => (s === true ? t('כן') : s === false ? t('לא') : '');
 
+/** The cell just tapped: it "pops" after the redraw. */
+let justSet = '';
+const popKey = (sunday: string, i: number, key: string) => `${sunday}|${i}|${key}`;
+function tapped(k: string) {
+  justSet = k;
+  navigator.vibrate?.(8);
+  setTimeout(() => { if (justSet === k) justSet = ''; }, 400);
+}
+const pop = (k: string) => (justSet === k ? ' pop' : '');
+let ringDrawn = false;
+
 function cycleMeal(sunday: string, i: number, key: MealKey) {
   track('mark:meal');
+  tapped(popKey(sunday, i, key));
   editWeek(sunday, (w) => (w.days[i][key] = cycleMark(w.days[i][key])));
 }
 function cycleSmoke(sunday: string, i: number) {
+  tapped(popKey(sunday, i, 'smoked'));
   editWeek(sunday, (w) => (w.days[i].smoked = cycleSmoked(w.days[i].smoked)));
 }
 
@@ -55,7 +68,9 @@ function ring(done: number, total: number, size = 64): SVGSVGElement {
   const r = 26, c = 2 * Math.PI * r;
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('width', String(size)); svg.setAttribute('height', String(size));
-  svg.setAttribute('class', 'ring' + (done >= total ? ' ring-full' : '')); svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'ring' + (done >= total ? ' ring-full' : '') + (ringDrawn ? '' : ' ring-intro')); svg.setAttribute('aria-hidden', 'true');
+  svg.style.setProperty('--c', String(c));
+  ringDrawn = true;
   svg.innerHTML = `<circle cx="32" cy="32" r="${r}" class="ring-bg"/><circle cx="32" cy="32" r="${r}" class="ring-fg" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - done / total)}" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle" class="ring-text">${done >= total ? '🏆' : Math.round((done / total) * 100) + '%'}</text>`;
   return svg;
 }
@@ -66,8 +81,8 @@ function todayPanel(today: string): HTMLElement {
   const i = dayIndex(today);
   const d: Day = getWeek(sunday).days[i];
   const settings = getSettings();
-  const btn = (title: string, value: string, cls: string, onclick: () => void, aria: string) =>
-    h('button', { class: `today-btn ${cls}`, type: 'button', onclick, 'aria-label': `${title}: ${aria}` },
+  const btn = (title: string, value: string, cls: string, onclick: () => void, aria: string, k = '') =>
+    h('button', { class: `today-btn ${cls}${pop(k)}`, type: 'button', onclick, 'aria-label': `${title}: ${aria}` },
       h('span', { class: 'today-title' }, title),
       value ? h('span', { class: 'today-val' }, value) : h('span', { class: 'today-empty' }, t('לא סומן')),
     );
@@ -82,11 +97,11 @@ function todayPanel(today: string): HTMLElement {
     ),
     h('div', { class: 'today-grid' },
       mealRows().map((r) =>
-        btn(r.short, d[r.key] ?? '', markClass(d[r.key]), () => cycleMeal(sunday, i, r.key), d[r.key] ? MARK_TEXT[d[r.key]!] : t('ריק')),
+        btn(r.short, d[r.key] ?? '', markClass(d[r.key]), () => cycleMeal(sunday, i, r.key), d[r.key] ? MARK_TEXT[d[r.key]!] : t('ריק'), popKey(sunday, i, r.key)),
       ),
       btn(rowName('sport', t('פעילות ספורט'), t('ספורט')).short, sportShort(d.sport), markClass(d.sport.status) + ' today-sport', () => openSportSheet(sunday, i), sportShort(d.sport) || t('ריק')),
       settings.showSmoking &&
-        btn(rowName('smoked', t('מעשן?'), t('מעשן?')).short, smokeText(d.smoked), d.smoked === true ? 'mark-X' : d.smoked === false ? 'mark-V' : 'mark-empty', () => cycleSmoke(sunday, i), smokeText(d.smoked) || t('ריק')),
+        btn(rowName('smoked', t('מעשן?'), t('מעשן?')).short, smokeText(d.smoked), d.smoked === true ? 'mark-X' : d.smoked === false ? 'mark-V' : 'mark-empty', () => cycleSmoke(sunday, i), smokeText(d.smoked) || t('ריק'), popKey(sunday, i, 'smoked')),
     ),
   );
 }
@@ -116,7 +131,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
         const edit = () => openCellText(sunday, i, r.key, r.full);
         return h('td', { class: colCls(i) },
           h('button', {
-            class: `cell ${text ? 'cell-text' : markClass(d[r.key])}`, type: 'button',
+            class: `cell ${text ? 'cell-text' : markClass(d[r.key])}${pop(popKey(sunday, i, r.key))}`, type: 'button',
             'aria-label': tr`${r.full}, ${t(DAY_NAMES[i])}: ${text ?? (d[r.key] ? MARK_TEXT[d[r.key]!] : t('ריק'))}`,
             title: t('הקשה כפולה: כתיבת טקסט'),
             onclick: () => (text ? edit() : tapOrDoubleTap(`${sunday}-${i}-${r.key}`, () => cycleMeal(sunday, i, r.key), edit)),

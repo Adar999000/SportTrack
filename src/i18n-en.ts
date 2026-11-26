@@ -1357,4 +1357,6 @@ export const EN: Record<string, string> = {
   "עוד משימה אחת ליום מלא": "One more task for a full day",
   "עיצוב חדש בסגנון מועדון ספורט: שחור, אוף-וויט וליים, כותרות עבות, מספרים כמו בלוח תוצאות, ובלי גרדיאנטים ונצנוצים": "New sports-club design: black, off-white and lime, bold headings, scoreboard numbers, and no gradients or sparkles",
   "טבלה": "Table",
+  "בטלפון: החלקה ימינה או שמאלה עוברת בין היום, התקדמות ואני": "On phones: swipe right or left to move between Today, Progress and Me",
+  "תחושה מוחשית: כפתורים ותאים נלחצים כמו כפתור אמיתי, התא שסימנת קופץ, הטבעת מתמלאת, המספרים סופרים, ורטט קל באנדרואיד": "A tactile feel: buttons and cells press like real keys, the cell you marked pops, the ring fills up, numbers count up, and a light vibration on Android",
 };

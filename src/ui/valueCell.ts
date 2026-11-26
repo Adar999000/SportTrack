@@ -69,6 +69,7 @@ export function valueCell(type: CellType, v: CellVal, label: string, unit: strin
     class: `cell ${cls(type, v)}`, type: 'button', 'aria-label': `${label}: ${spoken(type, v, unit)}`,
     'data-track': 'cell:' + type,
     onclick: () => {
+      navigator.vibrate?.(8);
       const n = nextValue(type, v);
       if (n !== undefined) onChange(n);
       else editValue(label, type, v, unit, onChange);

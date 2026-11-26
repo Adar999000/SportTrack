@@ -2,7 +2,7 @@ import { addDays, formatShort, sundayOf, todayISO } from '../dates';
 import { currentUser } from '../session';
 import { BADGES, getRewards, leaderboard, levelLabel, refreshRewards, rewardsError, spend, wearFrame, type Leader, type Rewards } from '../rewards';
 import { avatar } from './avatar';
-import { confirmButton, h, openSheet, toast } from './dom';
+import { confirmButton, countUp, h, openSheet, toast } from './dom';
 import { aiMark } from './icons';
 import { HASH, navigate } from './router';
 import { t, tr } from '../i18n';
@@ -36,6 +36,10 @@ const EARN_RULES: [string, string][] = [
   ['חבר נרשם בקוד שלך · משלים שבוע ראשון', '50 + 50'],
 ];
 
+/** Numbers count up the first time the page opens. */
+let counted = false;
+const num = (n: number) => (counted ? fmt(n) : countUp(h('span'), n));
+
 function levelCard(r: Rewards): HTMLElement {
   const toNext = r.level.to - r.lifetime;
   const next = r.levels?.find((l) => l.n === r.level.n + 1);
@@ -51,10 +55,10 @@ function levelCard(r: Rewards): HTMLElement {
       h('span', { style: { width: pct(r.lifetime - r.level.from, r.level.to - r.level.from) + '%' } })),
     next?.perks.length ? h('p', { class: 'hint' }, t('ברמה הבאה: '), next.perks.map((p) => t(p)).join(' · ')) : '',
     h('div', { class: 'tiles' },
-      h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, t('יתרה')), h('div', { class: 'balance' }, coin(), fmt(r.balance))),
+      h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, t('יתרה')), h('div', { class: 'balance' }, coin(), num(r.balance))),
       h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, t('השבוע')), h('div', { class: 'tile-value' }, '+' + fmt(r.week))),
       h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, t('החודש')), h('div', { class: 'tile-value' }, '+' + fmt(r.month))),
-      h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, t('נצברו בסך הכל')), h('div', { class: 'tile-value' }, fmt(r.lifetime))),
+      h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, t('נצברו בסך הכל')), h('div', { class: 'tile-value' }, num(r.lifetime))),
     ),
     r.fullHistory === false ? h('p', { class: 'hint' }, t('ההיסטוריה שלך מלפני ההצטרפות נספרת כבונוס פתיחה מוגבל (עד 500). מנהל האפליקציה יכול לאשר ספירה מלאה שלה.')) : '',
   );
@@ -301,6 +305,7 @@ function historyCard(r: Rewards): HTMLElement {
 }
 
 export function renderRewards(root: HTMLElement): void {
+  counted = false;
   const draw = (rw: Rewards | null) => {
     if (!rw) {
       const err = rewardsError();
@@ -314,6 +319,7 @@ export function renderRewards(root: HTMLElement): void {
     }
     root.replaceChildren(
       levelCard(rw),
+      (counted = true, ''),
       h('div', { class: 'row-btns two' },
         h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.share) }, t('הזמן חברים וצבור מטבעות')),
         h('button', { class: 'btn', onclick: () => openShareAchievement() }, t('שתף הישג'))),

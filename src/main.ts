@@ -205,8 +205,47 @@ function render() {
   if (key !== lastRoute) {
     track('screen:' + route.name);
     window.scrollTo(0, 0);
+    const ti = tabIndex(route.name);
+    if (lastRoute) pageTransition(lastTab >= 0 && ti >= 0 && ti !== lastTab ? (ti > lastTab ? 1 : -1) : 0);
+    lastTab = ti;
     lastRoute = key;
   }
+}
+
+let lastTab = -1;
+const tabIndex = (name: Route['name']) => tabs().findIndex((tb) => tb.names.includes(name));
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('a11y-motion');
+
+/** Slide between tabs (in the direction of the tab bar), fade for other page changes. */
+function pageTransition(dir: number) {
+  if (reducedMotion() || !main.animate) return;
+  const x = dir * (isRTL ? -28 : 28);
+  main.animate([{ opacity: 0, transform: `translateX(${x}px)` }, { opacity: 1, transform: 'none' }], { duration: dir ? 240 : 180, easing: 'cubic-bezier(.2,.8,.2,1)' });
+}
+
+/** Phones: swipe sideways anywhere outside tables/scrollers to move between the tabs. */
+function initSwipeTabs() {
+  let sx = 0, sy = 0, st = 0, ok = false;
+  const SKIP = '.week-card, .table-wrap, .table-scroll, .shop-tabs, .tracker-bar, .chart-box, .seg, .chips, input, textarea, select, .sheet, .fab-panel, .tour-tip';
+  main.addEventListener('touchstart', (e) => {
+    const t0 = e.touches[0];
+    ok = e.touches.length === 1 && !(e.target as HTMLElement).closest(SKIP);
+    sx = t0.clientX; sy = t0.clientY; st = Date.now();
+  }, { passive: true });
+  main.addEventListener('touchend', (e) => {
+    if (!ok || nav.hidden) return;
+    const t1 = e.changedTouches[0];
+    const dx = t1.clientX - sx, dy = t1.clientY - sy;
+    if (Math.abs(dx) < 70 || Math.abs(dy) > 45 || Date.now() - st > 600) return;
+    const list = tabs();
+    const cur = tabIndex(parseRoute(location.hash).name);
+    if (cur < 0) return;
+    // the tab bar runs right-to-left in Hebrew: a swipe toward the right reveals the next tab
+    const next = cur + ((dx > 0) === isRTL ? 1 : -1);
+    if (next < 0 || next >= list.length) return;
+    navigator.vibrate?.(8);
+    navigate(list[next].hash);
+  }, { passive: true });
 }
 
 /** After login: decide what happens to data already on this device. */
@@ -268,6 +307,7 @@ async function boot() {
     nav,
   );
   initAnalytics();
+  initSwipeTabs();
   await loadStore();
   await loadDocs();
   await loadSession();

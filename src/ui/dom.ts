@@ -102,3 +102,18 @@ export function confirmButton(label: string, confirmLabel: string, onConfirm: ()
   });
   return b;
 }
+
+/** Animate a number in an element from 0 to its value (skipped when motion is reduced). */
+export function countUp(el: HTMLElement, to: number, ms = 700): HTMLElement {
+  const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('a11y-motion') || to === 0) { el.textContent = fmt(to); return el; }
+  const t0 = performance.now();
+  const step = (now: number) => {
+    const p = Math.min(1, (now - t0) / ms);
+    el.textContent = fmt(to * (1 - Math.pow(1 - p, 3)));
+    if (p < 1 && el.isConnected) requestAnimationFrame(step);
+  };
+  el.textContent = '0';
+  requestAnimationFrame(step);
+  return el;
+}
