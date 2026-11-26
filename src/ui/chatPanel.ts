@@ -3,7 +3,7 @@ import { kvGet, kvSet } from '../db';
 import { applyActions, type AgentAction } from '../actions';
 import { currentUser } from '../session';
 import { h, toast } from './dom';
-import { aiMark } from './icons';
+import { mascot } from './mascot';
 import { lang, t } from '../i18n';
 import { formatShort } from '../dates';
 
@@ -34,7 +34,7 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
   const send = h('button', { class: 'btn btn-primary', type: 'submit' }, t('שלח'));
 
   const bubble = (m: Msg) => {
-    const b = h('div', { class: `bubble bubble-${m.role}` }, m.role === 'assistant' ? h('span', { class: 'bubble-ai' }, aiMark(14)) : '', m.content);
+    const b = h('div', { class: `bubble bubble-${m.role}` }, m.role === 'assistant' ? h('span', { class: 'bubble-ai' }, mascot(26)) : '', m.content);
     if (m.done?.length) b.append(h('div', { class: 'done-list' }, ...m.done.map((d) => h('div', null, '✓ ', d))));
     if (m.undo && !m.undone) {
       b.append(h('button', { class: 'link-btn undo-btn', type: 'button', onclick: () => { m.undo!(); m.undone = true; toast(t('הפעולה בוטלה')); draw(); } }, t('ביטול הפעולה')));
@@ -46,7 +46,8 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
       ...(messages.length
         ? messages.map(bubble)
         : [h('div', { class: 'stack chat-empty' },
-            h('p', { class: 'muted' }, scope === 'all' ? t('העוזר מכיר סיכומים סטטיסטיים על כל המשתמשים.')
+            h('div', { class: 'chat-hero' }, mascot(92, 'mascot-wave'), h('span', { class: 'sparkle s1' }, '✦'), h('span', { class: 'sparkle s2' }, '✦'), h('span', { class: 'sparkle s3' }, '✧')),
+            h('p', { class: 'chat-hello' }, scope === 'all' ? t('העוזר מכיר סיכומים סטטיסטיים על כל המשתמשים.')
               : scope === 'guest' ? t('שלום! אפשר לשאול כל שאלה על האפליקציה: הרשמה, התקנה, מטבעות, פרטיות ועוד.')
               : t('אפשר לשאול על הנתונים שלך, לבקש לסמן משהו בטבלה, או לפנות למנהל.')),
             h('div', { class: 'chips' }, SUGGESTIONS[scope].map((s) => h('button', { class: 'chip', type: 'button', onclick: () => ask(t(s)) }, t(s)))))]),
@@ -60,7 +61,7 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
     messages.push({ role: 'user', content: text });
     input.value = '';
     draw();
-    const typing = h('div', { class: 'bubble bubble-assistant typing' }, h('span', { class: 'bubble-ai' }, aiMark(14)), t('חושב…'));
+    const typing = h('div', { class: 'bubble bubble-assistant typing', 'aria-label': t('חושב…') }, h('span', { class: 'bubble-ai' }, mascot(26, 'mascot-think')), h('span', { class: 'dots', 'aria-hidden': 'true' }, h('i'), h('i'), h('i')));
     log.append(typing);
     log.scrollTop = log.scrollHeight;
     send.disabled = true;

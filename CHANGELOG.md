@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.4.0 (2026-11-26)
+- Original animated AI mascot (round robot: blinks, floats, waves, glowing antenna) for the floating button, chat replies and the empty-chat hero.
+- Livelier chat panel: aurora background, pop-in panel/bubbles/suggestions, colorful typing dots, sparkles, input glow. All motion stops with reduced motion / the accessibility "stop animations" option.
+
 ## 3.3.0 (2026-11-26)
 - Weight chart: time runs left→right, range filter (3m / 6m / 1y / 2y / all, remembered), emoji markers (🚩 start, 🏆 lowest, ⛰️ highest, 📍 now), 🎯 goal line, 🏖️ vacation weeks, in-range summary.
 - 15 levels (up to 32,000 lifetime coins, then a ⭐ per 10,000) with server-enforced perks: extra daily assistant messages, free items, 10/20/30% store discounts, everything free at level 15.

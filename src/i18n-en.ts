@@ -874,4 +874,6 @@ export const EN: Record<string, string> = {
   "היסטוריה מלפני ההצטרפות נספרת במלואה באישור מנהל": "History from before joining counts in full once the admin approves",
   "חנות מורחבת: צבעים חדשים, רקעים, מסגרות פרופיל שמופיעות בדירוג, וקונפטי ביום מלא": "Bigger store: new colors, backgrounds, profile frames shown on the leaderboard, and confetti on a full day",
   "פירוט מלא: איך צוברים מטבעות, טבלת רמות והטבות, ומה המשמעות של כל דבר": "Full details: how to earn coins, a levels-and-perks table, and what each thing means",
+  "דמות חדשה לעוזר: רובוט קטן וחמוד שממצמץ, מרחף ומנופף לשלום": "A new assistant character: a cute little robot that blinks, floats and waves hello",
+  "חלון השיחה עם אפקטים: רקע זוהר, בועות קופצות, נקודות הקלדה צבעוניות ונצנוצים": "A livelier chat window: glowing background, pop-in bubbles, colorful typing dots and sparkles",
 };

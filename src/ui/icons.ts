@@ -1,3 +1,4 @@
+import { mascot } from './mascot';
 /** Small stroke icon set (24×24, currentColor). */
 const P: Record<string, string> = {
   week: '<rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M8 13.5h2M14 13.5h2M8 17h2"/>',
@@ -30,10 +31,8 @@ export function logo(size = 32): SVGSVGElement {
 
 /** The mark used on everything AI-related: sparkles + "AI". */
 export function aiMark(size = 16): HTMLElement {
-  const el = document.createElement('span');
-  el.className = 'ai-mark';
-  el.setAttribute('aria-hidden', 'true');
-  el.append(icon('chat', size));
+  const el = mascot(Math.round(size * 1.25));
+  el.classList.add('ai-mark');
   return el;
 }
 

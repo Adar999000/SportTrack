@@ -1,7 +1,7 @@
 {
   "name": "mishmaat-ishit",
   "private": true,
-  "version": "3.3.0",
+  "version": "3.4.0",
   "type": "module",
   "description": "משמעת אישית — weekly habit & weight tracker PWA (Hebrew, RTL, offline)",
   "scripts": {

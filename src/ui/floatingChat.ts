@@ -4,12 +4,13 @@ import { chatPanel, supportPanel } from './chatPanel';
 import { contactForm } from './legalPages';
 import { h } from './dom';
 import { aiMark, icon } from './icons';
+import { mascot } from './mascot';
 import { t } from '../i18n';
 
 /** Floating assistant button on every signed-in screen: AI chat + messages to the admin. */
 export function mountFloatingChat(): { refresh: () => void } {
   const badge = h('span', { class: 'fab-badge', hidden: true });
-  const fab = h('button', { class: 'fab', type: 'button', 'aria-label': t('עוזר AI ופנייה למנהל'), title: t('עוזר AI') }, aiMark(26), badge);
+  const fab = h('button', { class: 'fab', type: 'button', 'aria-label': t('עוזר AI ופנייה למנהל'), title: t('עוזר AI') }, mascot(50, 'fab-mascot'), h('span', { class: 'fab-ring', 'aria-hidden': 'true' }), badge);
   const panel = h('div', { class: 'fab-panel', role: 'dialog', 'aria-label': t('עוזר AI'), hidden: true });
   document.body.append(fab, panel);
 
@@ -22,9 +23,9 @@ export function mountFloatingChat(): { refresh: () => void } {
 
   function draw() {
     const guest = !currentUser();
-    const tabs = h('div', { class: 'seg fab-tabs', role: 'tablist' },
-      h('button', { type: 'button', role: 'tab', 'aria-pressed': String(tab === 'ai'), onclick: () => { tab = 'ai'; draw(); } }, aiMark(14), ' ', guest ? t('שאלות') : t('עוזר AI')),
-      h('button', { type: 'button', role: 'tab', 'aria-pressed': String(tab === 'support'), onclick: () => { tab = 'support'; draw(); } },
+    const tabs = h('div', { class: 'seg fab-tabs', role: 'group', 'aria-label': t('עוזר AI') },
+      h('button', { type: 'button', 'aria-pressed': String(tab === 'ai'), onclick: () => { tab = 'ai'; draw(); } }, aiMark(14), ' ', guest ? t('שאלות') : t('עוזר AI')),
+      h('button', { type: 'button', 'aria-pressed': String(tab === 'support'), onclick: () => { tab = 'support'; draw(); } },
         icon('info', 14), ' ', t('פנייה למנהל'), unread ? h('span', { class: 'fab-badge inline' }, String(unread)) : ''),
     );
     // Keep the conversation alive between open/close (so "undo" still works); reload support each time.
