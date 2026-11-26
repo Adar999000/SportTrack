@@ -71,13 +71,29 @@ async function token(): Promise<string> {
   return n.access;
 }
 
+/** Spotify's own error text, e.g. "Insufficient client scope" or "Check settings on developer.spotify.com/dashboard, the user may not be registered." */
+async function spotifyError(r: Response): Promise<string> {
+  try { const j = await r.clone().json(); return String(j?.error?.message || j?.error_description || j?.error || ''); } catch { return ''; }
+}
+
 async function api<T = any>(path: string, opts: RequestInit = {}): Promise<T | null> {
-  const r = await fetch('https://api.spotify.com/v1' + path, { ...opts, headers: { Authorization: 'Bearer ' + await token(), 'Content-Type': 'application/json' } });
+  let r: Response;
+  try {
+    r = await fetch('https://api.spotify.com/v1' + path, { ...opts, headers: { Authorization: 'Bearer ' + await token(), 'Content-Type': 'application/json' } });
+  } catch {
+    throw new Error('אין חיבור ל-Spotify. בדקו את האינטרנט ונסו שוב.');
+  }
   if (r.status === 204 || r.status === 202) return null;
+  const detail = r.ok ? '' : await spotifyError(r);
   if (r.status === 401) { save(null); throw new Error('החיבור ל-Spotify פג, צריך להתחבר מחדש'); }
-  if (r.status === 403) throw new Error('שליטה בניגון דורשת Spotify Premium. אפשר לנגן דרך הנגן המוטמע.');
-  if (r.status === 404) throw new Error('פתחו את Spotify בטלפון או במחשב, ואז נסו שוב');
-  if (!r.ok) throw new Error('Spotify לא זמין כרגע');
+  if (r.status === 403) {
+    if (/registered|user may not|developer\.spotify/i.test(detail)) throw new Error('החשבון הזה לא רשום באפליקציית ה-Spotify. מוסיפים אותו ב-developer.spotify.com ← האפליקציה ← Settings ← User Management.');
+    if (/premium/i.test(detail) || path.startsWith('/me/player')) throw new Error('שליטה בניגון דורשת Spotify Premium. אפשר לנגן דרך הנגן המוטמע.');
+    throw new Error('Spotify חסם את הבקשה (403)' + (detail ? ': ' + detail : ''));
+  }
+  if (r.status === 404 && path.startsWith('/me/player')) throw new Error('פתחו את Spotify בטלפון או במחשב, ואז נסו שוב');
+  if (r.status === 429) throw new Error('יותר מדי בקשות ל-Spotify. נסו שוב בעוד דקה.');
+  if (!r.ok) throw new Error(`Spotify לא זמין כרגע (${r.status}${detail ? ': ' + detail : ''})`);
   const txt = await r.text();
   return txt ? JSON.parse(txt) : null;
 }

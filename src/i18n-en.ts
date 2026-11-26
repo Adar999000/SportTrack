@@ -1706,4 +1706,9 @@ export const EN: Record<string, string> = {
   "פוסטים עם עד 4 תמונות מהגלריה, עם גלילה בין התמונות": "Posts with up to 4 gallery photos, swipe between them",
   "סטורי מהגלריה: בוחרים עד 5 תמונות ומעלים בבת אחת, ואפשר להוסיף על התמונה את נתוני האימון או היום": "Stories from the gallery: pick up to 5 photos and post them at once, optionally with workout or today's stats on top",
   "נתוני היום": "Today's stats",
+  "אין חיבור ל-Spotify. בדקו את האינטרנט ונסו שוב.": "Can't reach Spotify. Check your connection and try again.",
+  "החשבון הזה לא רשום באפליקציית ה-Spotify. מוסיפים אותו ב-developer.spotify.com ← האפליקציה ← Settings ← User Management.": "This account isn't registered in the Spotify app. Add it at developer.spotify.com → the app → Settings → User Management.",
+  "Spotify חסם את הבקשה (403)": "Spotify blocked the request (403)",
+  "יותר מדי בקשות ל-Spotify. נסו שוב בעוד דקה.": "Too many requests to Spotify. Try again in a minute.",
+  "Spotify לא זמין כרגע ({0})": "Spotify is unavailable right now ({0})",
 };
