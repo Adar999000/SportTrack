@@ -1,5 +1,15 @@
 /** English UI strings. Keys are the Hebrew originals (see scripts/i18n-keys.mjs). */
 export const EN: Record<string, string> = {
+  "העוזר עונה רק על שאלות שקשורות לאפליקציה ולנתונים": "The assistant answers only questions about the app and your data",
+  "פרטיות: המנהל רואה רק סיכומים סטטיסטיים על משתמשים, בלי הערות, תמונות שבועיות ופרטים אישיים": "Privacy: the admin sees only summary statistics about users, without notes, weekly photos or personal details",
+  "אימונים בשבוע": "Workouts / week",
+  "ארוחות בריאות": "Healthy meals",
+  "בעמודה השמאלית: שינוי משקל מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים. מוצגים רק נתונים סטטיסטיים.": "On the right: weight change since the start, workouts and meals in the last 4 weeks. Only statistics are shown.",
+  "הנתונים שלך נשמרים בגיליון בגוגל דרייב של מנהל האפליקציה. באפליקציה המנהל רואה רק סיכומים סטטיסטיים (אימונים, ארוחות, שינוי משקל ופעילות), לא הערות, תמונות שבועיות או פרטים אישיים.": "Your data is stored in a Google Drive spreadsheet owned by the app admin. In the app, the admin sees only summary statistics (workouts, meals, weight change and activity), not your notes, weekly photos or personal details.",
+  "מוצגים רק נתונים סטטיסטיים. הערות, תמונות שבועיות ופרטים אישיים של המשתמש לא מוצגים למנהל.": "Only statistics are shown. The user's notes, weekly photos and personal details aren't shown to the admin.",
+  "נרשם {0} · נכנס {1} · רמה {2}": "Joined {0} \u00b7 last seen {1} \u00b7 level {2}",
+  "שבועות": "Weeks",
+  "שינוי משקל": "Weight change",
   "נספר אחרי {0} ארוחות מסומנות (עכשיו {1})": "Counts after {0} marked meals (now {1})",
   "מטבעות ורמות עם שמות: צוברים על ימים מלאים, אימונים, שקילות, רצפים, אתגרים, התקדמות ליעד והזמנת חברים": "Coins and named levels: earn for full days, workouts, weigh-ins, streaks, challenges, progress to your goal and inviting friends",
   "אתגרים שבועיים, חודשיים ושנתיים, ותגים": "Weekly, monthly and yearly challenges, and badges",

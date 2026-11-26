@@ -20,17 +20,37 @@ export interface User {
   profile: UserProfile;
 }
 
-export interface AdminUserRow extends User {
+export interface AdminUserRow extends Omit<User, 'profile'> {
   weeks: number;
   lastWeek: string | null;
-  firstWeight: number | null;
-  currentWeight: number | null;
+  weightChange: number | null;
   recentWorkouts: number;
   recentMealsPct: number | null;
   level?: number;
   levelName?: string;
   coins?: number;
   lifetime?: number;
+}
+
+/** What an admin may see about another user: aggregates only. */
+export interface UserSummary {
+  userId: string;
+  name: string;
+  email: string;
+  photoId: string | null;
+  createdAt: string;
+  lastSeen: string;
+  weeks: number;
+  firstWeek: string | null;
+  lastWeek: string | null;
+  totalWorkouts: number;
+  workoutsPerWeek: number | null;
+  mealsPct: number | null;
+  weightChange: number | null;
+  level: number;
+  levelName: string;
+  coins: number;
+  months: { month: string; weeks: number; workoutsPerWeek: number; mealsPct: number | null; weightChange: number | null }[];
 }
 
 export class AuthError extends Error {}

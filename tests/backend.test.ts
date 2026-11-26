@@ -65,16 +65,46 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     expect(be.sheets.Weeks.getLastRow()).toBe(1101);
   });
 
-  it('keeps users apart and lets only the admin read others', () => {
+  it('keeps users apart; the admin sees statistics only', () => {
     const { code } = be.post({ action: 'createInvite', token: admin.token });
     const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב', invite: code });
-    be.post({ action: 'putWeeks', token: b.token, weeks: [week('2026-11-22', 70)] });
+    be.post({ action: 'updateProfile', token: b.token, profile: { birthDate: '1990-01-01', heightCm: 170, goal: 'סוד' } });
+    be.post({ action: 'putWeeks', token: b.token, weeks: [
+      { ...week('2026-11-15', 72), data: { sundayDate: '2026-11-15', startWeight: 72, note: 'הערה פרטית', days: [] } },
+      week('2026-11-22', 70),
+    ] });
     expect(be.post({ action: 'getWeeks', token: admin.token }).weeks).toHaveLength(0);
-    expect(be.post({ action: 'getWeeks', token: admin.token, userId: b.user.userId }).weeks).toHaveLength(1);
-    expect(be.post({ action: 'getWeeks', token: b.token, userId: admin.user.userId }).error).toMatch(/מנהל/);
+    // no raw weeks of other users, even for the admin
+    expect(be.post({ action: 'getWeeks', token: admin.token, userId: b.user.userId }).weeks).toHaveLength(0);
     expect(be.post({ action: 'listUsers', token: b.token }).error).toMatch(/מנהל/);
-    const users = be.post({ action: 'listUsers', token: admin.token }).users;
-    expect(users.find((u: any) => u.userId === b.user.userId)).toMatchObject({ weeks: 1, currentWeight: 70, recentWorkouts: 2 });
+    const row = be.post({ action: 'listUsers', token: admin.token }).users.find((u: any) => u.userId === b.user.userId);
+    expect(row).toMatchObject({ weeks: 2, weightChange: -2, recentWorkouts: 4 });
+    expect(row).not.toHaveProperty('profile');
+    expect(row).not.toHaveProperty('currentWeight');
+    const sum = be.post({ action: 'userSummary', token: admin.token, userId: b.user.userId }).summary;
+    expect(sum).toMatchObject({ weeks: 2, weightChange: -2, workoutsPerWeek: 2 });
+    expect(JSON.stringify(sum)).not.toMatch(/הערה פרטית|סוד|1990|170/);
+    expect(be.post({ action: 'userSummary', token: b.token, userId: admin.user.userId }).error).toMatch(/מנהל/);
+  });
+
+  it('admin assistant gets aggregates, never notes or profile details', () => {
+    be.properties.set('OPENAI_API_KEY', 'sk');
+    const { code } = be.post({ action: 'createInvite', token: admin.token });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב', invite: code });
+    be.post({ action: 'updateProfile', token: b.token, profile: { goal: 'סוד אישי', heightCm: 170 } });
+    be.post({ action: 'putWeeks', token: b.token, weeks: [{ ...week('2026-11-22', 70), data: { sundayDate: '2026-11-22', startWeight: 70, note: 'הערה פרטית', days: [] } }] });
+    be.post({ action: 'chat', token: admin.token, scope: 'all', messages: [{ role: 'user', content: 'סכם' }] });
+    let sys = JSON.parse(be.fetches.at(-1).opts.payload).messages[0].content;
+    expect(sys).toContain('סיכומים סטטיסטיים');
+    expect(sys).not.toMatch(/הערה פרטית|סוד אישי|170|משקל 70/);
+    be.post({ action: 'chat', token: admin.token, userId: b.user.userId, messages: [{ role: 'user', content: 'סכם' }] });
+    sys = JSON.parse(be.fetches.at(-1).opts.payload).messages[0].content;
+    expect(sys).not.toMatch(/הערה פרטית|סוד אישי/);
+    // the user's own assistant still sees their own notes, and is told to stay on topic
+    be.post({ action: 'chat', token: b.token, messages: [{ role: 'user', content: 'מה הבירה של צרפת?' }] });
+    sys = JSON.parse(be.fetches.at(-1).opts.payload).messages[0].content;
+    expect(sys).toContain('הערה פרטית');
+    expect(sys).toContain('אני יכול לעזור רק בשאלות על הנתונים שלך ועל האפליקציה');
   });
 
   it('stores profile details and photos, and guards photo access', () => {
@@ -92,6 +122,10 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     const { code } = be.post({ action: 'createInvite', token: admin.token });
     const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב', invite: code });
     expect(be.post({ action: 'getPhoto', token: b.token, photoId: wk.photoId }).error).toMatch(/גישה/);
+    // others may see profile pictures (leaderboard), not weekly photos — admins included
+    expect(be.post({ action: 'getPhoto', token: b.token, photoId: res.user.photoId }).dataUrl).toBe(img);
+    const bPhoto = be.post({ action: 'setWeekPhoto', token: b.token, sundayDate: '2026-11-22', photo: img, data: { sundayDate: '2026-11-22', days: [] } }).photoId;
+    expect(be.post({ action: 'getPhoto', token: admin.token, photoId: bPhoto }).error).toMatch(/גישה/);
     // replacing trashes the old file
     be.post({ action: 'setWeekPhoto', token: admin.token, sundayDate: '2026-11-22', photo: null });
     expect(be.files.get(wk.photoId).trashed).toBe(true);

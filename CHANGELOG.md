@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0 (2026-11-26)
+- AI assistant is limited to the app: the user's data and progress, using the app, coins/levels/challenges and the tracked habits. Anything else gets a one-line refusal.
+- Admin privacy: admins get aggregates only. That means monthly workouts per week, healthy-meal %, weight change, activity and level. No raw weeks, notes, cell text, weekly photos, birth date, height, goal text or absolute weight. Enforced on the server (`getWeeks`/`rewards` are self-only, new `userSummary`, `listUsers` trimmed, weekly photos owner-only) and in the admin assistant's context.
+- Sign-up notice states what the admin can see.
+
 ## 2.0.0 (2026-11-26)
 - Rewards, computed on the server from each user's data: coins for full days (5), workouts (10), weekly weigh-ins (5), 7-day lunch streaks (20), 4-week workout streaks (50), weekly/monthly/yearly challenges (30/100/500), each kg toward the goal weight (20, at most one a week), reaching the goal (200), keeping it (10), and friends who join (50 + 50). One-time opening bonus for earlier history (max 500).
 - Named levels from lifetime coins (spending doesn't lower your level).

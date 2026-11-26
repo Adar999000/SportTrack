@@ -1,13 +1,10 @@
 import { isRTL, t, tr } from '../i18n';
-import { call, type AdminUserRow } from '../api';
-import { formatShort, sundayOf, todayISO, daysBetween } from '../dates';
-import { normalizeWeek } from '../model';
+import { call, type AdminUserRow, type UserSummary } from '../api';
+import { formatShort, monthLabel, sundayOf, todayISO, daysBetween } from '../dates';
 import { round1 } from '../stats';
-import type { Week } from '../types';
 import { avatar } from './avatar';
 import { fmtPct, h, toast } from './dom';
 import { HASH, navigate } from './router';
-import { statsSections } from './statsView';
 
 let usersCache: AdminUserRow[] | null = null;
 
@@ -42,7 +39,7 @@ export function renderAdmin(root: HTMLElement): void {
   const draw = (users: AdminUserRow[]) => {
     const thisSunday = sundayOf(todayISO());
     const active = users.filter((u) => u.lastWeek && daysBetween(u.lastWeek, thisSunday) <= 7).length;
-    const losses = users.filter((u) => u.firstWeight != null && u.currentWeight != null).map((u) => u.currentWeight! - u.firstWeight!);
+    const losses = users.filter((u) => u.weightChange != null).map((u) => u.weightChange!);
     overview.replaceChildren(
       tile(t('משתמשים'), String(users.length)),
       tile(t('עדכנו השבוע או בשבוע שעבר'), String(active)),
@@ -50,7 +47,7 @@ export function renderAdmin(root: HTMLElement): void {
     );
     const sorted = [...users].sort((a, b) => String(b.lastSeen).localeCompare(String(a.lastSeen)));
     list.replaceChildren(...sorted.map((u) => {
-      const change = u.firstWeight != null && u.currentWeight != null ? round1(u.currentWeight - u.firstWeight) : null;
+      const change = u.weightChange;
       return h('button', { class: 'user-row', onclick: () => navigate(HASH.adminUser(u.userId)) },
         avatar(u.name, u.photoId, 44),
         h('span', { class: 'user-main' },
@@ -59,8 +56,7 @@ export function renderAdmin(root: HTMLElement): void {
           u.level ? h('span', { class: 'muted small' }, tr`רמה ${u.level} · ${(u.coins ?? 0).toLocaleString('en-US')} מטבעות`) : '',
         ),
         h('span', { class: 'user-nums' },
-          h('span', null, u.currentWeight != null ? tr`${Number(u.currentWeight).toFixed(1)} ק"ג` : '—'),
-          h('span', { class: 'muted small' }, change != null ? `${change > 0 ? '+' : ''}${change.toFixed(1)}` : ''),
+          h('span', null, change != null ? tr`${(change > 0 ? '+' : '') + change.toFixed(1)} ק"ג` : '—'),
           h('span', { class: 'muted small' }, tr`${u.recentWorkouts} אימונים · ${fmtPct(u.recentMealsPct)}`),
         ),
       );
@@ -72,7 +68,7 @@ export function renderAdmin(root: HTMLElement): void {
       h('button', { class: 'btn', onclick: () => navigate(HASH.chatAll) }, t('שאל את העוזר על כל המשתמשים'))),
     h('section', { class: 'card' },
       h('h2', { class: 'card-title' }, t('משתמשים')),
-      h('p', { class: 'hint' }, t('בעמודה השמאלית: משקל נוכחי, שינוי מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים.')),
+      h('p', { class: 'hint' }, t('בעמודה השמאלית: שינוי משקל מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים. מוצגים רק נתונים סטטיסטיים.')),
       list,
     ),
     h('section', { class: 'card stack' },
@@ -99,30 +95,49 @@ function tile(label: string, value: string) {
 export function renderAdminUser(root: HTMLElement, userId: string): void {
   const u = usersCache?.find((x) => x.userId === userId);
   const body = h('div', { class: 'stack' }, h('section', { class: 'card' }, h('p', { class: 'muted' }, t('טוען נתונים…'))));
-  const p = u?.profile ?? {};
   root.replaceChildren(
     h('button', { class: 'link-btn', onclick: () => navigate(HASH.admin) }, (isRTL ? '→ ' : '← ') + t('חזרה ללוח המנהל')),
-    u ? h('section', { class: 'card profile-head' },
-      avatar(u.name, u.photoId, 64),
-      h('div', { class: 'profile-id' },
-        h('h2', null, u.name),
-        h('div', { class: 'muted', dir: 'ltr' }, u.email),
-        h('div', { class: 'muted small' }, [
-          p.heightCm && tr`גובה ${p.heightCm}`, p.goalWeight && tr`יעד ${p.goalWeight} ק"ג`, tr`נרשם ${formatShort(String(u.createdAt).slice(0, 10))}`,
-        ].filter(Boolean).join(' · ')),
-        p.goal && h('div', { class: 'small' }, tr`מטרה: ${p.goal}`),
-      ),
-    ) : '',
-    h('button', { class: 'btn', onclick: () => navigate(HASH.chatUser(userId)) }, tr`שאל את העוזר על ${u?.name ?? t('המשתמש')}`),
     body,
   );
-  call<{ weeks: { sundayDate: string; updatedAt: number; photoId: string | null; data: any }[] }>('getWeeks', { userId, since: 0 })
-    .then(({ weeks }) => {
-      const parsed = weeks
-        .map((r) => normalizeWeek({ ...r.data, sundayDate: r.sundayDate, photoId: r.photoId ?? undefined }))
-        .filter((w): w is Week => !!w)
-        .sort((a, b) => a.sundayDate.localeCompare(b.sundayDate));
-      body.replaceChildren(...statsSections(parsed));
+  const signed = (n: number | null) => (n === null ? '—' : (n > 0 ? '+' : '') + n.toFixed(1));
+  call<{ summary: UserSummary }>('userSummary', { userId })
+    .then(({ summary: s }) => {
+      body.replaceChildren(
+        h('section', { class: 'card profile-head' },
+          avatar(s.name, s.photoId, 64),
+          h('div', { class: 'profile-id' },
+            h('h2', null, s.name),
+            h('div', { class: 'muted', dir: 'ltr' }, s.email),
+            h('div', { class: 'muted small' }, tr`נרשם ${formatShort(String(s.createdAt).slice(0, 10))} · נכנס ${relDays(s.lastSeen)} · רמה ${s.level}`),
+          ),
+        ),
+        h('button', { class: 'btn', onclick: () => navigate(HASH.chatUser(userId)) }, tr`שאל את העוזר על ${s.name}`),
+        h('section', { class: 'card' },
+          h('div', { class: 'tiles' },
+            tile(t('שבועות במעקב'), String(s.weeks)),
+            tile(t('אימונים בשבוע'), s.workoutsPerWeek === null ? '—' : s.workoutsPerWeek.toFixed(1)),
+            tile(t('ארוחות בריאות'), fmtPct(s.mealsPct)),
+            tile(t('שינוי משקל'), signed(s.weightChange)),
+          ),
+          h('p', { class: 'hint' }, t('מוצגים רק נתונים סטטיסטיים. הערות, תמונות שבועיות ופרטים אישיים של המשתמש לא מוצגים למנהל.')),
+        ),
+        h('section', { class: 'card' },
+          h('h2', { class: 'card-title' }, t('לפי חודש')),
+          h('div', { class: 'table-scroll' },
+            h('table', { class: 'data-table' },
+              h('thead', null, h('tr', null, [t('חודש'), t('שבועות'), t('אימונים לשבוע'), t('ארוחות בריאות'), t('שינוי משקל')].map((c) => h('th', { scope: 'col' }, c)))),
+              h('tbody', null, [...s.months].reverse().map((m) => h('tr', null,
+                h('th', { scope: 'row' }, monthLabel(m.month)),
+                h('td', null, m.weeks),
+                h('td', null, m.workoutsPerWeek.toFixed(1)),
+                h('td', null, fmtPct(m.mealsPct)),
+                h('td', null, signed(m.weightChange)),
+              ))),
+            ),
+          ),
+        ),
+      );
     })
     .catch((e) => body.replaceChildren(h('p', { class: 'form-error' }, e.message)));
+  void u;
 }

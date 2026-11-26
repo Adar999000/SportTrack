@@ -68,7 +68,7 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode =
     field('auth-email', t('אימייל'), { type: 'email', autocomplete: 'email', inputmode: 'email', dir: 'ltr', required: true }),
     field('auth-pass', t('סיסמה'), { type: 'password', autocomplete: mode === 'login' ? 'current-password' : 'new-password', minlength: 6, required: true }),
     mode === 'register' && h('div', { id: 'invite-wrap' }, field('reg-invite', t('קוד הזמנה'), { type: 'text', autocapitalize: 'characters', dir: 'ltr', value: inviteCode })),
-    mode === 'register' && h('p', { class: 'hint' }, t('הנתונים שלך נשמרים בגיליון של מנהל האפליקציה, והוא יכול לראות אותם.')),
+    mode === 'register' && h('p', { class: 'hint' }, t('הנתונים שלך נשמרים בגיליון בגוגל דרייב של מנהל האפליקציה. באפליקציה המנהל רואה רק סיכומים סטטיסטיים (אימונים, ארוחות, שינוי משקל ופעילות), לא הערות, תמונות שבועיות או פרטים אישיים.')),
     err,
     h('button', { class: 'btn btn-primary', type: 'submit' }, mode === 'login' ? t('כניסה') : t('הרשמה')),
     mode === 'login' && h('button', {
