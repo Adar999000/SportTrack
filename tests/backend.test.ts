@@ -129,4 +129,30 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     expect(sent.messages[0].content.length).toBeLessThan(7000);
     console.log('system prompt chars for 191 weeks:', sent.messages[0].content.length);
   });
+
+  it('resets a forgotten password with an emailed code', () => {
+    expect(be.post({ action: 'requestReset', email: 'nobody@x.com' })).toEqual({ ok: true });
+    expect(be.mails).toHaveLength(0); // unknown email: same answer, no mail
+    expect(be.post({ action: 'requestReset', email: 'ME@example.com' })).toEqual({ ok: true });
+    expect(be.mails).toHaveLength(1);
+    const code = /(\d{6})/.exec(be.mails[0].body)![1];
+    expect(be.mails[0].to).toBe('me@example.com');
+    // a second request within a minute doesn't send another email
+    be.post({ action: 'requestReset', email: 'me@example.com' });
+    expect(be.mails).toHaveLength(1);
+    expect(be.post({ action: 'confirmReset', email: 'me@example.com', code: '000000', newPassword: 'newpass1' }).error).toMatch(/הקוד/);
+    const ok = be.post({ action: 'confirmReset', email: 'me@example.com', code, newPassword: 'newpass1' });
+    expect(ok.token).toBeTruthy();
+    expect(be.post({ action: 'login', email: 'me@example.com', password: 'newpass1' }).token).toBeTruthy();
+    expect(be.post({ action: 'login', email: 'me@example.com', password: 'secret1' }).error).toBeTruthy();
+    // the code works only once
+    expect(be.post({ action: 'confirmReset', email: 'me@example.com', code, newPassword: 'other12' }).error).toMatch(/הקוד/);
+  });
+
+  it('cancels a reset code after 5 wrong attempts', () => {
+    be.post({ action: 'requestReset', email: 'me@example.com' });
+    const code = /(\d{6})/.exec(be.mails[0].body)![1];
+    for (let i = 0; i < 5; i++) be.post({ action: 'confirmReset', email: 'me@example.com', code: '111111', newPassword: 'newpass1' });
+    expect(be.post({ action: 'confirmReset', email: 'me@example.com', code, newPassword: 'newpass1' }).error).toMatch(/הקוד/);
+  });
 });

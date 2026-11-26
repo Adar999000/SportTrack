@@ -366,3 +366,5 @@ button { cursor: pointer; }
 }
 .release h3 { margin: 0 0 4px; font-size: 1rem; }
 .release ul { margin: 0 0 8px; padding-inline-start: 20px; }
+.forgot { align-self: center; }
+.code-input { font-size: 1.4rem; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }

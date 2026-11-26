@@ -50,6 +50,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה' } = {}) 
   const properties = new Map();
   const cache = new Map();
   const fetches = [];
+  const mails = [];
 
   const ctx = {
     console,
@@ -61,7 +62,8 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה' } = {}) 
       }),
     },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-    CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
+    CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v), remove: (k) => cache.delete(k) }) },
+    MailApp: { sendEmail: (m) => mails.push(m), getRemainingDailyQuota: () => 100 },
     Utilities: {
       DigestAlgorithm: { SHA_256: 'sha256' },
       Charset: { UTF_8: 'utf8' },
@@ -109,5 +111,5 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה' } = {}) 
   vm.runInContext(readFileSync(new URL('../../apps-script/Code.gs', import.meta.url), 'utf8'), ctx);
 
   const post = (body) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(body) } }).text);
-  return { post, sheets, files, properties, fetches };
+  return { post, sheets, files, properties, fetches, mails };
 }

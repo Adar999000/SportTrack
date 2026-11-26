@@ -5,6 +5,59 @@ import { h } from './dom';
 
 type Mode = 'login' | 'register';
 
+/** Forgotten password: email a code, then set a new password with it. */
+function renderReset(root: HTMLElement, presetEmail = ''): void {
+  const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
+  const info = h('p', { class: 'hint', hidden: true });
+  const email = h('input', { id: 'reset-email', class: 'input', type: 'email', inputmode: 'email', autocomplete: 'email', dir: 'ltr', value: presetEmail });
+  const code = h('input', { id: 'reset-code', class: 'input code-input', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, dir: 'ltr' });
+  const pass = h('input', { id: 'reset-pass', class: 'input', type: 'password', autocomplete: 'new-password', minlength: 6 });
+  const step2 = h('div', { class: 'stack', hidden: true },
+    h('div', { class: 'field' }, h('label', { for: 'reset-code' }, t('הקוד מהמייל')), code),
+    h('div', { class: 'field' }, h('label', { for: 'reset-pass' }, t('סיסמה חדשה (6 תווים לפחות)')), pass),
+  );
+  const btn = h('button', { class: 'btn btn-primary', type: 'submit' }, t('שלח קוד'));
+  const fail = (m: string) => { err.textContent = m; err.hidden = false; };
+  const form = h('form', { class: 'stack', novalidate: true },
+    h('div', { class: 'field' }, h('label', { for: 'reset-email' }, t('אימייל')), email),
+    info, step2, err, btn,
+    h('button', { class: 'link-btn', type: 'button', hidden: true, id: 'resend', onclick: () => send() }, t('שלח קוד שוב')),
+  );
+  async function send() {
+    err.hidden = true;
+    if (!email.value.trim()) return fail(t('נא למלא אימייל'));
+    btn.disabled = true;
+    try {
+      await call('requestReset', { email: email.value.trim() });
+      info.textContent = t('אם האימייל רשום, נשלח אליו קוד. הוא בתוקף ל-15 דקות. כדאי לבדוק גם בספאם.');
+      info.hidden = false;
+      step2.hidden = false;
+      (form.querySelector('#resend') as HTMLElement).hidden = false;
+      btn.textContent = t('איפוס סיסמה');
+      code.focus();
+    } catch (e: any) { fail(e.message); }
+    btn.disabled = false;
+  }
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (step2.hidden) return send();
+    err.hidden = true;
+    btn.disabled = true;
+    try {
+      const res = await call<{ token: string; user: User }>('confirmReset', { email: email.value.trim(), code: code.value.trim(), newPassword: pass.value });
+      await startSession(res);
+    } catch (ex: any) { fail(ex.message); btn.disabled = false; }
+  });
+  root.replaceChildren(
+    h('section', { class: 'card auth-card' },
+      h('h2', { class: 'card-title' }, t('איפוס סיסמה')),
+      form,
+      h('p', { class: 'center' }, h('button', { class: 'link-btn', type: 'button', onclick: () => renderAuth(root, 'login') }, t('חזרה לכניסה'))),
+    ),
+  );
+  (presetEmail ? email : email).focus();
+}
+
 export function renderAuth(root: HTMLElement, mode: Mode = 'login'): void {
   const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
   const field = (id: string, label: string, attrs: Record<string, any>) =>
@@ -18,6 +71,10 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login'): void {
     mode === 'register' && h('p', { class: 'hint' }, t('הנתונים שלך נשמרים בגיליון של מנהל האפליקציה, והוא יכול לראות אותם.')),
     err,
     h('button', { class: 'btn btn-primary', type: 'submit' }, mode === 'login' ? t('כניסה') : t('הרשמה')),
+    mode === 'login' && h('button', {
+      class: 'link-btn forgot', type: 'button',
+      onclick: () => renderReset(root, (form.querySelector('#auth-email') as HTMLInputElement).value.trim()),
+    }, t('שכחתי סיסמה')),
   );
 
   const val = (id: string) => (form.querySelector('#' + id) as HTMLInputElement | null)?.value.trim() ?? '';

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.0 (2026-11-26)
+- Password reset by email: "Forgot password" on the sign-in screen emails a 6-digit code (valid 15 minutes, 5 attempts, at most one email a minute). Needs the updated `apps-script/Code.gs` and the mail permission (run `setup` again).
+
 ## 1.1.0 (2026-11-26)
 - Double-tap a table cell to write free text (e.g. "חופשה"). Text cells are ignored in V%.
 - The "Smoked?" row is hidden by default and can be turned on in Settings.

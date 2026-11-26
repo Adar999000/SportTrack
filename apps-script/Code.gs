@@ -43,6 +43,8 @@ function route(req) {
   if (a === 'register') return register(req);
   if (a === 'login') return login(req);
   if (a === 'status') return { ok: true, hasUsers: sheet('Users').getLastRow() > 1 };
+  if (a === 'requestReset') return requestReset(req);
+  if (a === 'confirmReset') return confirmReset(req);
 
   const me = auth(req.token);
   touch(me);
@@ -235,6 +237,63 @@ function changePassword(me, req) {
   const salt = Utilities.getUuid();
   sheet('Users').getRange(me.row, U.hash + 1, 1, 2).setValues([[hashPassword(req.newPassword, salt), salt]]);
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ password reset by email
+
+const RESET_MINUTES = 15;
+const RESET_MAX_TRIES = 5;
+
+/** Emails a 6-digit code. Always answers ok, so it doesn't reveal which emails exist. */
+function requestReset(req) {
+  const email = normEmail(req.email);
+  const u = findUser((r) => r[U.email] === email);
+  if (!u) return { ok: true };
+  const cache = CacheService.getScriptCache();
+  const key = 'reset-' + email;
+  const prev = parseJSON(cache.get(key), null);
+  if (prev && Date.now() - prev.sent < 60 * 1000) return { ok: true }; // at most one email a minute
+  const digits = Utilities.getUuid().replace(/\D/g, '') + String(Math.random()).slice(2);
+  const code = digits.slice(0, 6);
+  const salt = Utilities.getUuid();
+  cache.put(key, JSON.stringify({ h: hashPassword(code, salt), salt: salt, sent: Date.now(), tries: 0 }), RESET_MINUTES * 60);
+  MailApp.sendEmail({
+    to: email,
+    subject: 'קוד לאיפוס סיסמה · משמעת אישית',
+    body: 'שלום ' + u.r[U.name] + ',\n\nהקוד לאיפוס הסיסמה שלך: ' + code +
+      '\n\nהקוד בתוקף ל-' + RESET_MINUTES + ' דקות. אם לא ביקשת איפוס, אפשר להתעלם מההודעה.\n\nמשמעת אישית',
+    htmlBody: '<div dir="rtl" style="font-family:Arial,sans-serif;font-size:15px">' +
+      '<p>שלום ' + escapeHtml(u.r[U.name]) + ',</p><p>הקוד לאיפוס הסיסמה שלך:</p>' +
+      '<p style="font-size:28px;font-weight:bold;letter-spacing:6px">' + code + '</p>' +
+      '<p>הקוד בתוקף ל-' + RESET_MINUTES + ' דקות. אם לא ביקשת איפוס, אפשר להתעלם מההודעה.</p><p>משמעת אישית</p></div>',
+    name: 'משמעת אישית',
+  });
+  return { ok: true };
+}
+
+function confirmReset(req) {
+  const email = normEmail(req.email);
+  const cache = CacheService.getScriptCache();
+  const key = 'reset-' + email;
+  const rec = parseJSON(cache.get(key), null);
+  if (!rec) throw new Error('הקוד לא תקין או שפג תוקפו. אפשר לבקש קוד חדש.');
+  if (String(req.newPassword || '').length < 6) throw new Error('הסיסמה צריכה להיות לפחות 6 תווים');
+  if (hashPassword(String(req.code || '').trim(), rec.salt) !== rec.h) {
+    rec.tries++;
+    if (rec.tries >= RESET_MAX_TRIES) cache.remove(key);
+    else cache.put(key, JSON.stringify(rec), RESET_MINUTES * 60);
+    throw new Error('הקוד לא תקין או שפג תוקפו. אפשר לבקש קוד חדש.');
+  }
+  cache.remove(key);
+  const u = findUser((r) => r[U.email] === email);
+  if (!u) throw new Error('המשתמש לא נמצא');
+  const salt = Utilities.getUuid();
+  sheet('Users').getRange(u.row, U.hash + 1, 1, 2).setValues([[hashPassword(String(req.newPassword), salt), salt]]);
+  return { token: sign(u.r[U.id]), user: publicUser(u) };
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 // ------------------------------------------------------------------ profile & photos
@@ -517,5 +576,6 @@ function setup() {
   sheet('Users').getLastRow();
   DriveApp.getFolderById(PHOTOS_FOLDER_ID).getName();
   UrlFetchApp.fetch('https://api.openai.com', { muteHttpExceptions: true });
+  MailApp.getRemainingDailyQuota(); // permission to send password-reset emails
   Logger.log('OK');
 }

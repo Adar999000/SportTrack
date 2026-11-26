@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.2.0',
+    date: '2026-11-26',
+    items: ['איפוס סיסמה במייל: "שכחתי סיסמה" במסך הכניסה שולח קוד בן 6 ספרות'],
+  },
+  {
     version: '1.1.0',
     date: '2026-11-26',
     items: [

@@ -9,6 +9,8 @@ be.properties.set('OPENAI_API_KEY', 'sk-mock');
 const port = Number(process.argv[2]) || 8787;
 createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  // test helper: emails the backend would have sent (password reset codes)
+  if (req.method === 'GET' && req.url === '/__mails') return res.end(JSON.stringify(be.mails));
   if (req.method !== 'POST') return res.end(JSON.stringify({ ok: true }));
   let body = '';
   req.on('data', (c) => (body += c));
