@@ -1,4 +1,4 @@
-// Local stand-in for the Apps Script web app, running the real apps-script/Code.gs
+// Local stand-in for the Apps Script web app, running the real apps-script/server.js
 // against in-memory Sheets/Drive. Usage: node scripts/mock-server.mjs [port]
 //   then: VITE_API_URL=http://localhost:8787 npm run dev
 import { createServer } from 'node:http';

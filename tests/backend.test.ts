@@ -9,7 +9,7 @@ const week = (sunday: string, weight?: number) => ({
   summary: { startWeight: weight, workouts: 2, mealsPct: 50 },
 });
 
-describe('Apps Script backend (apps-script/Code.gs)', () => {
+describe('Apps Script backend (apps-script/server.js)', () => {
   let be: ReturnType<typeof createBackend>;
   let admin: { token: string; user: any };
 

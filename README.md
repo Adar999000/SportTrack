@@ -56,7 +56,7 @@ The service worker only runs over **HTTPS** (or `localhost`). Deploy `dist/` to 
 
 ## Security
 
-Layered, mostly on the server (`apps-script/Code.gs`):
+Layered, mostly on the server (`apps-script/server.js`):
 1. **Passwords:** salted, 5,000-round SHA-256 (v2), constant-time comparison, minimum 8 characters, common passwords refused.
 2. **Brute force:** 5 failed sign-ins lock the email for 15 minutes; password-reset codes allow 5 tries and one email a minute.
 3. **Two-step sign-in** by emailed code: always on for admins unless they turn it off, optional for users.
@@ -73,7 +73,7 @@ Built to Israeli Standard 5568 / WCAG 2.0 AA: keyboard navigation, visible focus
 
 ## Coins, levels and challenges
 
-Rewards are calculated on the server (`rewardsFor` in `apps-script/Code.gs`) from each user's own data, so a modified client can't award itself coins. Spending is recorded in the `Ledger` tab. The rules are listed in [CHANGELOG.md](CHANGELOG.md) under 2.0.0 and in the app under *How do I earn coins?* Rewards count from the day the feature went live, or from signup for newer users. Earlier history gives a one-time bonus capped at 500.
+Rewards are calculated on the server (`rewardsFor` in `apps-script/server.js`) from each user's own data, so a modified client can't award itself coins. Spending is recorded in the `Ledger` tab. The rules are listed in [CHANGELOG.md](CHANGELOG.md) under 2.0.0 and in the app under *How do I earn coins?* Rewards count from the day the feature went live, or from signup for newer users. Earlier history gives a one-time bonus capped at 500.
 
 ## Stats definitions
 

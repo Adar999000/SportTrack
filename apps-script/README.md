@@ -42,17 +42,17 @@ node scripts/mock-server.mjs      # local API on :8787
 VITE_API_URL=http://localhost:8787 npm run dev
 ```
 
-## Automatic updates (from v3.9)
-After a one-time setup the server updates itself: every hour (and from Admin → Server → "Update now")
-it downloads `Code.gs` and `appsscript.json` from this branch on GitHub, saves them into the project,
-creates a version and points every web-app deployment at it, so no URL ever changes.
+## Automatic updates (from v4.1)
+`Code.gs` is a small **loader** and is the only file pasted into Apps Script. The real server code is
+`server.js` in this folder: the loader fetches it from GitHub, caches it for 10 minutes, keeps the last
+working copy in Drive (`server-last-good.js` in the app folder) and runs it. Pushing to GitHub updates
+the server within 10 minutes, with no paste and no redeploy. Admin → Server → "Update now" fetches at once.
 
-One-time setup:
-1. Turn on **Google Apps Script API** at https://script.google.com/home/usersettings
-2. In the editor: Project Settings → tick "Show appsscript.json manifest file in editor".
-3. Paste `Code.gs` and `appsscript.json` from this folder, save.
-4. Run `setup` once and approve the new permissions (manage projects/deployments; installs the hourly trigger).
-5. Manage deployments → edit the existing deployment → New version → Deploy (last manual time).
+One-time setup (replaces any older copy of the code):
+1. Paste `Code.gs` (the loader) and `appsscript.json` from this folder into the project, save.
+2. Run `setup` once and approve the permissions.
+3. Manage deployments → edit the existing deployment → New version → Deploy (the last manual deploy).
 
-Safety: a downloaded file is installed only if it looks complete (contains `doPost` and `selfUpdate`).
-If an update ever breaks something, Manage deployments → edit → pick the previous version.
+Safety: new code is used only if it compiles and looks complete; otherwise the last good copy keeps running.
+Whoever can push to this branch can change the server code (same as the web app itself).
+A change to `appsscript.json` (new permissions) or to `Code.gs` itself still needs a manual paste.

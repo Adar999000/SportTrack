@@ -1,5 +1,5 @@
 /**
- * In-memory stand-ins for the Apps Script services used by apps-script/Code.gs,
+ * In-memory stand-ins for the Apps Script services used by apps-script/server.js (and the Code.gs loader),
  * so the real backend code can run under Node (tests + local mock server).
  */
 import { createHash, createHmac, randomUUID } from 'node:crypto';
@@ -41,7 +41,10 @@ class Sheet {
   }
 }
 
-export function createBackend({ openaiReply = 'תשובה לדוגמה', now } = {}) {
+export function createBackend({ openaiReply = 'תשובה לדוגמה', now, loader = false, serverSource } = {}) {
+  const serverFile = () => serverSource ?? readFileSync(new URL('../../apps-script/server.js', import.meta.url), 'utf8');
+  const textFiles = new Map(); // Drive text files by name (the loader's last good copy)
+  let githubDown = false;
   const sheets = {
     Users: new Sheet('Users', ['userId', 'email', 'name', 'role', 'passHash', 'salt', 'createdAt', 'lastSeen', 'photoId', 'profile', 'extra']),
     Weeks: new Sheet('Weeks', ['userId', 'sundayDate', 'startWeight', 'workouts', 'mealsPct', 'photoId', 'updatedAt', 'data']),
@@ -59,12 +62,14 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
   const iter = (arr) => { let i = 0; return { hasNext: () => i < arr.length, next: () => arr[i++] }; };
   const folderApi = () => ({
     getName: () => 'תמונות',
-    createFile: (blob) => {
+    createFile: (blob, content, mime) => {
+      if (typeof blob === 'string') { textFiles.set(blob, String(content)); return { getId: () => 'txt-' + blob }; }
       const id = 'file-' + (files.size + 1);
       files.set(id, { bytes: blob.getBytes(), type: blob.type, trashed: false });
       return { getId: () => id };
     },
     getFoldersByName: () => iter([folderApi()]),
+    getFilesByName: (name) => iter(textFiles.has(name) ? [{ setContent: (c) => textFiles.set(name, String(c)), getBlob: () => ({ getDataAsString: () => textFiles.get(name) }) }] : []),
     createFolder: () => folderApi(),
     getFiles: () => iter(backups.filter((b) => !b.trashed).map((b) => ({ getId: () => b.id, getName: () => b.name, getDateCreated: () => b.at }))),
   });
@@ -80,7 +85,8 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
       }),
     },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-    CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v), remove: (k) => cache.delete(k) }) },
+    CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v), remove: (k) => cache.delete(k),
+      getAll: (keys) => Object.fromEntries(keys.filter((k) => cache.has(k)).map((k) => [k, cache.get(k)])), putAll: (o) => Object.entries(o).forEach(([k, v]) => cache.set(k, v)) }) },
     MailApp: { sendEmail: (m) => mails.push(m), getRemainingDailyQuota: () => 100 },
     Utilities: {
       DigestAlgorithm: { SHA_256: 'sha256' },
@@ -119,9 +125,8 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
         fetches.push({ url, opts });
         // self-update: GitHub raw files come from this checkout; the Apps Script API answers with a version
         if (url.startsWith('https://raw.githubusercontent.com/')) {
-          const name = url.split('/').pop().split('?')[0];
-          const text = readFileSync(new URL('../../apps-script/' + name, import.meta.url), 'utf8');
-          return { getResponseCode: () => 200, getContentText: () => text };
+          if (githubDown) return { getResponseCode: () => 503, getContentText: () => '' };
+          return { getResponseCode: () => 200, getContentText: () => serverFile() };
         }
         if (url.startsWith('https://script.googleapis.com/')) {
           const web = (id, v) => ({ deploymentId: id, deploymentConfig: { versionNumber: v }, entryPoints: [{ entryPointType: 'WEB_APP' }] });
@@ -153,9 +158,13 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
     ctx.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [at()])); } static now() { return at(); } };
   }
   vm.createContext(ctx);
-  vm.runInContext(readFileSync(new URL('../../apps-script/Code.gs', import.meta.url), 'utf8'), ctx);
+  vm.runInContext(loader ? readFileSync(new URL('../../apps-script/Code.gs', import.meta.url), 'utf8') : serverFile(), ctx);
 
   const post = (body) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(body) } }).text);
   const run = (fn) => ctx[fn]();
-  return { post, sheets, files, properties, fetches, mails, backups, triggers, run };
+  const setServerSource = (src) => { serverSource = src; };
+  const setGithubDown = (v) => { githubDown = v; };
+  /** A new request: Apps Script runs the files fresh each time (the loader keeps nothing in memory). */
+  const newRequest = () => vm.runInContext('loadedServer = null;', ctx);
+  return { post, sheets, files, properties, fetches, mails, backups, triggers, run, cache, textFiles, setServerSource, setGithubDown, newRequest };
 }

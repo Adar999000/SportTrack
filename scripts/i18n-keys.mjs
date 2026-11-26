@@ -35,7 +35,7 @@ grabList('src/dates.ts', 'MONTH_NAMES');
 grabList('src/model.ts', 'BUILTIN_SPORT_TYPES');
 grabList('src/ui/cellTextSheet.ts', 'QUICK');
 for (const m of readFileSync('src/version.ts', 'utf8').matchAll(/^\s*'((?:[^'\\]|\\.)*)',$/gm)) if (HEB.test(m[1])) keys.add(unq(m[1]));
-const gs = readFileSync('apps-script/Code.gs', 'utf8');
+const gs = readFileSync('apps-script/server.js', 'utf8') + readFileSync('apps-script/Code.gs', 'utf8');
 for (const m of gs.matchAll(/new Error\('((?:[^'\\]|\\.)*)'\)/g)) keys.add(unq(m[1]).replace(/^AUTH:\s*/, ''));
 // rewards texts shown in the app: challenge titles, coin item labels (prefix before ": name"), level names
 for (const m of gs.matchAll(/text: '((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));

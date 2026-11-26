@@ -1288,4 +1288,10 @@ export const EN: Record<string, string> = {
   "תמונת הפרופיל שלך מופיעה בכותרת למעלה במקום הלוגו. הקשה עליה פותחת את \"אני\"": "Your profile picture now appears in the top bar instead of the logo. Tap it to open \"Me\"",
   "תמונת הפרופיל עברה לצד הרמה והמטבעות, והלוגו חזר ליד שם האפליקציה": "The profile picture moved next to your level and coins, and the logo is back beside the app name",
   "העדכון האוטומטי של השרת מעדכן כל כתובת שרת שנוצרה, לא רק אחת": "Automatic server updates now cover every server address you created, not just one",
+  "server source looks incomplete": "server source looks incomplete",
+  "השרת לא הצליח לטעון את הקוד": "The server couldn't load its code",
+  "השרת מושך את הקוד העדכני מ-GitHub לבד (תוך עד 10 דקות מכל עדכון), באותה כתובת ובלי פריסה מחדש.": "The server pulls the latest code from GitHub by itself (within 10 minutes of any update), at the same address and with no redeploy.",
+  "הקוד החדש לא תקין, השרת ממשיך בגרסה הקודמת": "The new code isn't valid; the server keeps running the previous version",
+  "צריך להדביק פעם אחת את Code.gs החדש (הטוען) ולפרסם גרסה": "Paste the new Code.gs (the loader) once and deploy a version",
+  "השרת מתעדכן לבד מ-GitHub תוך עד 10 דקות, בלי להדביק קוד ובלי פריסה מחדש": "The server updates itself from GitHub within 10 minutes, with no pasting and no redeploy",
 };

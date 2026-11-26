@@ -117,7 +117,7 @@ function serverCard(): HTMLElement {
   return h('section', { class: 'card stack' },
     h('h2', { class: 'card-title' }, '🖥️ ', t('שרת')),
     info,
-    h('p', { class: 'hint' }, t('השרת בודק כל שעה אם יש קוד חדש ב-GitHub ומתעדכן לבד, באותה כתובת.')),
+    h('p', { class: 'hint' }, t('השרת מושך את הקוד העדכני מ-GitHub לבד (תוך עד 10 דקות מכל עדכון), באותה כתובת ובלי פריסה מחדש.')),
     btn,
   );
 }

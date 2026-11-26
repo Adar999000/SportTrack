@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.1.0 (2026-11-26)
+- Server updates without the Apps Script API (which a default Apps Script project can't call): `Code.gs` is now a stable loader that fetches `apps-script/server.js` from GitHub, caches it 10 minutes, keeps the last good copy in Drive and runs it in its own scope. A broken or unreachable file never replaces working code. "Update now" refreshes at once. The API-based self-update was removed.
+
 ## 4.0.4 (2026-11-26)
 - Self-update catch-up works even when the code was installed by an older server (newest version read from the project).
 

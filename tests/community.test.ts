@@ -138,29 +138,35 @@ describe('friend challenges and analytics', () => {
   });
 });
 
-describe('server self-update', () => {
-  it('installs the GitHub code once, redeploys the same deployment, admin only', () => {
+describe('server loader (Code.gs runs server.js from GitHub)', () => {
+  it('serves the GitHub code, keeps a good copy, survives a broken push and GitHub being down', () => {
+    const be = createBackend({ loader: true });
+    const adm = be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    expect(adm.user.role).toBe('admin');
+    expect(be.post({ action: 'status' }).serverVersion).toBeTruthy();
+    expect(be.textFiles.get('server-last-good.js')).toContain('function doPost');
+    // a push with new code: "update now" picks it up, without any redeploy
+    const good = be.textFiles.get('server-last-good.js')!;
+    be.setServerSource(good.replace(/const SERVER_VERSION = '[^']*'/, "const SERVER_VERSION = '9.9.9'"));
+    expect(be.post({ action: 'serverUpdate', token: adm.token })).toMatchObject({ updated: true });
+    be.newRequest();
+    expect(be.post({ action: 'status' }).serverVersion).toBe('9.9.9');
+    // a broken push is refused; the server keeps running the last good code
+    be.setServerSource('function doPost( {{{ broken');
+    expect(be.post({ action: 'serverUpdate', token: adm.token }).updated).toBe(false);
+    be.cache.clear(); be.newRequest();
+    expect(be.post({ action: 'status' }).serverVersion).toBe('9.9.9');
+    // GitHub down and the cache empty: the good copy in Drive is used
+    be.setGithubDown(true); be.cache.clear(); be.newRequest();
+    expect(be.post({ action: 'status' }).serverVersion).toBe('9.9.9');
+    // triggers still reach the server through the loader
+    be.run('setup');
+    expect(be.triggers).toEqual(['backupNow', 'autoUpdate']);
+  });
+
+  it('without the loader, "update now" explains what is missing', () => {
     const be = createBackend();
     const adm = be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
-    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'u' });
-    expect(be.post({ action: 'serverUpdate', token: u.token }).error).toMatch(/מנהל/);
-    const r = be.post({ action: 'serverUpdate', token: adm.token });
-    expect(r).toMatchObject({ updated: true, version: 7 });
-    const api = be.fetches.filter((f: any) => f.url.startsWith('https://script.googleapis.com/'));
-    // every web-app deployment (both URLs) moves to the new version; HEAD is left alone
-    expect(api.map((f: any) => `${f.opts.method} ${f.url.split('/projects/script-123')[1]}`)).toEqual([
-      'put /content', 'post /versions', 'get /deployments', 'put /deployments/old-url', 'put /deployments/new-url']);
-    const files = JSON.parse(api[0].opts.payload).files;
-    expect(files.map((f: any) => f.name)).toEqual(['Code', 'appsscript']);
-    expect(JSON.parse(api[3].opts.payload).deploymentConfig.versionNumber).toBe(7);
-    expect(r.deployments).toBe(2);
-    // same code again: only deployments behind version 7 are moved (the mock lists old-url at 3)
-    const again = be.post({ action: 'serverUpdate', token: adm.token });
-    expect(again).toMatchObject({ updated: true, version: 7, deployments: 1 });
-    expect(be.fetches.at(-1).url).toMatch(/deployments\/old-url$/);
-    // code already installed by an older server (no stored version): the newest version comes from the project
-    be.properties.set('CODE_VERSION', '');
-    expect(be.post({ action: 'serverUpdate', token: adm.token })).toMatchObject({ updated: true, version: 6, deployments: 1 });
-    expect(be.post({ action: 'status' }).serverVersion).toBeTruthy();
+    expect(be.post({ action: 'serverUpdate', token: adm.token }).error).toMatch(/Code\.gs/);
   });
 });
