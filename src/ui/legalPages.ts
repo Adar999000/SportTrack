@@ -8,7 +8,7 @@ function backLink(): HTMLElement {
   return h('a', { class: 'link-btn', href: '#' }, t('חזרה'));
 }
 
-function contactForm(topic: string): HTMLElement {
+export function contactForm(topic: string): HTMLElement {
   const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
   const f = (id: string, label: string, attrs: Record<string, any>) => h('div', { class: 'field' }, h('label', { for: id }, label), h(attrs.rows ? 'textarea' : 'input', { id, class: 'input', ...attrs }));
   const form = h('form', { class: 'stack', novalidate: true },
@@ -33,6 +33,7 @@ function contactForm(topic: string): HTMLElement {
 
 export function renderAccessibility(root: HTMLElement): void {
   const li = (s: string) => h('li', null, t(s));
+  const coordinator = h('div', { class: 'coordinator' });
   root.replaceChildren(h('article', { class: 'card legal' },
     backLink(),
     h('h1', null, t('הצהרת נגישות')),
@@ -50,9 +51,18 @@ export function renderAccessibility(root: HTMLElement): void {
     h('h2', null, t('מגבלות ידועות')),
     h('p', null, t('ייתכן שחלקים מסוימים עדיין אינם נגישים במלואם, למשל תשובות שנוצרות על ידי עוזר ה-AI או תוכן שהמשתמשים מזינים. אנחנו ממשיכים לשפר את הנגישות באופן שוטף.')),
     h('h2', null, t('דרכי פנייה בנושא נגישות')),
+    coordinator,
     h('p', null, t('נתקלתם בבעיית נגישות? נשמח לשמוע ולתקן. אפשר לפנות בטופס הבא, ונחזור אליכם בהקדם.')),
     contactForm('נגישות'),
   ));
+  call<{ config: { a11yName: string; a11yPhone: string; a11yEmail: string } }>('siteConfig').then(({ config: c }) => {
+    if (!c.a11yName && !c.a11yPhone && !c.a11yEmail) return;
+    coordinator.replaceChildren(
+      h('p', null, h('strong', null, t('רכז/ת נגישות: ')), c.a11yName || '—'),
+      c.a11yPhone ? h('p', null, t('טלפון: '), h('a', { href: `tel:${c.a11yPhone.replace(/[^\d+]/g, '')}`, dir: 'ltr' }, c.a11yPhone)) : '',
+      c.a11yEmail ? h('p', null, t('אימייל: '), h('a', { href: `mailto:${c.a11yEmail}`, dir: 'ltr' }, c.a11yEmail)) : '',
+    );
+  }).catch(() => {});
 }
 
 export function renderPrivacy(root: HTMLElement): void {

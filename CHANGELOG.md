@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.2.0 (2026-11-26)
+- Landing page: top menu with section links (☰ menu on phones), light/dark toggle, sign-in/sign-up in the header.
+- Visitor support assistant (signed-out): app-only questions via `publicChat` (no user data, 15 questions/day per visitor, 200/day overall) and a "Contact the admin" tab using the public contact form.
+- Account deletion by the user (password + typed confirmation): deletes weeks, ledger, messages, personal invite codes, photos and the user row. The only admin can't delete themselves.
+- Admin panel → "Site settings, AI budget and backups": accessibility coordinator (shown in the accessibility statement), a monthly AI budget cap (real cost from OpenAI `usage`, default $5; the assistant stops at the cap), and daily automatic spreadsheet backups into Drive/"גיבויים" (keeps 14) plus "Back up now".
+- Needs the updated `apps-script/Code.gs`; run `setup` once more to install the daily backup trigger.
+
 ## 3.1.0 (2026-11-26)
 **Security (layered)**
 - Sign-in lockout: 5 wrong passwords lock the account for 15 minutes; failures are logged.

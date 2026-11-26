@@ -8,17 +8,26 @@ import { lang, t } from '../i18n';
 import { formatShort } from '../dates';
 
 interface Msg { role: 'user' | 'assistant'; content: string; done?: string[]; undo?: () => void; undone?: boolean }
-export type Scope = 'me' | 'all' | 'user';
+export type Scope = 'me' | 'all' | 'user' | 'guest';
 
 const SUGGESTIONS: Record<Scope, string[]> = {
   me: ['מה המגמה שלי בחודש האחרון?', 'תסמן לי צהריים V היום', 'כמה מטבעות חסרים לי לרמה הבאה?', 'איך מוסיפים סוג אימון חדש?'],
   all: ['מי לא עדכן השבוע?', 'למי יש את הירידה הגדולה ביותר במשקל?', 'השווה בין המשתמשים באימונים בחודש האחרון'],
   user: ['סכם את החודש האחרון שלו', 'מה המגמה במשקל?', 'כמה אימונים בממוצע בשבוע?'],
+  guest: ['כמה זה עולה?', 'איך נרשמים?', 'איך מתקינים בטלפון?', 'איך צוברים מטבעות?'],
 };
+
+function guestId(): string {
+  try {
+    let id = localStorage.getItem('mishmaat-guest');
+    if (!id) { id = Math.random().toString(36).slice(2, 12); localStorage.setItem('mishmaat-guest', id); }
+    return id;
+  } catch { return 'anon'; }
+}
 
 /** The assistant conversation (used as a page and in the floating widget). */
 export function chatPanel(scope: Scope, userId?: string): HTMLElement {
-  const key = `chat:${currentUser()?.userId}:${scope}:${userId ?? ''}`;
+  const key = scope === 'guest' ? 'chat:guest' : `chat:${currentUser()?.userId}:${scope}:${userId ?? ''}`;
   let messages: Msg[] = [];
   const log = h('div', { class: 'chat-log', 'aria-live': 'polite' });
   const input = h('textarea', { id: 'chat-input-' + scope, class: 'input chat-input', rows: 1, placeholder: t('כתוב שאלה או בקשה…'), 'aria-label': t('שאלה לעוזר') });
@@ -37,7 +46,9 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
       ...(messages.length
         ? messages.map(bubble)
         : [h('div', { class: 'stack chat-empty' },
-            h('p', { class: 'muted' }, scope === 'all' ? t('העוזר מכיר סיכומים סטטיסטיים על כל המשתמשים.') : t('אפשר לשאול על הנתונים שלך, לבקש לסמן משהו בטבלה, או לפנות למנהל.')),
+            h('p', { class: 'muted' }, scope === 'all' ? t('העוזר מכיר סיכומים סטטיסטיים על כל המשתמשים.')
+              : scope === 'guest' ? t('שלום! אפשר לשאול כל שאלה על האפליקציה: הרשמה, התקנה, מטבעות, פרטיות ועוד.')
+              : t('אפשר לשאול על הנתונים שלך, לבקש לסמן משהו בטבלה, או לפנות למנהל.')),
             h('div', { class: 'chips' }, SUGGESTIONS[scope].map((s) => h('button', { class: 'chip', type: 'button', onclick: () => ask(t(s)) }, t(s)))))]),
     );
     log.scrollTop = log.scrollHeight;
@@ -57,7 +68,10 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
       const sent = lang === 'en'
         ? messages.map((m, i) => (i === messages.length - 1 ? { ...m, content: `(Answer in English.) ${m.content}` } : m))
         : messages;
-      const { reply, actions } = await call<{ reply: string; actions?: AgentAction[] }>('chat', { messages: sent.map(({ role, content }) => ({ role, content })), scope, userId });
+      const plain = sent.map(({ role, content }) => ({ role, content }));
+      const { reply, actions } = scope === 'guest'
+        ? await call<{ reply: string; actions?: AgentAction[] }>('publicChat', { messages: plain, client: guestId() })
+        : await call<{ reply: string; actions?: AgentAction[] }>('chat', { messages: plain, scope, userId });
       const msg: Msg = { role: 'assistant', content: reply };
       if (actions?.length) {
         const applied = applyActions(actions);

@@ -5,6 +5,56 @@ import { aiBadge, aiMark, icon, logo } from './icons';
 import { isRTL, lang, setLang, t } from '../i18n';
 import { APP_VERSION } from '../version';
 import { installButton } from './installButton';
+import { getSettings, updateSettings } from '../store';
+
+function isDark(): boolean {
+  const th = getSettings().theme;
+  return th === 'dark' || (th === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
+/** Top menu: section links (scroll, not routes), theme, language, sign in / sign up; a ☰ menu on phones. */
+function landingHeader(go: (to: 'login' | 'signup') => void): HTMLElement {
+  const links: [string, string][] = [['features', 'תכונות'], ['how', 'איך זה עובד'], ['coins', 'מטבעות ואתגרים'], ['trust', 'אבטחה ופרטיות'], ['faq', 'שאלות נפוצות']];
+  const jump = (id: string) => {
+    menu.hidden = true; burger.setAttribute('aria-expanded', 'false');
+    const el = document.getElementById(id);
+    el?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    (el?.querySelector('h2') as HTMLElement | null)?.setAttribute('tabindex', '-1');
+    (el?.querySelector('h2') as HTMLElement | null)?.focus({ preventScroll: true });
+  };
+  const themeBtn = h('button', { class: 'icon-btn btn-on-band theme-toggle', type: 'button' });
+  const drawTheme = () => {
+    const dark = isDark();
+    themeBtn.replaceChildren(icon(dark ? 'sun' : 'moon', 20));
+    themeBtn.setAttribute('aria-label', dark ? t('מעבר למצב בהיר') : t('מעבר למצב כהה'));
+    themeBtn.title = themeBtn.getAttribute('aria-label')!;
+  };
+  themeBtn.addEventListener('click', () => { updateSettings({ theme: isDark() ? 'light' : 'dark' }); drawTheme(); });
+  drawTheme();
+  const linkButtons = () => links.map(([id, label]) => h('button', { class: 'nav-link', type: 'button', onclick: () => jump(id) }, t(label)));
+  const menu = h('div', { class: 'landing-menu', id: 'landing-menu', hidden: true },
+    ...linkButtons(),
+    h('a', { class: 'nav-link', href: '#accessibility' }, t('נגישות')),
+    h('button', { class: 'nav-link', type: 'button', onclick: () => setLang(lang === 'he' ? 'en' : 'he') }, lang === 'he' ? 'English' : 'עברית'),
+    h('div', { class: 'menu-cta' },
+      h('button', { class: 'btn', type: 'button', onclick: () => go('login') }, t('כניסה')),
+      h('button', { class: 'btn btn-primary', type: 'button', onclick: () => go('signup') }, t('הרשמה'))),
+  );
+  const burger = h('button', { class: 'icon-btn btn-on-band burger', type: 'button', 'aria-label': t('תפריט'), 'aria-expanded': 'false', 'aria-controls': 'landing-menu' }, '☰');
+  burger.addEventListener('click', () => { menu.hidden = !menu.hidden; burger.setAttribute('aria-expanded', String(!menu.hidden)); });
+  return h('header', { class: 'landing-head' },
+    h('a', { class: 'landing-brand', href: '#' }, logo(34), h('span', null, t('משמעת אישית'))),
+    h('nav', { class: 'landing-nav', 'aria-label': t('ניווט ראשי') }, ...linkButtons()),
+    h('div', { class: 'landing-actions' },
+      h('button', { class: 'link-btn lang-switch', type: 'button', onclick: () => setLang(lang === 'he' ? 'en' : 'he') }, lang === 'he' ? 'English' : 'עברית'),
+      themeBtn,
+      h('button', { class: 'btn btn-on-band desk-only', type: 'button', onclick: () => go('login') }, t('כניסה')),
+      h('button', { class: 'btn btn-white desk-only', type: 'button', onclick: () => go('signup') }, t('הרשמה')),
+      burger,
+    ),
+    menu,
+  );
+}
 
 /** Landing page for visitors who aren't signed in. */
 export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') => void): void {
@@ -41,13 +91,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
   const sticky = h('div', { class: 'sticky-cta', hidden: true }, signup(t('להרשמה בחינם'), 'sticky-btn'));
   const page = h('div', { class: 'landing' },
     h('div', { class: 'hero-band' },
-      h('header', { class: 'landing-head' },
-        h('a', { class: 'landing-brand', href: '#' }, logo(34), h('span', null, t('משמעת אישית'))),
-        h('nav', { class: 'landing-actions', 'aria-label': t('כניסה והרשמה') },
-          h('button', { class: 'link-btn lang-switch', type: 'button', onclick: () => setLang(lang === 'he' ? 'en' : 'he') }, lang === 'he' ? 'English' : 'עברית'),
-          h('button', { class: 'btn btn-on-band', type: 'button', onclick: () => go('login') }, t('כניסה')),
-        ),
-      ),
+      landingHeader(go),
       h('section', { class: 'hero' },
         h('div', { class: 'hero-copy' },
           h('p', { class: 'eyebrow' }, 'Every journey starts with one step'),
@@ -79,7 +123,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       h('p', null, t('האפליקציה נולדה מטבלה שבועית שמולאה ידנית במשך יותר משלוש שנים. אותו עיקרון פשוט, עכשיו עם גרפים, אתגרים ועוזר חכם.')),
     ),
 
-    h('section', { class: 'features' },
+    h('section', { class: 'features', id: 'features' },
       h('h2', null, t('הכול במקום אחד')),
       h('div', { class: 'feature-grid' },
         feature('week', t('טבלה שבועית בהקשה'), t('ראשון עד שבת, ארוחת בוקר, צהריים וערב, ספורט ומשקל התחלתי. הקשה כפולה כותבת טקסט חופשי, כמו "חופשה".')),
@@ -91,7 +135,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       ),
     ),
 
-    h('section', { class: 'levels-band' },
+    h('section', { class: 'levels-band', id: 'coins' },
       h('div', null,
         h('h2', null, t('כל יום שווה משהו')),
         h('p', null, t('יום מלא 5 מטבעות, אימון 10, אתגר יומי 15, רצף של שבוע 20. המטבעות פותחים הקפאת רצף, צבעים מיוחדים והודעות נוספות לעוזר.')),
@@ -100,7 +144,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
         ...['מתחיל', 'מתמיד', 'ממושמע', 'לוחם', 'אלוף השכונה', 'אגדה'].map((n, i) => h('li', null, h('b', null, String([1, 2, 3, 4, 5, 9][i])), t(n)))),
     ),
 
-    h('section', { class: 'steps' },
+    h('section', { class: 'steps', id: 'how' },
       h('h2', null, t('איך מתחילים')),
       h('ol', { class: 'step-list' },
         h('li', null, h('h3', null, t('נרשמים')), h('p', null, t('אימייל וסיסמה, ומתקינים על הטלפון בלחיצה. עם קוד הזמנה מחבר מקבלים 50 מטבעות.'))),
@@ -109,7 +153,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       ),
     ),
 
-    h('section', { class: 'trust' },
+    h('section', { class: 'trust', id: 'trust' },
       h('h2', null, t('בטוח, פרטי ונגיש')),
       h('div', { class: 'trust-grid' },
         h('div', { class: 'trust-item' }, h('span', { class: 'trust-icon' }, icon('admin', 26)), h('h3', null, t('אבטחה בכמה שכבות')),
@@ -123,7 +167,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
 
     h('section', { class: 'quote' }, h('blockquote', null, t('אתה לא טובע מהנפילה לנהר, אלא מזה שאתה נשאר שקוע בו!'))),
 
-    h('section', { class: 'faq' },
+    h('section', { class: 'faq', id: 'faq' },
       h('h2', null, t('שאלות נפוצות')),
       faq(t('כמה זה עולה?'), t('האפליקציה חינמית.')),
       faq(t('הנתונים שלי פרטיים?'), t('הנתונים נשמרים בגיליון Google פרטי של מנהל האפליקציה. באפליקציה המנהל רואה רק סיכומים סטטיסטיים, לא הערות, תמונות שבועיות או פרטים אישיים. אפשר לייצא את כל הנתונים בכל רגע.')),

@@ -65,3 +65,21 @@ describe('assistant actions and messages to the admin', () => {
     expect(be.post({ action: 'myMessages', token: u.token }).unread).toBe(0);
   });
 });
+
+describe('visitor assistant (landing page)', () => {
+  it('answers without sign-in, sees no user data, and is rate-limited per visitor', () => {
+    const be = createBackend({ now: NOW, openaiReply: 'האפליקציה חינמית.' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'א' });
+    be.post({ action: 'putWeeks', token: a.token, weeks: [{ sundayDate: '2026-12-06', updatedAt: 1, data: { sundayDate: '2026-12-06', startWeight: 99.9, note: 'סודי', days: [] }, summary: { startWeight: 99.9 } }] });
+    be.properties.set('OPENAI_API_KEY', 'sk');
+    const r = be.post({ action: 'publicChat', client: 'v1', messages: [{ role: 'user', content: 'כמה זה עולה?' }] });
+    expect(r.reply).toBe('האפליקציה חינמית.');
+    const sys = JSON.parse(be.fetches.at(-1).opts.payload).messages[0].content;
+    expect(sys).toContain('אין לך גישה לנתונים של אף משתמש');
+    expect(sys).not.toMatch(/99\.9|סודי|a@x\.com/);
+    expect(JSON.parse(be.fetches.at(-1).opts.payload).tools).toBeUndefined();
+    for (let i = 0; i < 14; i++) be.post({ action: 'publicChat', client: 'v1', messages: [] });
+    expect(be.post({ action: 'publicChat', client: 'v1', messages: [] }).error).toMatch(/מגבלת/);
+    expect(be.post({ action: 'publicChat', client: 'v2', messages: [] }).reply).toBeDefined();
+  });
+});

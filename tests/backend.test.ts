@@ -265,3 +265,59 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     expect(JSON.stringify(entries)).not.toMatch(/bad-pass-1/);
   });
 });
+
+describe('site settings, AI budget, account deletion, backups', () => {
+  const setup = () => {
+    const be = createBackend();
+    const admin = be.post({ action: 'register', email: 'admin@x.com', password: 'secret12', name: 'מנהל' });
+    return { be, admin };
+  };
+
+  it('admins set the accessibility coordinator; visitors can read it', () => {
+    const { be, admin } = setup();
+    be.post({ action: 'setSiteConfig', token: admin.token, a11yName: 'דנה כהן', a11yPhone: '03-1234567', a11yEmail: 'a11y@x.com' });
+    expect(be.post({ action: 'siteConfig' }).config).toEqual({ a11yName: 'דנה כהן', a11yPhone: '03-1234567', a11yEmail: 'a11y@x.com' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'u' });
+    expect(be.post({ action: 'setSiteConfig', token: u.token, a11yName: 'x' }).error).toMatch(/מנהל/);
+  });
+
+  it('stops the assistant when the monthly AI budget is used up', () => {
+    const { be, admin } = setup();
+    be.properties.set('OPENAI_API_KEY', 'sk');
+    be.post({ action: 'setSiteConfig', token: admin.token, aiBudget: 0.0005 });
+    expect(be.post({ action: 'chat', token: admin.token, messages: [] }).reply).toBeDefined(); // 2000 in + 300 out ≈ $0.00048
+    be.post({ action: 'chat', token: admin.token, messages: [] });
+    expect(be.post({ action: 'chat', token: admin.token, messages: [] }).error).toMatch(/תקציב/);
+    const s = be.post({ action: 'adminSettings', token: admin.token });
+    expect(s.ai.budget).toBe(0.0005);
+    expect(s.ai.spend).toBeGreaterThan(0);
+  });
+
+  it('deletes an account and all its data (password required)', () => {
+    const { be, admin } = setup();
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'נועה' });
+    const img = 'data:image/jpeg;base64,' + btoa('x');
+    be.post({ action: 'updateProfile', token: u.token, photo: img });
+    be.post({ action: 'putWeeks', token: u.token, weeks: [{ sundayDate: '2026-11-22', updatedAt: 1, data: { sundayDate: '2026-11-22', days: [] }, summary: {} }] });
+    be.post({ action: 'contactAdmin', token: u.token, text: 'שלום' });
+    expect(be.post({ action: 'deleteAccount', token: u.token, password: 'nope' }).error).toMatch(/שגויה/);
+    expect(be.post({ action: 'deleteAccount', token: u.token, password: 'secret12' }).ok).toBe(true);
+    expect(be.sheets.Users.data.some((r: any[]) => r[1] === 'u@x.com')).toBe(false);
+    expect(be.sheets.Weeks.data.length).toBe(1);
+    expect(be.sheets.Messages.data.length).toBe(1);
+    expect([...be.files.values()].every((f: any) => f.trashed)).toBe(true);
+    expect(be.post({ action: 'me', token: u.token }).error).toMatch(/^AUTH:/);
+    // the only admin can't delete themselves
+    expect(be.post({ action: 'deleteAccount', token: admin.token, password: 'secret12' }).error).toMatch(/היחיד/);
+  });
+
+  it('backs up the spreadsheet, keeps the newest 14, and installs a daily trigger', () => {
+    const { be, admin } = setup();
+    for (let i = 0; i < 16; i++) be.post({ action: 'backupNow', token: admin.token });
+    expect(be.backups.filter((b: any) => !b.trashed)).toHaveLength(14);
+    expect(be.post({ action: 'adminSettings', token: admin.token }).backups).toHaveLength(5);
+    be.run('setup');
+    be.run('setup');
+    expect(be.triggers).toEqual(['backupNow']);
+  });
+});

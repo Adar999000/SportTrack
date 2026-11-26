@@ -1,6 +1,7 @@
 import { call, hasBackend } from '../api';
 import { currentUser, isAdmin } from '../session';
 import { chatPanel, supportPanel } from './chatPanel';
+import { contactForm } from './legalPages';
 import { h } from './dom';
 import { aiMark, icon } from './icons';
 import { t } from '../i18n';
@@ -20,17 +21,20 @@ export function mountFloatingChat(): { refresh: () => void } {
   const setUnread = (n: number) => { unread = n; badge.hidden = !n; badge.textContent = String(n); };
 
   function draw() {
+    const guest = !currentUser();
     const tabs = h('div', { class: 'seg fab-tabs', role: 'tablist' },
-      h('button', { type: 'button', role: 'tab', 'aria-pressed': String(tab === 'ai'), onclick: () => { tab = 'ai'; draw(); } }, aiMark(14), ' ', t('עוזר AI')),
+      h('button', { type: 'button', role: 'tab', 'aria-pressed': String(tab === 'ai'), onclick: () => { tab = 'ai'; draw(); } }, aiMark(14), ' ', guest ? t('שאלות') : t('עוזר AI')),
       h('button', { type: 'button', role: 'tab', 'aria-pressed': String(tab === 'support'), onclick: () => { tab = 'support'; draw(); } },
         icon('info', 14), ' ', t('פנייה למנהל'), unread ? h('span', { class: 'fab-badge inline' }, String(unread)) : ''),
     );
     // Keep the conversation alive between open/close (so "undo" still works); reload support each time.
     const user = currentUser()?.userId ?? '';
-    if (!aiEl || aiOwner !== user) { aiEl = chatPanel('me'); aiOwner = user; }
+    if (!aiEl || aiOwner !== user) { aiEl = chatPanel(guest ? 'guest' : 'me'); aiOwner = user; }
     panel.replaceChildren(
       h('div', { class: 'fab-head' }, tabs, h('button', { class: 'icon-btn', type: 'button', 'aria-label': t('סגור'), onclick: close }, '✕')),
-      tab === 'ai' ? aiEl : supportPanel(setUnread),
+      tab === 'ai' ? aiEl
+        : guest ? h('div', { class: 'support-panel stack guest-contact' }, h('p', { class: 'muted' }, t('שאלה, תקלה או בקשה? כתבו למנהל האפליקציה ונחזור אליכם במייל.')), contactForm('תמיכה'))
+        : supportPanel(setUnread),
     );
     (panel.querySelector('textarea') as HTMLElement | null)?.focus();
   }
@@ -40,10 +44,12 @@ export function mountFloatingChat(): { refresh: () => void } {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) close(); });
 
   const refresh = () => {
-    const show = hasBackend() && !!currentUser() && !document.body.classList.contains('is-landing') && !/^#chat/.test(location.hash) && !!currentUser()?.profile?.completed;
+    const signedIn = !!currentUser();
+    const show = hasBackend() && !/^#chat/.test(location.hash) && (!signedIn || !!currentUser()?.profile?.completed);
+    if ((signedIn ? currentUser()!.userId : '') !== aiOwner) aiEl = null; // signed in/out: start a fresh conversation
     fab.hidden = !show;
     if (!show) panel.hidden = true;
-    if (show && !isAdmin() && Date.now() - lastCheck > 60_000) {
+    if (show && signedIn && !isAdmin() && Date.now() - lastCheck > 60_000) {
       lastCheck = Date.now();
       call<{ unread: number }>('unreadCount').then((r) => setUnread(r.unread)).catch(() => {});
     }

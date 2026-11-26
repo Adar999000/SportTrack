@@ -663,3 +663,29 @@ html.a11y-motion *, html.a11y-motion *::before, html.a11y-motion *::after { anim
 .trust-item h3 { margin: 0 0 6px; }
 .trust-item p { margin: 0; color: var(--muted); line-height: 1.6; }
 @media (max-width: 820px) { .trust-grid { grid-template-columns: 1fr; } }
+
+.danger-link { color: var(--x-ink); align-self: center; }
+.coordinator p { margin: 4px 0; }
+
+/* landing top menu */
+.landing-head { position: relative; flex-wrap: nowrap; }
+.landing-nav { display: flex; gap: 2px; margin-inline: auto; }
+.nav-link { background: none; border: none; color: inherit; padding: 8px 12px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; min-height: 40px; text-decoration: none; display: inline-flex; align-items: center; }
+.landing-nav .nav-link { color: rgb(255 255 255 / 0.9); }
+.landing-nav .nav-link:hover { background: rgb(255 255 255 / 0.12); }
+.btn-white { background: #fff; color: var(--brand); border-color: #fff; }
+.theme-toggle { min-width: 42px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+.burger { display: none; min-width: 42px; min-height: 42px; color: #fff; font-size: 1.2rem; }
+.landing-menu { position: absolute; top: 100%; inset-inline: 12px; z-index: 50; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 10px; box-shadow: 0 24px 50px -16px rgb(0 0 0 / 0.45); display: grid; gap: 2px; }
+.landing-menu .nav-link { justify-content: flex-start; width: 100%; color: var(--text); }
+.landing-menu .nav-link:hover { background: var(--surface-2); }
+.menu-cta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+@media (max-width: 1000px) { .landing-nav { display: none; } .burger { display: inline-flex; align-items: center; justify-content: center; } .desk-only { display: none; } }
+@media (min-width: 1001px) { .landing-menu { display: none !important; } }
+.landing section[id] { scroll-margin-top: 16px; }
+body.is-landing .fab { bottom: calc(84px + env(safe-area-inset-bottom)); }
+body.is-landing .fab-panel { bottom: calc(150px + env(safe-area-inset-bottom)); }
+@media (min-width: 821px) { body.is-landing .fab { bottom: calc(24px + env(safe-area-inset-bottom)); } body.is-landing .fab-panel { bottom: calc(92px + env(safe-area-inset-bottom)); } }
+.guest-contact { overflow-y: auto; }
+/* light landing: soften the dark band edges */
+:root:not([data-theme="dark"]) .landing .features, :root:not([data-theme="dark"]) .landing .faq { background: transparent; }

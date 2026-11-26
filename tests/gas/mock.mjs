@@ -20,6 +20,7 @@ class Sheet {
   getLastColumn() { return Math.max(...this.data.map((r) => r.length)); }
   getMaxRows() { return this.maxRows; }
   insertRowsAfter(_after, n) { this.maxRows += n; }
+  deleteRow(r) { this.data.splice(r - 1, 1); }
   getRange(row, col, nr = 1, nc = 1) {
     if (typeof row === 'string') return { setNumberFormat() {} };
     if (row + nr - 1 > this.maxRows) throw new Error('The coordinates of the range are outside the dimensions of the sheet.');
@@ -53,6 +54,20 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
   const properties = new Map();
   const cache = new Map();
   const fetches = [];
+  const backups = [];
+  const triggers = [];
+  const iter = (arr) => { let i = 0; return { hasNext: () => i < arr.length, next: () => arr[i++] }; };
+  const folderApi = () => ({
+    getName: () => 'תמונות',
+    createFile: (blob) => {
+      const id = 'file-' + (files.size + 1);
+      files.set(id, { bytes: blob.getBytes(), type: blob.type, trashed: false });
+      return { getId: () => id };
+    },
+    getFoldersByName: () => iter([folderApi()]),
+    createFolder: () => folderApi(),
+    getFiles: () => iter(backups.filter((b) => !b.trashed).map((b) => ({ getId: () => b.id, getName: () => b.name, getDateCreated: () => b.at }))),
+  });
   const mails = [];
 
   const ctx = {
@@ -81,19 +96,21 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
       formatDate: (d, _tz, fmt) => (fmt.includes('HH') ? d.toISOString().slice(0, 19) : d.toISOString().slice(0, 10)),
     },
     DriveApp: {
-      getFolderById: () => ({
-        getName: () => 'תמונות',
-        createFile: (blob) => {
-          const id = 'file-' + (files.size + 1);
-          files.set(id, { bytes: blob.getBytes(), type: blob.type, trashed: false });
-          return { getId: () => id };
-        },
-      }),
+      getFolderById: () => folderApi(),
       getFileById: (id) => {
+        if (id === '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g') {
+          return { makeCopy: (name) => { const cid = 'copy-' + (backups.length + 1); backups.push({ id: cid, name, at: new Date(Date.now() + backups.length * 1000), trashed: false }); return { getId: () => cid }; } };
+        }
+        const b = backups.find((x) => x.id === id);
+        if (b) return { setTrashed: (t) => (b.trashed = t) };
         const f = files.get(id);
         if (!f) throw new Error('no file');
         return { setTrashed: (t) => (f.trashed = t), getBlob: () => ({ getContentType: () => f.type, getBytes: () => f.bytes }) };
       },
+    },
+    ScriptApp: {
+      getProjectTriggers: () => triggers.map((h) => ({ getHandlerFunction: () => h })),
+      newTrigger: (h) => { const b = { timeBased: () => b, everyDays: () => b, atHour: () => b, create: () => triggers.push(h) }; return b; },
     },
     UrlFetchApp: {
       fetch: (url, opts = {}) => {
@@ -102,7 +119,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
           getResponseCode: () => 200,
           getContentText: () => {
             const msg = typeof openaiReply === 'function' ? openaiReply(JSON.parse(opts.payload)) : { content: openaiReply };
-            return JSON.stringify({ choices: [{ message: msg }] });
+            return JSON.stringify({ choices: [{ message: msg }], usage: { prompt_tokens: 2000, completion_tokens: 300 } });
           },
         };
       },
@@ -122,5 +139,6 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
   vm.runInContext(readFileSync(new URL('../../apps-script/Code.gs', import.meta.url), 'utf8'), ctx);
 
   const post = (body) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(body) } }).text);
-  return { post, sheets, files, properties, fetches, mails };
+  const run = (fn) => ctx[fn]();
+  return { post, sheets, files, properties, fetches, mails, backups, triggers, run };
 }

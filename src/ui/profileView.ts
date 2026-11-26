@@ -4,7 +4,7 @@ import { daysBetween, formatShort, todayISO } from '../dates';
 import { fileToDataUrl, pickImage } from '../image';
 import { currentUser, endSession, isAdmin, rememberPhoto, replaceToken, setUser } from '../session';
 import { weightPoints, weightSummary, countWorkouts, round1 } from '../stats';
-import { allWeeks } from '../store';
+import { allWeeks, replaceAll } from '../store';
 import { avatar } from './avatar';
 import { confirmButton, fmtKg, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
@@ -122,6 +122,33 @@ function twoFactorSheet() {
   const close = openSheet(t('אימות דו-שלבי'), body);
 }
 
+function deleteAccountSheet() {
+  const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
+  const pass = h('input', { id: 'del-pass', class: 'input', type: 'password', autocomplete: 'current-password' });
+  const confirmWord = t('מחיקה');
+  const typed = h('input', { id: 'del-confirm', class: 'input', type: 'text', autocomplete: 'off' });
+  const body = h('div', { class: 'stack' },
+    h('p', null, t('מחיקת החשבון תמחק לצמיתות את כל הנתונים שלך: השבועות, התמונות, המטבעות והפניות. אי אפשר לשחזר אותם.')),
+    h('p', { class: 'hint' }, t('כדאי לייצא גיבוי קודם (הגדרות ← ייצוא JSON).')),
+    h('div', { class: 'field' }, h('label', { for: 'del-pass' }, t('הסיסמה שלך')), pass),
+    h('div', { class: 'field' }, h('label', { for: 'del-confirm' }, t('להקליד "{w}" לאישור', { w: confirmWord })), typed),
+    err,
+    h('button', {
+      class: 'btn btn-danger', type: 'button', onclick: async () => {
+        if (typed.value.trim() !== confirmWord) { err.textContent = t('להקליד "{w}" לאישור', { w: confirmWord }); err.hidden = false; return; }
+        try {
+          await call('deleteAccount', { password: pass.value });
+          replaceAll([]);
+          close();
+          await endSession();
+          toast(t('החשבון נמחק'));
+        } catch (e: any) { err.textContent = e.message; err.hidden = false; }
+      },
+    }, t('מחיקת החשבון לצמיתות')),
+  );
+  const close = openSheet(t('מחיקת חשבון'), body);
+}
+
 function changePasswordSheet() {
   const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
   const oldP = h('input', { id: 'pw-old', class: 'input', type: 'password', autocomplete: 'current-password' });
@@ -207,6 +234,7 @@ export function renderProfile(root: HTMLElement): void {
         try { const r = await call<{ token: string }>('logoutAll'); await replaceToken(r.token); toast(t('כל המכשירים האחרים נותקו')); } catch (e: any) { toast(e.message); }
       }, 'btn'),
       confirmButton(t('התנתקות'), t('הקש שוב להתנתקות'), () => endSession(), 'btn btn-danger'),
+      h('button', { class: 'link-btn danger-link', type: 'button', onclick: deleteAccountSheet }, t('מחיקת החשבון')),
     ),
   );
 }

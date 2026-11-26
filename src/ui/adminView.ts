@@ -74,6 +74,56 @@ function auditCard(names: Record<string, string>): HTMLElement {
   return h('section', { class: 'card' }, det);
 }
 
+interface AdminSettings {
+  config: { a11yName: string; a11yPhone: string; a11yEmail: string };
+  ai: { month: string; spend: number; budget: number };
+  backups: { id: string; name: string; at: string }[];
+}
+
+function settingsCard(): HTMLElement {
+  const body = h('div', { class: 'stack' }, h('p', { class: 'muted' }, t('טוען…')));
+  const draw = (s: AdminSettings) => {
+    const f = (id: string, label: string, value: string, attrs: Record<string, any> = {}) =>
+      h('div', { class: 'field' }, h('label', { for: id }, label), h('input', { id, class: 'input', value, ...attrs }));
+    const pct = s.ai.budget ? Math.min(100, Math.round((s.ai.spend / s.ai.budget) * 100)) : 100;
+    const form = h('form', { class: 'stack' },
+      h('h3', { class: 'section-title' }, t('רכז/ת נגישות (מוצג בהצהרת הנגישות)')),
+      f('a11y-name', t('שם'), s.config.a11yName, { autocomplete: 'name' }),
+      f('a11y-phone', t('טלפון'), s.config.a11yPhone, { type: 'tel', dir: 'ltr' }),
+      f('a11y-email', t('אימייל'), s.config.a11yEmail, { type: 'email', dir: 'ltr' }),
+      h('h3', { class: 'section-title' }, t('תקציב עוזר AI לחודש')),
+      h('div', { class: 'bar', role: 'progressbar', 'aria-label': t('ניצול התקציב החודשי'), 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { style: { width: pct + '%' } })),
+      h('p', { class: 'hint' }, t('נוצלו ${0} מתוך ${1} ב-{2}. כשמגיעים לתקרה העוזר נעצר עד החודש הבא.').replace('{0}', s.ai.spend.toFixed(2)).replace('{1}', String(s.ai.budget)).replace('{2}', s.ai.month)),
+      f('ai-budget', t('תקרה חודשית בדולרים'), String(s.ai.budget), { type: 'number', min: 0, max: 1000, step: '0.5', inputmode: 'decimal' }),
+      h('button', { class: 'btn btn-primary', type: 'submit' }, t('שמירה')),
+    );
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const v = (id: string) => (form.querySelector('#' + id) as HTMLInputElement).value;
+      try {
+        draw(await call<AdminSettings>('setSiteConfig', { a11yName: v('a11y-name'), a11yPhone: v('a11y-phone'), a11yEmail: v('a11y-email'), aiBudget: Number(v('ai-budget')) }));
+        toast(t('נשמר'));
+      } catch (ex: any) { toast(ex.message); }
+    });
+    body.replaceChildren(
+      form,
+      h('h3', { class: 'section-title' }, t('גיבויים')),
+      h('p', { class: 'hint' }, t('גיבוי אוטומטי של הגיליון כל לילה לתיקייה "גיבויים" בדרייב שלך. נשמרים 14 הגיבויים האחרונים.')),
+      s.backups.length
+        ? h('div', { class: 'earn-list' }, s.backups.map((b) => h('div', { class: 'earn-row' }, h('span', null, b.name), h('span', { class: 'muted small', dir: 'ltr' }, String(b.at).slice(0, 10)))))
+        : h('p', { class: 'muted' }, t('עוד אין גיבויים.')),
+      h('button', {
+        class: 'btn', type: 'button', onclick: async () => {
+          try { await call('backupNow'); toast(t('הגיבוי נשמר בדרייב')); load(); } catch (ex: any) { toast(ex.message); }
+        },
+      }, t('גיבוי עכשיו')),
+    );
+  };
+  const load = () => call<AdminSettings>('adminSettings').then(draw).catch((e) => body.replaceChildren(h('p', { class: 'form-error' }, e.message)));
+  load();
+  return h('section', { class: 'card' }, h('details', null, h('summary', { class: 'card-title' }, t('הגדרות אתר, תקציב AI וגיבויים')), body));
+}
+
 export function renderAdmin(root: HTMLElement): void {
   const list = h('div', { class: 'stack' }, h('p', { class: 'muted' }, t('טוען משתמשים…')));
   const invites = h('div', { class: 'stack' });
@@ -132,6 +182,7 @@ export function renderAdmin(root: HTMLElement): void {
       h('p', { class: 'hint' }, t('בעמודה השמאלית: שינוי משקל מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים. מוצגים רק נתונים סטטיסטיים.')),
       list,
     ),
+    settingsCard(),
     auditCard(Object.fromEntries((usersCache ?? []).map((u) => [u.userId, u.name]))),
     h('section', { class: 'card stack' },
       h('h2', { class: 'card-title' }, t('קודי הזמנה')),
