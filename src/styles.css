@@ -1078,3 +1078,29 @@ body.is-landing .fab-panel { bottom: calc(150px + env(safe-area-inset-bottom)); 
 .an-bar { position: absolute; inset-inline-start: 0; bottom: 3px; height: 3px; border-radius: 2px; background: var(--accent); opacity: .5; }
 @media (prefers-reduced-motion: reduce) { .ring .ring-fg, .st-bar span, .cell, .shop-item { transition: none; } }
 .today-btn.mark-dash { color: color-mix(in srgb, var(--d-ink) 55%, var(--text)); }
+
+/* ================= simple mode (v4) ================= */
+.week-card::before { display: none; }
+.cell, .cell.mark-V, .cell.mark-X { background-image: none; box-shadow: none; }
+.cell:hover { transform: none; box-shadow: none; }
+.today-btn, .today-btn.mark-V { background-image: none; box-shadow: none; }
+.week-table thead th.is-today { background: var(--accent); box-shadow: none; }
+.card { box-shadow: none; }
+.content { gap: 14px; }
+.today-head { margin-bottom: 12px; }
+.mini-actions { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; justify-content: center; margin-top: 10px; }
+.mini-actions .link-btn { font-size: 0.9rem; color: var(--muted); text-decoration: none; min-height: 40px; }
+.mini-actions .link-btn:hover { color: var(--accent); }
+.inline-photo { display: contents; }
+.crumb { padding: 0 16px; max-width: 760px; margin: 6px auto -4px; width: 100%; box-sizing: border-box; }
+.crumb .link-btn { text-decoration: none; font-weight: 600; }
+.menu-list { display: grid; gap: 2px; padding: 6px; }
+.menu-item { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 10px; border: none; background: none; border-radius: 12px; font: inherit; color: inherit; text-align: start; cursor: pointer; min-height: 60px; }
+.menu-item:hover { background: var(--surface-2); }
+.mi-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex: none; }
+.mi-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mi-chev { color: var(--muted); font-size: 1.4rem; }
+.fold summary { cursor: pointer; font-weight: 700; padding: 4px 0; min-height: 36px; display: flex; align-items: center; }
+.fold[open] summary { margin-bottom: 8px; }
+.a11y-btn { width: 44px; height: 44px; box-shadow: 0 4px 12px -6px rgb(0 0 0 / .45); }
+.a11y-btn svg { width: 22px; height: 22px; }

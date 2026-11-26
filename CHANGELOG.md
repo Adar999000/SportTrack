@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.0 (2026-11-26)
+**Simple mode** (feedback: "as little as possible").
+- 3 tabs: Today · Progress · Me (admin moved into Me).
+- Today: today ring + the table only. Note, photo and "Customize" (edit table / new tracker) are small links under the table; the tracker bar appears only once you have a tracker; no quote, no daily progress row.
+- Progress: stats + history on one screen.
+- Me: one menu (coins & store, community & challenges, AI assistant, contact the admin, invite friends, settings, admin), details and account folded; back link to Me on pages opened from it.
+- Floating AI button off by default (Settings toggle; still shown for visitors and when an admin reply is unread). Flatter visuals, smaller accessibility button, shorter tours.
+
 ## 3.9.0 (2026-11-26)
 - Server self-update: hourly trigger (and Admin → Server → "Update now") pulls `apps-script/Code.gs` + `appsscript.json` from GitHub, updates the project through the Apps Script API, creates a version and redeploys the existing deployment (same URL). Sanity checks before installing; `status` returns `serverVersion`. One-time setup in `apps-script/README.md` (enable the Apps Script API, explicit manifest scopes).
 

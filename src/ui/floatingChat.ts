@@ -1,3 +1,4 @@
+import { getSettings } from '../store';
 import { call, hasBackend } from '../api';
 import { currentUser, isAdmin } from '../session';
 import { chatPanel, supportPanel } from './chatPanel';
@@ -8,6 +9,10 @@ import { mascot } from './mascot';
 import { t } from '../i18n';
 
 /** Floating assistant button on every signed-in screen: AI chat + messages to the admin. */
+let openPanel: (tab?: 'ai' | 'support') => void = () => {};
+/** Open the assistant / contact-the-admin panel from anywhere (e.g. the Me screen). */
+export const openAssistant = (tab?: 'ai' | 'support') => openPanel(tab);
+
 export function mountFloatingChat(): { refresh: () => void } {
   const badge = h('span', { class: 'fab-badge', hidden: true });
   const fab = h('button', { class: 'fab', type: 'button', 'data-track': 'fab:open', 'aria-label': t('עוזר AI ופנייה למנהל'), title: t('עוזר AI') }, mascot(50, 'fab-mascot'), h('span', { class: 'fab-ring', 'aria-hidden': 'true' }), badge);
@@ -44,11 +49,13 @@ export function mountFloatingChat(): { refresh: () => void } {
   fab.addEventListener('click', () => (panel.hidden ? open() : close()));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) close(); });
 
+  openPanel = (tab0?: 'ai' | 'support') => { if (tab0) tab = tab0; open(); };
   const refresh = () => {
     const signedIn = !!currentUser();
     const show = hasBackend() && !/^#chat/.test(location.hash) && (!signedIn || !!currentUser()?.profile?.completed);
     if ((signedIn ? currentUser()!.userId : '') !== aiOwner) aiEl = null; // signed in/out: start a fresh conversation
-    fab.hidden = !show;
+    // Signed-in users see the floating button only if they turned it on (or there's an unread reply).
+    fab.hidden = !show || (signedIn && !getSettings().showFab && !unread);
     if (!show) panel.hidden = true;
     if (show && signedIn && !isAdmin() && Date.now() - lastCheck > 60_000) {
       lastCheck = Date.now();

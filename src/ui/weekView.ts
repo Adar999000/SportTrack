@@ -3,7 +3,7 @@ import { DAY_NAMES, addDays, dayIndex, formatShort, sundayOf, todayISO, weekRang
 import { cycleMark, cycleSmoked, sportShort } from '../model';
 import { editWeek, getSettings, getWeek } from '../store';
 import type { Day, Mark, MealKey } from '../types';
-import { h } from './dom';
+import { h, openSheet } from './dom';
 import { openSportSheet } from './sportSheet';
 import { openCellText, tapOrDoubleTap } from './cellTextSheet';
 import { call, hasBackend } from '../api';
@@ -12,15 +12,13 @@ import { fileToDataUrl, pickImage } from '../image';
 import { setPhotoLocal } from '../store';
 import { toast } from './dom';
 import { HASH, navigate } from './router';
-import { mainCfg } from '../trackers';
+import { listTrackers, mainCfg } from '../trackers';
+import { openMainEditor, openTrackerEditor } from './trackerEditor';
 import { trackerBar } from './trackerView';
 import { valueCell } from './valueCell';
 import { track } from '../analytics';
 
 const ROW_ICON: Record<string, string> = { breakfast: '🍳', lunch: '🥗', dinner: '🍽️', sport: '🏃', smoked: '🚭' };
-const QUOTES = ['כל יום מלא הוא ניצחון קטן', 'משמעת היא לבחור בין מה שרוצים עכשיו למה שרוצים יותר', 'לא צריך להיות מושלם, רק עקבי', 'האימון הכי טוב הוא זה שקורה',
-  'עוד יום, עוד וי', 'הגוף משיג מה שהראש מאמין', 'קטן ועקבי מנצח גדול ופעם אחת', 'ההרגל של היום הוא התוצאה של מחר', 'אין קיצורי דרך לקו הסיום', 'צעד אחד בכל פעם'];
-
 const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
   { key: 'lunch', full: t('ארוחת צהריים בריאה'), short: t('צהריים') },
@@ -73,13 +71,11 @@ function todayPanel(today: string): HTMLElement {
       value ? h('span', { class: 'today-val' }, value) : h('span', { class: 'today-empty' }, t('לא סומן')),
     );
   const done = dayDone(d);
-  const quote = QUOTES[(new Date(today + 'T12:00:00').getDate()) % QUOTES.length];
   return h('section', { class: 'card today', 'aria-label': t('היום') },
     h('div', { class: 'today-head' },
       h('div', null,
         h('h2', { class: 'card-title' }, tr`היום · יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
         h('p', { class: 'today-motto' }, done >= 4 ? t('יום מלא! 🔥 אלוף/ה') : done === 3 ? t('עוד משימה אחת ליום מלא 💪') : tr`עוד ${4 - done} משימות ליום מלא`),
-        h('p', { class: 'quote' }, '“', t(quote), '”'),
       ),
       h('div', { class: 'today-ring', role: 'img', 'aria-label': tr`${done} מתוך 4 משימות היום` }, ring(done, 4, 72)),
     ),
@@ -179,16 +175,24 @@ function weekTable(sunday: string, today: string): HTMLElement {
     ));
   }
 
-  const foot = h('tfoot', null, h('tr', { class: 'day-sum' },
-    h('th', { scope: 'row' }, h('span', { class: 'lbl-full' }, t('התקדמות')), h('span', { class: 'lbl-short', 'aria-hidden': 'true' }, '📊')),
-    week.days.map((d, i) => {
-      const n = dayDone(d);
-      return h('td', { class: colCls(i) }, h('span', { class: 'day-dots' + (n >= 4 ? ' full' : ''), role: 'img', 'aria-label': tr`${t(DAY_NAMES[i])}: ${n} מתוך 4` },
-        n >= 4 ? '🔥' : h('span', { class: 'dots4', 'aria-hidden': 'true' }, ...[0, 1, 2, 3].map((k) => h('i', { class: k < n ? 'on' : '' })))));
-    })));
   return h('div', { class: 'table-wrap' },
-    h('table', { class: 'week-table' }, h('caption', { class: 'sr-only' }, tr`טבלת משימות לשבוע ${weekRangeLabel(sunday)}`), h('thead', null, head), h('tbody', null, rows), foot),
+    h('table', { class: 'week-table' }, h('caption', { class: 'sr-only' }, tr`טבלת משימות לשבוע ${weekRangeLabel(sunday)}`), h('thead', null, head), h('tbody', null, rows)),
   );
+}
+
+/** One small menu for customizing, instead of extra buttons on the screen. */
+function openWeekMenu(): void {
+  const close = openSheet(t('התאמה אישית'), h('div', { class: 'menu-list' },
+    menuItem('✏️', t('עריכת הטבלה'), t('שמות שורות ושורות נוספות'), () => { close(); openMainEditor(getSettings().showSmoking); }),
+    menuItem('📋', t('מעקב חדש'), t('טבלה נוספת משלך: שתייה, שינה, חדר כושר…'), () => { close(); openTrackerEditor(); }),
+  ));
+}
+
+export function menuItem(icon: string, title: string, sub: string, onclick: () => void): HTMLElement {
+  return h('button', { class: 'menu-item', type: 'button', onclick },
+    h('span', { class: 'mi-icon', 'aria-hidden': 'true' }, icon),
+    h('span', { class: 'mi-text' }, h('strong', null, title), sub ? h('span', { class: 'muted small' }, sub) : ''),
+    h('span', { class: 'mi-chev', 'aria-hidden': 'true' }, isRTL ? '‹' : '›'));
 }
 
 function weekPhoto(sunday: string): HTMLElement | '' {
@@ -225,9 +229,11 @@ function weekPhoto(sunday: string): HTMLElement | '' {
 
   function draw() {
     if (!week.photoId) {
-      box.replaceChildren(h('button', { class: 'btn photo-add', type: 'button', onclick: upload }, t('+ הוסף תמונה לשבוע')));
+      box.className = 'inline-photo';
+      box.replaceChildren(h('button', { class: 'link-btn', type: 'button', onclick: upload }, '📷 ', t('תמונה')));
       return;
     }
+    box.className = 'card week-photo';
     const img = h('img', { class: 'week-img', alt: tr`תמונת השבוע ${weekRangeLabel(sunday)}` });
     photoUrl(week.photoId).then((u) => (img.src = u)).catch(() => img.replaceWith(h('p', { class: 'muted' }, t('לא ניתן לטעון את התמונה כרגע'))));
     box.replaceChildren(
@@ -262,7 +268,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     });
   });
 
-  const note = h('textarea', { class: 'input note', rows: 2, placeholder: t('הערה לשבוע (לא חובה)'), 'aria-label': t('הערה לשבוע') });
+  const note = h('textarea', { class: 'input note', rows: 2, placeholder: t('הערה לשבוע (לא חובה)'), 'aria-label': t('הערה לשבוע'), hidden: !week.note }) as HTMLTextAreaElement;
   note.value = week.note ?? '';
   note.addEventListener('change', () => editWeek(sunday, (w) => {
     if (note.value.trim()) w.note = note.value;
@@ -275,7 +281,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     h('div', { class: 'week-nav' },
       h('button', { class: 'icon-btn', 'aria-label': t('שבוע קודם'), onclick: () => go(-1) }, isRTL ? '→' : '←'),
       h('div', { class: 'week-title' },
-        h('h2', null, tr`תאריך ${weekRangeLabel(sunday)}`),
+        h('h2', null, weekRangeLabel(sunday)),
         !isCurrent && h('button', { class: 'link-btn', onclick: () => navigate(HASH.week()) }, t('חזרה לשבוע הנוכחי')),
       ),
       h('button', { class: 'icon-btn', 'aria-label': t('שבוע הבא'), onclick: () => go(1) }, isRTL ? '←' : '→'),
@@ -285,6 +291,11 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     ),
     weekTable(sunday, today),
     note,
+    h('div', { class: 'mini-actions' },
+      !week.note && h('button', { class: 'link-btn', type: 'button', onclick: (e: Event) => { note.hidden = false; note.focus(); (e.currentTarget as HTMLElement).remove(); } }, '📝 ', t('הערה')),
+      week.photoId ? '' : weekPhoto(sunday),
+      h('button', { class: 'link-btn', type: 'button', onclick: () => openWeekMenu() }, '✏️ ', t('התאמה אישית')),
+    ),
   );
 
   // Swipe between weeks: in RTL a finger moving right turns to the newer week; mirrored in LTR.
@@ -296,10 +307,10 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   }, { passive: true });
 
   root.replaceChildren(
-    trackerBar(null),
+    listTrackers().length ? trackerBar(null) : '',
     isCurrent ? todayPanel(today) : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,
-    weekPhoto(sunday),
+    week.photoId ? weekPhoto(sunday) : '',
   );
 }

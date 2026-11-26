@@ -13,7 +13,7 @@ import { renderAuth } from './ui/authView';
 import { renderChat } from './ui/chatView';
 import { h, openSheet, toast } from './ui/dom';
 import { icon, logo } from './ui/icons';
-import { applyDocumentLang, t, tr } from './i18n';
+import { applyDocumentLang, isRTL, t, tr } from './i18n';
 import { APP_VERSION } from './version';
 import { updateSettings } from './store';
 import { renderHistory } from './ui/historyView';
@@ -43,26 +43,15 @@ setDayCompleteHandler(() => burst());
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
 
 function tabs(): Tab[] {
-  if (!hasBackend()) {
-    return [
-      { names: ['week', 'tracker'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
-      { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
-      { names: ['stats'], hash: HASH.stats, label: t('סטטיסטיקה'), icon: 'stats' },
-      { names: ['settings'], hash: HASH.settings, label: t('הגדרות'), icon: 'settings' },
-    ];
-  }
-  const list: Tab[] = [
-    { names: ['week', 'tracker'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
-    { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
-    { names: ['feed'], hash: HASH.feed, label: t('קהילה'), icon: 'feed' },
-    { names: ['rewards', 'share'], hash: HASH.rewards, label: t('מטבעות'), icon: 'coin' },
-    { names: ['profile', 'stats', 'settings', 'chat'], hash: HASH.profile, label: t('פרופיל'), icon: 'profile' },
-  ];
-  if (isAdmin()) list.push({ names: ['admin', 'adminUser'], hash: HASH.admin, label: t('ניהול'), icon: 'admin' });
-  return list;
+  const today: Tab = { names: ['week', 'tracker'], hash: HASH.week(), label: t('היום'), icon: 'week' };
+  const progress: Tab = { names: ['stats', 'history'], hash: HASH.stats, label: t('התקדמות'), icon: 'stats' };
+  if (!hasBackend()) return [today, progress, { names: ['settings'], hash: HASH.settings, label: t('הגדרות'), icon: 'settings' }];
+  return [today, progress, { names: ['profile', 'settings', 'chat', 'rewards', 'share', 'feed', 'admin', 'adminUser'], hash: HASH.profile, label: t('אני'), icon: 'profile' }];
 }
 
 const main = h('main', { id: 'main', class: 'content' });
+/** A back link to the Me screen on pages opened from it. */
+const crumb = h('div', { class: 'crumb', hidden: true });
 const nav = h('nav', { class: 'tabbar', 'aria-label': t('ניווט ראשי') });
 const syncBadge = h('span', { class: 'sync-badge', 'aria-live': 'polite' });
 const coinChip = h('a', { class: 'coin-chip', href: HASH.rewards, hidden: true });
@@ -166,10 +155,18 @@ function render() {
   );
   nav.style.setProperty('--tabs', String(tabs().length));
 
+  const fromMe = hasBackend() && ['settings', 'rewards', 'share', 'feed', 'chat', 'admin'].includes(route.name) && !(route.name === 'chat' && route.scope !== 'me');
+  crumb.hidden = !fromMe;
+  if (fromMe) crumb.replaceChildren(h('a', { class: 'link-btn', href: HASH.profile }, (isRTL ? '→ ' : '← ') + t('אני')));
   switch (route.name) {
     case 'week': renderWeek(main, route.sunday ?? sundayOf(todayISO())); break;
-    case 'history': renderHistory(main); break;
-    case 'stats': renderStats(main); break;
+    case 'history':
+    case 'stats': {
+      const a = h('div', { class: 'stack' }), b = h('div', { class: 'stack' });
+      renderStats(a); renderHistory(b);
+      main.replaceChildren(a, b);
+      break;
+    }
     case 'settings': renderSettings(main); break;
     case 'profile':
       if (!hasBackend()) renderSettings(main);
@@ -251,6 +248,7 @@ async function boot() {
       h('div', { class: 'topbar-end' }, syncBadge, coinChip, themeBtn),
     ),
     demoBar,
+    crumb,
     main,
     nav,
   );

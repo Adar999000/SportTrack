@@ -8,8 +8,8 @@ import { allWeeks, replaceAll } from '../store';
 import { avatar } from './avatar';
 import { confirmButton, fmtKg, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
-import { statsSections } from './statsView';
-import { aiBadge } from './icons';
+import { menuItem } from './weekView';
+import { openAssistant } from './floatingChat';
 import { getRewards, levelLabel } from '../rewards';
 
 function age(birth?: string): number | null {
@@ -185,17 +185,28 @@ export function renderProfile(root: HTMLElement): void {
   const detail = (label: string, value: string | null) =>
     value ? h('div', { class: 'detail' }, h('span', { class: 'muted' }, label), h('span', null, value)) : '';
 
+  const r = getRewards();
+  const go = (hash: string) => () => navigate(hash);
   root.replaceChildren(
     h('section', { class: 'card profile-head' },
-      avatar(u.name, u.photoId, 72, getRewards()?.frame ?? ''),
+      avatar(u.name, u.photoId, 72, r?.frame ?? ''),
       h('div', { class: 'profile-id' },
         h('h2', null, u.name),
-        h('div', { class: 'muted', dir: 'ltr' }, u.email),
-        u.role === 'admin' && h('span', { class: 'badge' }, t('מנהל')),
+        r ? h('div', { class: 'muted small' }, tr`רמה ${r.level.n} · ${levelLabel(r.level.name)}`) : h('div', { class: 'muted', dir: 'ltr' }, u.email),
       ),
-      h('button', { class: 'btn', onclick: () => navigate(HASH.profileEdit) }, t('עריכה')),
+      h('button', { class: 'btn', onclick: go(HASH.profileEdit) }, t('עריכה')),
     ),
-    h('section', { class: 'card' },
+    h('section', { class: 'card menu-list' },
+      menuItem('🪙', t('מטבעות וחנות'), t('אתגרים אישיים, רמות וחנות'), go(HASH.rewards)),
+      menuItem('👥', t('קהילה ואתגרים'), t('פיד, אתגרים עם חברים ותחרויות'), go(HASH.feed)),
+      menuItem('✨', t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),
+      menuItem('💬', t('פנייה למנהל'), t('שאלה, בעיה או הצעה'), () => openAssistant('support')),
+      menuItem('💌', t('הזמנת חברים'), t('קישור אישי, ומטבעות לשניכם'), go(HASH.share)),
+      menuItem('⚙️', t('הגדרות'), t('תצוגה, תזכורות, ייבוא וגיבוי'), go(HASH.settings)),
+      isAdmin() && menuItem('🛡️', t('ניהול'), t('משתמשים, אנליטיקס ופניות'), go(HASH.admin)),
+    ),
+    h('details', { class: 'card fold' },
+      h('summary', null, t('הפרטים שלי')),
       h('div', { class: 'details' },
         detail(t('גיל'), a !== null ? String(a) : null),
         detail(t('גובה'), p.heightCm ? tr`${p.heightCm} ס"מ` : null),
@@ -208,33 +219,18 @@ export function renderProfile(root: HTMLElement): void {
       ),
       p.goal && h('p', { class: 'goal' }, h('span', { class: 'muted' }, t('המטרה שלי: ')), p.goal),
     ),
-    (() => {
-      const r = getRewards();
-      return h('section', { class: 'card stack' },
-        r ? h('div', { class: 'level-top' },
-          h('div', { class: 'level-num' }, h('small', null, t('רמה')), h('b', null, String(r.level.n))),
-          h('div', null, h('p', { class: 'level-name' }, levelLabel(r.level.name)),
-            h('div', { class: 'balance small-balance' }, h('span', { class: 'coin', 'aria-hidden': 'true' }), r.balance.toLocaleString('en-US'))),
-        ) : '',
-        h('div', { class: 'row-btns two' },
-          h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.rewards) }, t('מטבעות ואתגרים')),
-          h('button', { class: 'btn', onclick: () => navigate(HASH.share) }, t('הזמנת חברים')),
-        ),
-      );
-    })(),
-    ...statsSections(weeks, { days: getRewards()?.frozenDays, weeks: getRewards()?.frozenWeeks, goal: u.profile?.goalWeight }),
-    h('section', { class: 'card stack' },
-      h('button', { class: 'btn ai-btn', onclick: () => navigate(HASH.chat) }, aiBadge(), ' ', t('שאל את העוזר על הנתונים שלך')),
-      isAdmin() && h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.admin) }, t('לוח מנהל')),
-      h('button', { class: 'btn', onclick: () => navigate(HASH.settings) }, t('הגדרות, ייבוא וייצוא')),
-      h('h3', { class: 'section-title' }, t('אבטחה')),
-      h('button', { class: 'btn', onclick: twoFactorSheet }, (currentUser()?.twoFactor ? '🔒 ' + t('אימות דו-שלבי: פעיל') : t('אימות דו-שלבי: כבוי'))),
-      h('button', { class: 'btn', onclick: changePasswordSheet }, t('שינוי סיסמה')),
-      confirmButton(t('התנתקות מכל המכשירים'), t('הקש שוב: כל המכשירים האחרים ינותקו'), async () => {
-        try { const r = await call<{ token: string }>('logoutAll'); await replaceToken(r.token); toast(t('כל המכשירים האחרים נותקו')); } catch (e: any) { toast(e.message); }
-      }, 'btn'),
-      confirmButton(t('התנתקות'), t('הקש שוב להתנתקות'), () => endSession(), 'btn btn-danger'),
-      h('button', { class: 'link-btn danger-link', type: 'button', onclick: deleteAccountSheet }, t('מחיקת החשבון')),
+    h('details', { class: 'card fold' },
+      h('summary', null, t('חשבון ואבטחה')),
+      h('div', { class: 'stack' },
+        h('div', { class: 'muted small', dir: 'ltr' }, u.email),
+        h('button', { class: 'btn', onclick: twoFactorSheet }, (currentUser()?.twoFactor ? '🔒 ' + t('אימות דו-שלבי: פעיל') : t('אימות דו-שלבי: כבוי'))),
+        h('button', { class: 'btn', onclick: changePasswordSheet }, t('שינוי סיסמה')),
+        confirmButton(t('התנתקות מכל המכשירים'), t('הקש שוב: כל המכשירים האחרים ינותקו'), async () => {
+          try { const r2 = await call<{ token: string }>('logoutAll'); await replaceToken(r2.token); toast(t('כל המכשירים האחרים נותקו')); } catch (e: any) { toast(e.message); }
+        }, 'btn'),
+        h('button', { class: 'link-btn danger-link', type: 'button', onclick: deleteAccountSheet }, t('מחיקת החשבון')),
+      ),
     ),
+    confirmButton(t('התנתקות'), t('הקש שוב להתנתקות'), () => endSession(), 'btn btn-danger'),
   );
 }

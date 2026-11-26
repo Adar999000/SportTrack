@@ -86,6 +86,8 @@ export interface Settings {
   bgTheme?: string;
   /** Celebration effects (if owned). */
   effects?: boolean;
+  /** Show the floating assistant button (off by default to keep the screen clean). */
+  showFab?: boolean;
   /** The assistant's character (see MASCOTS). */
   mascot?: string;
   /** Accessories the assistant wears, by slot. */

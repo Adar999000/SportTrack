@@ -104,7 +104,6 @@ function serverCard(): HTMLElement {
   call<{ serverVersion?: string }>('status').then((r) => {
     const v = r.serverVersion;
     info.replaceChildren(v ? tr`גרסת שרת ${v} · גרסת אפליקציה ${APP_VERSION}` : t('השרת בגרסה ישנה. אחרי העדכון הידני האחרון הוא יתעדכן לבד.'));
-    if (v && v !== APP_VERSION) info.append(' · ', h('strong', null, t('יש עדכון')));
   }).catch(() => info.replaceChildren(''));
   btn.addEventListener('click', async () => {
     btn.disabled = true;
