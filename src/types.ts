@@ -44,7 +44,7 @@ export const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner'];
 
 export type Theme = 'auto' | 'light' | 'dark';
 export type Lang = 'he' | 'en';
-export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate' | 'gold' | 'teal' | 'crimson' | 'indigo' | 'coral' | 'olive' | 'plum';
+export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate' | 'gold' | 'teal' | 'crimson' | 'indigo' | 'coral' | 'olive' | 'plum' | 'sky' | 'emerald' | 'graphite' | 'ruby';
 
 export const ACCENTS: { id: Accent; name: string; swatch: string; premium?: boolean }[] = [
   { id: 'green', name: 'ירוק', swatch: '#2f6f5e' },
@@ -60,6 +60,10 @@ export const ACCENTS: { id: Accent; name: string; swatch: string; premium?: bool
   { id: 'coral', name: 'אלמוג', swatch: '#ad4128', premium: true },
   { id: 'olive', name: 'זית', swatch: '#566510', premium: true },
   { id: 'plum', name: 'שזיף', swatch: '#7a2c6b', premium: true },
+  { id: 'sky', name: 'שמיים', swatch: '#1f6fa8', premium: true },
+  { id: 'emerald', name: 'אמרלד', swatch: '#0f7a4f', premium: true },
+  { id: 'graphite', name: 'גרפיט', swatch: '#3b4048', premium: true },
+  { id: 'ruby', name: 'רובי', swatch: '#a3123f', premium: true },
 ];
 
 export const BG_THEMES: { id: string; name: string; swatch: string }[] = [
@@ -68,6 +72,11 @@ export const BG_THEMES: { id: string; name: string; swatch: string }[] = [
   { id: 'forest', name: 'יער', swatch: '#eaf1ea' },
   { id: 'rose', name: 'ורדרד', swatch: '#f7ecee' },
   { id: 'midnight', name: 'חצות', swatch: '#141a2e' },
+  { id: 'mint', name: 'מנטה', swatch: '#e9f6f1' },
+  { id: 'lavender', name: 'לבנדר', swatch: '#f0edf8' },
+  { id: 'sunrise', name: 'זריחה', swatch: '#fbefe6' },
+  { id: 'carbon', name: 'פחם', swatch: '#1b1c1e' },
+  { id: 'aurora', name: 'זוהר צפוני', swatch: '#0d1a1f' },
 ];
 
 export const FRAMES: { id: string; name: string }[] = [
@@ -76,6 +85,11 @@ export const FRAMES: { id: string; name: string }[] = [
   { id: 'fire', name: 'אש' },
   { id: 'rainbow', name: 'קשת' },
   { id: 'diamond', name: 'יהלום' },
+  { id: 'neon', name: 'ניאון' },
+  { id: 'ice', name: 'קרח' },
+  { id: 'laurel', name: 'זר דפנה' },
+  { id: 'champion', name: 'אלוף' },
+  { id: 'legend', name: 'אגדי' },
 ];
 
 export interface Settings {
@@ -86,6 +100,8 @@ export interface Settings {
   bgTheme?: string;
   /** Celebration effects (if owned). */
   effects?: boolean;
+  /** Which celebration effect plays (when effects is on). */
+  effectKind?: 'confetti' | 'stars' | 'fireworks';
   /** Show the floating assistant button (off by default to keep the screen clean). */
   showFab?: boolean;
   /** The assistant's character (see MASCOTS). */

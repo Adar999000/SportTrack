@@ -89,7 +89,7 @@ function pickSheet(title: string, options: { value: string; label: string }[], o
   const close = openSheet(title, body);
 }
 
-type Cat = 'all' | 'useful' | 'mascot' | 'acc' | 'color' | 'bg' | 'frame' | 'effect';
+type Cat = 'all' | 'useful' | 'mascot' | 'acc' | 'color' | 'bg' | 'frame' | 'effect' | 'levels';
 let shopCat: Cat = 'all';
 let shopOnlyAffordable = false;
 const NEW_ITEMS = new Set(['mascot', 'acc']);
@@ -115,7 +115,7 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   const item = (kind: string, id: string) => catalog.find((c) => c.kind === kind && c.id === id);
   const s = getSettings();
 
-  interface Product { cat: Cat; key: string; name: string; desc?: string; preview: HTMLElement; price: number; base?: number; owned?: boolean; using?: boolean; action: HTMLElement; try?: () => void }
+  interface Product { cat: Cat; key: string; name: string; desc?: string; preview: HTMLElement; price: number; base?: number; owned?: boolean; using?: boolean; action: HTMLElement; try?: () => void; minLevel?: number; locked?: boolean }
   const products: Product[] = [];
   const priceTag = (cost: number, base?: number) => cost === 0 ? h('span', { class: 'tag tag-free' }, t('חינם ברמה שלך'))
     : h('span', { class: 'price-row' }, price(cost), base && base > cost ? h('s', { class: 'muted small' }, fmt(base)) : '');
@@ -139,12 +139,14 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
     const c = item(kind, id);
     if (!c) return;
     const removable = using && kind !== 'color' && kind !== 'mascot';
-    const action = c.owned
+    const action = c.locked
+      ? h('button', { class: 'btn btn-buy', type: 'button', disabled: true }, '🔒 ', tr`נפתח ברמה ${c.minLevel}`)
+      : c.owned
       ? h('button', { class: using ? 'btn btn-using' : 'btn btn-use', type: 'button', disabled: using && !removable, 'aria-pressed': using ? 'true' : undefined,
           onclick: async () => { try { await use(); toast(removable ? t('הוסר') : t('הופעל')); redraw(); } catch (e: any) { toast(e.message); } } },
           removable ? t('בשימוש · הסר') : using ? '✓ ' + t('בשימוש') : t('הפעל'))
       : buyBtn(c.price, () => spend('cosmetic', { kind, id }));
-    products.push({ cat, key: `${kind}:${id}`, name, preview, price: c.price, base: c.base, owned: c.owned, using, action, try: c.owned ? undefined : tryFn });
+    products.push({ cat, key: `${kind}:${id}`, name, preview, price: c.price, base: c.base, owned: c.owned, using, action, try: c.owned ? undefined : tryFn, minLevel: c.minLevel, locked: c.locked });
   };
   MASCOTS.filter((m) => !m.free).forEach((m) => cosmetic('mascot', 'mascot', m.id, t(m.name), mascot(64, '', m.id, currentOutfit()), (s.mascot ?? 'lion') === m.id, () => updateSettings({ mascot: m.id })));
   ACCESSORIES.forEach((a) => {
@@ -155,27 +157,36 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   ACCENTS.filter((a) => a.premium).forEach((a) => cosmetic('color', 'color', a.id, t(a.name), h('span', { class: 'swatch-preview', style: { background: a.swatch } }), s.accent === a.id, () => updateSettings({ accent: a.id }), () => tryOn('color', a.id)));
   BG_THEMES.forEach((b) => cosmetic('bg', 'bg', b.id, t(b.name), h('span', { class: `bg-preview bgp-${b.id}`, style: { background: b.swatch } }), s.bgTheme === b.id, () => updateSettings({ bgTheme: s.bgTheme === b.id ? '' : b.id }), () => tryOn('bg', b.id)));
   FRAMES.forEach((f) => cosmetic('frame', 'frame', f.id, t(f.name), avatar(currentUser()?.name ?? '?', currentUser()?.photoId, 52, f.id), r.frame === f.id, () => wearFrame(r.frame === f.id ? '' : f.id)));
-  cosmetic('effect', 'effect', 'confetti', t('קונפטי חגיגי'), h('span', { class: 'shop-emoji' }, '🎉'), !!s.effects, () => updateSettings({ effects: !s.effects }), () => burst(true));
+  ([['confetti', 'קונפטי חגיגי', '🎉'], ['stars', 'גשם כוכבים', '🌟'], ['fireworks', 'זיקוקים', '🎆']] as const).forEach(([id, name, ic]) => {
+    const using = !!s.effects && (s.effectKind ?? 'confetti') === id;
+    cosmetic('effect', 'effect', id, t(name), h('span', { class: 'shop-emoji' }, ic), using,
+      () => updateSettings(using ? { effects: false } : { effects: true, effectKind: id }), () => burst(true, id));
+  });
 
-  const CATS: [Cat, string, string][] = [['all', '🛍️', 'הכל'], ['useful', '🧊', 'שימושי'], ['mascot', '🦁', 'דמויות'], ['acc', '✨', 'סטייל לעוזר'], ['color', '🎨', 'צבעים'], ['bg', '🖼️', 'רקעים'], ['frame', '🖼', 'מסגרות'], ['effect', '🎉', 'אפקטים']];
+  const CATS: [Cat, string, string][] = [['all', '🛍️', 'הכל'], ['levels', '🔒', 'לפי רמה'], ['useful', '🧊', 'שימושי'], ['mascot', '🦁', 'דמויות'], ['acc', '✨', 'סטייל לעוזר'], ['color', '🎨', 'צבעים'], ['bg', '🖼️', 'רקעים'], ['frame', '🖼', 'מסגרות'], ['effect', '🎉', 'אפקטים']];
   const grid = h('div', { class: 'shop' });
   const tabs = h('div', { class: 'shop-tabs', role: 'group', 'aria-label': t('קטגוריות') });
   const affordable = h('input', { type: 'checkbox', id: 'shop-afford', checked: shopOnlyAffordable }) as HTMLInputElement;
   const draw = () => {
     tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cat === shopCat)));
-    const list = products.filter((p) => (shopCat === 'all' || p.cat === shopCat) && (!shopOnlyAffordable || p.owned || p.price <= r.balance));
-    grid.replaceChildren(...(list.length ? list.map((p) => h('div', { class: 'shop-item' + (p.owned ? ' owned' : '') + (p.using ? ' using' : '') },
+    const list = products
+      .filter((p) => (shopCat === 'all' || p.cat === shopCat || (shopCat === 'levels' && (p.minLevel ?? 0) > 0)) && (!shopOnlyAffordable || p.owned || (!p.locked && p.price <= r.balance)))
+      .sort((a, b) => (shopCat === 'levels' ? (a.minLevel ?? 0) - (b.minLevel ?? 0) || a.price - b.price : 0));
+    grid.replaceChildren(...(list.length ? list.map((p) => h('div', { class: 'shop-item' + (p.owned ? ' owned' : '') + (p.using ? ' using' : '') + (p.locked ? ' locked-item' : '') },
       h('div', { class: 'shop-art' }, p.preview,
+        p.locked ? h('span', { class: 'ribbon lvl' }, '🔒 ', tr`רמה ${p.minLevel}`) : !p.owned && (p.minLevel ?? 0) > 0 ? h('span', { class: 'ribbon lvl-open' }, tr`רמה ${p.minLevel}`) :
         !p.owned && NEW_ITEMS.has(p.cat) ? h('span', { class: 'ribbon' }, t('חדש')) : !p.owned && POPULAR.has(p.key) ? h('span', { class: 'ribbon hot' }, '🔥 ' + t('פופולרי')) : '',
         p.owned ? h('span', { class: 'owned-tag' }, '✓ ' + t('שלך')) : ''),
       h('strong', null, p.name),
       p.desc ? h('span', { class: 'muted small' }, p.desc) : '',
       p.owned ? '' : priceTag(p.price, p.base),
+      p.locked ? h('span', { class: 'muted small' }, tr`עוד ${Math.max(0, (r.levels?.find((l) => l.n === p.minLevel)?.from ?? 0) - r.lifetime).toLocaleString('en-US')} מטבעות לרמה ${p.minLevel}`) : '',
       h('div', { class: 'shop-btns' }, p.action, p.try ? h('button', { class: 'btn btn-try', type: 'button', onclick: p.try }, '👁 ', t('נסה')) : ''),
     )) : [h('p', { class: 'muted' }, t('אין פריטים כאן כרגע.'))]));
   };
   CATS.forEach(([c, ic, name]) => {
-    if (c !== 'all' && !products.some((p) => p.cat === c)) return;
+    if (c !== 'all' && c !== 'levels' && !products.some((p) => p.cat === c)) return;
+    if (c === 'levels' && !products.some((p) => (p.minLevel ?? 0) > 0)) return;
     const b = h('button', { type: 'button', 'aria-pressed': String(c === shopCat), onclick: () => { shopCat = c; draw(); } }, ic, ' ', t(name));
     b.dataset.cat = c;
     tabs.append(b);
@@ -197,14 +208,26 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   );
 }
 
+/** Display name of a store item (for the levels table). */
+function itemName(kind: string, id: string): string {
+  const list: Record<string, { id: string; name: string }[]> = {
+    mascot: MASCOTS, acc: ACCESSORIES, color: ACCENTS, bg: BG_THEMES, frame: FRAMES,
+    effect: [{ id: 'confetti', name: 'קונפטי חגיגי' }, { id: 'stars', name: 'גשם כוכבים' }, { id: 'fireworks', name: 'זיקוקים' }],
+  };
+  const n = list[kind]?.find((x) => x.id === id)?.name;
+  return n ? t(n) : id;
+}
+
 function levelsCard(r: Rewards): HTMLElement {
+  const opens = (n: number) => (r.catalog ?? []).filter((c) => c.minLevel === n).map((c) => itemName(c.kind, c.id));
   return h('section', { class: 'card' },
     h('h2', { class: 'card-title' }, t('רמות והטבות')),
     h('p', { class: 'hint' }, t('הרמה נקבעת לפי כל המטבעות שצברת אי פעם, כך שקניות בחנות לא מורידות אותה. כל רמה פותחת הטבות, וההטבות מצטברות.')),
     h('ol', { class: 'levels-list' }, (r.levels ?? []).map((l) => h('li', { class: l.n === r.level.n ? 'is-current' : l.n < r.level.n ? 'is-done' : '' },
       h('b', { class: 'lv-n' }, String(l.n)),
       h('span', { class: 'lv-main' }, h('strong', null, t(l.name)), h('span', { class: 'muted small' }, tr`מ-${fmt(l.from)} מטבעות`)),
-      h('span', { class: 'lv-perks small' }, l.perks.length ? l.perks.map((p) => t(p)).join(' · ') : '—'),
+      h('span', { class: 'lv-perks small' }, l.perks.length ? l.perks.map((p) => t(p)).join(' · ') : (opens(l.n).length ? '' : '—'),
+        opens(l.n).length ? h('span', { class: 'lv-opens' }, '🔓 ', t('נפתחים בחנות: '), opens(l.n).join(', ')) : ''),
     ))),
     h('p', { class: 'hint' }, t('אחרי רמה 15 מקבלים כוכב על כל 10,000 מטבעות נוספים.')),
   );

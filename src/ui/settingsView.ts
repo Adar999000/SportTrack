@@ -114,7 +114,7 @@ export function renderSettings(root: HTMLElement): void {
           })),
       ),
       hasBackend() && toggle(t('כפתור עוזר AI צף'), st.showFab !== false, (v) => updateSettings({ showFab: v }), t('גם כשהוא כבוי, העוזר זמין במסך "אני"')),
-      hasBackend() && owns('effect:confetti') && toggle(t('קונפטי ביום מלא'), !!st.effects, (v) => updateSettings({ effects: v })),
+      hasBackend() && ['confetti', 'stars', 'fireworks'].some((k) => owns('effect:' + k)) && toggle(t('חגיגה ביום מלא'), !!st.effects, (v) => updateSettings({ effects: v })),
       h('div', { class: 'setting setting-col' },
         h('span', { id: 'mascot-label' }, t('דמות העוזר')),
         h('div', { class: 'mascot-pick', role: 'radiogroup', 'aria-labelledby': 'mascot-label' },

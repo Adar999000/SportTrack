@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.0 (2026-11-26)
+- Store roughly doubled (95 items): 16 more characters (animals and athletes), 5 auras, 12 sports badges, 4 colors, 5 backgrounds (carbon and northern lights are full dark themes), 5 frames (animated "legendary"), star shower and fireworks effects (choose which one plays on a full day).
+- Level-locked items (`ITEM_LEVEL` on the server, enforced in `spend`): shown with a lock, "level N" ribbon and how many coins are left; a "By level" store tab; the levels table lists what each level opens.
+
 ## 4.1.2 (2026-11-26)
 - Floating assistant is on by default again (Settings toggle turns it off); back in the first-run tour.
 

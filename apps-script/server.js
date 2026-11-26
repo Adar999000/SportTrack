@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '4.1.0';
+const SERVER_VERSION = '4.2.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -767,12 +767,28 @@ const COSTS = { freezeDay: 50, freezeWeek: 100, chat10: 30, color: 150 };
 
 /** Everything the store sells (besides freezes and assistant messages). Price in coins. */
 const CATALOG = {
-  color: { gold: 150, teal: 150, crimson: 150, indigo: 200, coral: 200, olive: 200, plum: 200 },
-  bg: { sand: 200, ocean: 200, forest: 200, rose: 200, midnight: 300 },
-  frame: { silver: 120, goldframe: 250, fire: 300, rainbow: 350, diamond: 400 },
-  effect: { confetti: 200 },
-  mascot: { cat: 120, frog: 120, tiger: 150, fox: 150, bear: 150, koala: 180, monkey: 180, penguin: 180, owl: 200, lifter: 250, unicorn: 300, dragon: 400 },
-  acc: { mint: 120, ocean: 120, sunset: 150, gold: 200, galaxy: 250, flames: 250, rainbow: 300, heart: 100, fire: 120, partyhat: 150, star: 150, medal: 180, trophy: 250 },
+  color: { gold: 150, teal: 150, crimson: 150, indigo: 200, coral: 200, olive: 200, plum: 200, sky: 200, emerald: 220, graphite: 240, ruby: 260 },
+  bg: { sand: 200, ocean: 200, forest: 200, rose: 200, mint: 200, lavender: 200, sunrise: 240, midnight: 300, carbon: 300, aurora: 380 },
+  frame: { silver: 120, goldframe: 250, neon: 280, fire: 300, ice: 300, rainbow: 350, laurel: 380, diamond: 400, champion: 450, legend: 600 },
+  effect: { confetti: 200, stars: 220, fireworks: 300 },
+  mascot: { cat: 120, frog: 120, rabbit: 120, hamster: 120, tiger: 150, fox: 150, bear: 150, horse: 160, koala: 180, monkey: 180, penguin: 180, polarbear: 180,
+    owl: 200, octopus: 200, runner: 200, biker: 220, swimmer: 220, yogi: 220, lifter: 250, climber: 260, surfer: 260, unicorn: 300, gorilla: 300, wolf: 320,
+    shark: 350, eagle: 380, dragon: 400, ninja: 450 },
+  acc: { mint: 120, ocean: 120, sunset: 150, gold: 200, neon: 220, ice: 240, galaxy: 250, flames: 250, lava: 280, rainbow: 300, aurora: 320, cosmic: 400,
+    heart: 100, shoe: 100, ball: 100, basket: 100, fire: 120, biceps: 120, glove: 140, partyhat: 150, star: 150, medal2: 150, sports: 160, medal: 180, bolt: 180,
+    rocket: 200, '100': 220, trophy: 250, gem: 300, crown: 400 },
+};
+
+/** Items you can only buy from a certain level (a level perk that makes it free still applies). */
+const ITEM_LEVEL = {
+  'color:emerald': 3, 'color:graphite': 4, 'color:ruby': 6,
+  'bg:sunrise': 3, 'bg:carbon': 5, 'bg:aurora': 9,
+  'frame:neon': 4, 'frame:ice': 5, 'frame:diamond': 7, 'frame:laurel': 8, 'frame:champion': 10, 'frame:legend': 13,
+  'effect:stars': 3, 'effect:fireworks': 6,
+  'mascot:climber': 3, 'mascot:surfer': 3, 'mascot:gorilla': 4, 'mascot:unicorn': 5, 'mascot:wolf': 5, 'mascot:shark': 6, 'mascot:eagle': 7,
+  'mascot:dragon': 8, 'mascot:ninja': 9,
+  'acc:galaxy': 4, 'acc:neon': 4, 'acc:ice': 5, 'acc:flames': 5, 'acc:rainbow': 6, 'acc:lava': 7, 'acc:aurora': 9, 'acc:cosmic': 11,
+  'acc:rocket': 3, 'acc:100': 4, 'acc:trophy': 6, 'acc:gem': 8, 'acc:crown': 10,
 };
 
 /** What each level unlocks (cumulative), enforced on the server. */
@@ -1064,7 +1080,9 @@ function rewardsFor(userRow, cache) {
   }));
   const catalog = [];
   Object.keys(CATALOG).forEach((kind) => Object.keys(CATALOG[kind]).forEach((id) => {
-    catalog.push({ kind: kind, id: id, base: CATALOG[kind][id], price: priceFor(kind, id, perks), owned: unlocked.indexOf(kind + ':' + id) >= 0 });
+    const minLevel = ITEM_LEVEL[kind + ':' + id] || 0;
+    const price = priceFor(kind, id, perks);
+    catalog.push({ kind: kind, id: id, base: CATALOG[kind][id], price: price, owned: unlocked.indexOf(kind + ':' + id) >= 0, minLevel: minLevel, locked: minLevel > level.n && price !== 0 });
   }));
   return {
     start: start,
@@ -1141,8 +1159,11 @@ function spend(me, req) {
     } else if (req.item === 'color' || req.item === 'cosmetic') {
       const kind = req.item === 'color' ? 'color' : String(req.kind || '');
       const id = req.item === 'color' ? String(req.color || '') : String(req.id || '');
-      const price = priceFor(kind, id, perksFor(rw.level.n));
+      const perksNow = perksFor(rw.level.n);
+      const price = priceFor(kind, id, perksNow);
       if (price === null) throw new Error('פריט לא מוכר');
+      const need = ITEM_LEVEL[kind + ':' + id] || 0;
+      if (need > rw.level.n && price !== 0) throw new Error('הפריט נפתח ברמה ' + need);
       if (rw.unlocked.indexOf(kind + ':' + id) >= 0) throw new Error('הפריט כבר שלך');
       cost = price; ref = 'item:' + kind + ':' + id; label = 'חנות: ' + kind + ':' + id;
     } else throw new Error('פריט לא מוכר');

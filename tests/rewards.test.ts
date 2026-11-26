@@ -103,6 +103,15 @@ describe('rewards', () => {
     expect(be.post({ action: 'leaderboard', token: t, period: 'all' }).leaders[0].frame).toBe('fire');
   });
 
+  it('some store items open only from a certain level', () => {
+    const { be, t } = setup();
+    const r = be.post({ action: 'rewards', token: t }).rewards;
+    const dragon = r.catalog.find((c: any) => c.kind === 'mascot' && c.id === 'dragon');
+    expect(dragon).toMatchObject({ minLevel: 8, locked: true });
+    expect(r.catalog.find((c: any) => c.kind === 'mascot' && c.id === 'rabbit')).toMatchObject({ minLevel: 0, locked: false });
+    expect(be.post({ action: 'spend', token: t, item: 'cosmetic', kind: 'mascot', id: 'dragon' }).error).toMatch(/נפתח ברמה 8/);
+  });
+
   it('assistant characters and accessories are store items', () => {
     const { be, t } = setup();
     const lots = Array.from({ length: 10 }, (_, i) => wk(new Date(Date.UTC(2026, 9, 4 + 7 * i)).toISOString().slice(0, 10), Array.from({ length: 7 }, () => full(true)), 100));
