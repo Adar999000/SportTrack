@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '5.6.1',
+    date: '2026-11-27',
+    items: ['בוחרים גבר או אישה (או לא לציין) בהרשמה ובעריכת הפרופיל, והאפליקציה והעוזר פונים בהתאם'],
+  },
+  {
     version: '5.6.0',
     date: '2026-11-27',
     items: [

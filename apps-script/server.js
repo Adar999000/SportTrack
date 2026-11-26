@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.6.0';
+const SERVER_VERSION = '5.6.1';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -551,6 +551,7 @@ function updateProfile(me, req) {
     const allowed = ['birthDate', 'heightCm', 'goalWeight', 'goal', 'completed'];
     const clean = {};
     allowed.forEach((k) => { if (req.profile[k] !== undefined) clean[k] = typeof req.profile[k] === 'string' ? req.profile[k].slice(0, 300) : req.profile[k]; });
+    if (req.profile.gender !== undefined) clean.gender = ['male', 'female'].indexOf(req.profile.gender) >= 0 ? req.profile.gender : '';
     if (Array.isArray(req.profile.goals)) clean.goals = req.profile.goals.filter((g) => GOAL_IDS.indexOf(g) >= 0).slice(0, 10);
     const merged = Object.assign(parseJSON(me.r[U.profile], {}), clean);
     sh.getRange(me.row, U.profile + 1).setValue(JSON.stringify(merged));
@@ -1488,6 +1489,7 @@ function userContext(userRow, weeks, detailWeeks) {
   return [
     '### ' + userRow[U.name],
     'פרופיל: ' + JSON.stringify(p),
+    p.gender === 'female' ? 'פנה/י אליה בלשון נקבה.' : p.gender === 'male' ? 'פנה/י אליו בלשון זכר.' : '',
     rewardsLine,
     mine.length + ' שבועות במעקב. ' + facts,
     older.length ? 'סיכום חודשי (לפני השבועות האחרונים):\n' + monthLines(older).join('\n') : '',

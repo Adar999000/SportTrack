@@ -272,6 +272,8 @@ describe('stories, goals and music settings', () => {
     const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
     const { user } = be.post({ action: 'updateProfile', token: u.token, profile: { goals: ['lose', 'hack', 'fit'], completed: true } });
     expect(user.profile.goals).toEqual(['lose', 'fit']);
+    expect(be.post({ action: 'updateProfile', token: u.token, profile: { gender: 'female' } }).user.profile.gender).toBe('female');
+    expect(be.post({ action: 'updateProfile', token: u.token, profile: { gender: 'robot' } }).user.profile.gender).toBe('');
     expect(be.post({ action: 'setSiteConfig', token: adm.token, spotifyClientId: 'not-an-id' }).error).toMatch(/32/);
     be.post({ action: 'setSiteConfig', token: adm.token, spotifyClientId: 'a'.repeat(32) });
     expect(be.post({ action: 'siteConfig' }).config.spotifyClientId).toBe('a'.repeat(32));

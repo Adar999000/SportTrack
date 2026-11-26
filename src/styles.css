@@ -1779,3 +1779,5 @@ body:not(.is-landing) .content { padding-bottom: calc(150px + env(safe-area-inse
 .story-preview .st-stat b { font-size: 20px; }
 .story-preview .st-hero-num b { font-size: 60px; }
 .story-preview .story-card { padding: 16px 14px 12px; }
+.gender-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.gender-pick .goal-chip[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

@@ -19,6 +19,7 @@ import { openMainEditor, openTrackerEditor } from './trackerEditor';
 import { trackerBar } from './trackerView';
 import { valueCell } from './valueCell';
 import { track } from '../analytics';
+import { gx } from '../gender';
 
 const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
@@ -177,7 +178,7 @@ function todayPanel(today: string): HTMLElement {
       h('div', null,
         h('p', { class: 'greet' }, greeting()),
         h('h2', { class: 'card-title' }, tr`יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
-        h('p', { class: 'today-motto' }, done >= 4 ? (perfectDay(d) ? t('יום מלא. אלוף/ה') : t('היום סגור: כל המשימות סומנו')) : nextTask(d)),
+        h('p', { class: 'today-motto' }, done >= 4 ? (perfectDay(d) ? gx(t('יום מלא. אלוף'), t('יום מלא. אלופה'), t('יום מלא. אלוף/ה')) : t('היום סגור: כל המשימות סומנו')) : nextTask(d)),
         smartChips(sunday),
       ),
       activityRings(d, getWeek(sunday)),

@@ -1,5 +1,8 @@
 # Changelog
 
+## 5.6.1 (2026-11-27)
+- Gender (male / female / not set) in onboarding and profile edit, stored as `profile.gender` (whitelisted); used for Hebrew wording and passed to the assistant.
+
 ## 5.6.0 (2026-11-27)
 - Stories (24 h): `createPost` kind `story` with a sanitized template (`rings`, `workout`, `achievement`, `photo`, `text`) and background; `stories` returns live stories grouped by person; `viewStory` counts views (owner sees count and names); high-five reuses `likePost`. Stories are kept out of the feed. Workout routes are reduced to a 0–100 shape on the device, so no coordinates are uploaded.
 - Story bar, full-screen viewer (progress bars, tap / keys / hold to pause / swipe down), composer with live preview, "Share as story" on a workout.

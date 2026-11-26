@@ -1,4 +1,5 @@
 import { goalChips } from './goalChips';
+import { genderPicker } from './genderPicker';
 import { t, tr } from '../i18n';
 import { call, type User } from '../api';
 import { daysBetween, formatShort, todayISO } from '../dates';
@@ -31,7 +32,9 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
     h('div', { class: 'field' }, h('label', { for: id }, label), h('input', { id, class: 'input', ...attrs }), hint && h('small', { class: 'hint' }, hint));
 
   const chips = goalChips(p.goals ?? []);
+  const gender = genderPicker(p.gender ?? '');
   const form = h('form', { class: 'stack', novalidate: true },
+    h('div', { class: 'field' }, h('span', { class: 'label' }, t('איך לפנות אליך?')), gender.el),
     onboarding && h('div', { class: 'field' }, h('span', { class: 'label' }, t('מה המטרות שלך? אפשר לבחור כמה')), chips.el),
     h('div', { class: 'avatar-row' },
       preview,
@@ -77,7 +80,7 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
     try {
       const res = await call<{ user: User }>('updateProfile', {
         name: v('pf-name'),
-        profile: { birthDate: v('pf-birth') || undefined, heightCm: num('pf-height'), goalWeight: num('pf-goalw'), goal: v('pf-goal') || undefined, ...(onboarding ? { goals: chips.value() } : {}), completed: true },
+        profile: { birthDate: v('pf-birth') || undefined, heightCm: num('pf-height'), goalWeight: num('pf-goalw'), goal: v('pf-goal') || undefined, gender: gender.value(), ...(onboarding ? { goals: chips.value() } : {}), completed: true },
         ...(photo !== undefined ? { photo } : {}),
       });
       if (photo && res.user.photoId) rememberPhoto(res.user.photoId, photo);
@@ -94,7 +97,7 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
 
   root.replaceChildren(
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, onboarding ? tr`ברוך הבא, ${u.name}` : t('עריכת פרופיל')),
+      h('h2', { class: 'card-title' }, onboarding ? (p.gender === 'female' ? tr`ברוכה הבאה, ${u.name}` : tr`ברוך הבא, ${u.name}`) : t('עריכת פרופיל')),
       onboarding && h('p', { class: 'muted' }, t('כמה פרטים כדי שהאנליזה תהיה אישית. אפשר לדלג על כל שדה ולערוך אחר כך.')),
       form,
     ),

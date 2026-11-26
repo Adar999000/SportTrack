@@ -1637,4 +1637,12 @@ export const EN: Record<string, string> = {
   "סטוריז ל-24 שעות: כרטיסי ספורט עם הטבעות של היום, אימון עם מסלול ונתונים, הישג, תמונה או טקסט. חברים עונים בהיי פייב": "24-hour stories: sports cards with today's rings, a workout with route and stats, an achievement, a photo or text. Friends reply with a high five",
   "שיתוף אימון כסטורי ישירות ממסך האימון, בלי לחשוף מיקום": "Share a workout as a story right from the workout screen, without revealing your location",
   "שני סקינים חדשים: אתלטי ופרימיום": "Two new skins: Athletic and Premium",
+  "איך לפנות אליך?": "How should we address you?",
+  "גבר": "Man",
+  "אישה": "Woman",
+  "לא לציין": "Prefer not to say",
+  "יום מלא. אלוף": "Full day. Champion",
+  "יום מלא. אלופה": "Full day. Champion",
+  "ברוכה הבאה, {0}": "Welcome, {0}",
+  "בוחרים גבר או אישה (או לא לציין) בהרשמה ובעריכת הפרופיל, והאפליקציה והעוזר פונים בהתאם": "Choose man or woman (or prefer not to say) at sign-up and in profile edit, and the app and assistant address you accordingly",
 };

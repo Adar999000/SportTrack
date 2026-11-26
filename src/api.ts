@@ -7,6 +7,7 @@ export interface UserProfile {
   goalWeight?: number;
   goal?: string;
   goals?: string[];
+  gender?: 'male' | 'female' | '';
   completed?: boolean;
 }
 
