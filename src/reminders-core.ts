@@ -1,3 +1,4 @@
+import { t } from './i18n';
 /**
  * Pure reminder decision logic, shared by the page and the service worker.
  */
@@ -41,7 +42,7 @@ export function dueReminders(
   const week = weeks[sundayOf(today)];
 
   if (settings.dailyReminder && log.daily !== today && !todayFilled(week, dayIndex(today), settings)) {
-    out.push({ kind: 'daily', title: 'משמעת אישית', body: 'עדכן את היום' });
+    out.push({ kind: 'daily', title: t('משמעת אישית'), body: t('עדכן את היום') });
   }
   if (
     settings.weeklyWeightReminder &&
@@ -49,7 +50,7 @@ export function dueReminders(
     log.weekly !== today &&
     typeof week?.startWeight !== 'number'
   ) {
-    out.push({ kind: 'weekly', title: 'משמעת אישית', body: 'שבוע חדש — הזן משקל התחלתי' });
+    out.push({ kind: 'weekly', title: t('משמעת אישית'), body: t('שבוע חדש — הזן משקל התחלתי') });
   }
   return out;
 }

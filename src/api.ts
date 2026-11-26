@@ -1,3 +1,4 @@
+import { t, tServer } from './i18n';
 import { API_URL } from './config';
 
 export interface UserProfile {
@@ -36,22 +37,22 @@ export const hasBackend = () => !!API_URL;
 
 /** POST as text/plain so the browser sends a "simple" request (no CORS preflight). */
 export async function call<T = any>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
-  if (!API_URL) throw new Error('השרת לא הוגדר');
+  if (!API_URL) throw new Error(t('השרת לא הוגדר'));
   let res: Response;
   try {
     res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, token, ...payload }) });
   } catch {
-    throw new Error('אין חיבור לשרת. בדוק את האינטרנט ונסה שוב.');
+    throw new Error(t('אין חיבור לשרת. בדוק את האינטרנט ונסה שוב.'));
   }
   let data: any;
   try {
     data = await res.json();
   } catch {
-    throw new Error('תשובה לא תקינה מהשרת');
+    throw new Error(t('תשובה לא תקינה מהשרת'));
   }
   if (data?.error) {
-    const msg = String(data.error);
-    if (msg.startsWith('AUTH:')) throw new AuthError(msg.slice(5).trim());
+    const msg = tServer(String(data.error));
+    if (String(data.error).startsWith('AUTH:')) throw new AuthError(tServer(String(data.error).slice(5).trim()));
     throw new Error(msg);
   }
   return data as T;

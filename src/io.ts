@@ -45,7 +45,7 @@ const csvCell = (v: unknown) => {
 export function toCSV(weeks: Week[]): string {
   const header = [
     'week_sunday', 'date', 'weekday', 'start_weight', 'breakfast', 'lunch', 'dinner',
-    'sport_status', 'sport_label', 'counts_as_workout', 'smoked', 'week_note',
+    'sport_status', 'sport_label', 'counts_as_workout', 'smoked', 'cell_text', 'week_note',
   ];
   const lines = [header.join(',')];
   for (const w of weeks) {
@@ -63,6 +63,7 @@ export function toCSV(weeks: Week[]): string {
           d.sport.label ?? '',
           d.sport.status === 'V' ? (d.sport.countsAsWorkout ? 'yes' : 'no') : '',
           d.smoked === true ? 'כן' : d.smoked === false ? 'לא' : '',
+          d.text ? Object.entries(d.text).map(([k, v]) => `${k}: ${v}`).join('; ') : '',
           i === 0 ? w.note ?? '' : '',
         ]
           .map(csvCell)

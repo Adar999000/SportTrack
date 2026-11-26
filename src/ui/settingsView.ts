@@ -5,6 +5,8 @@ import { checkReminders, notificationsSupported, registerBackgroundCheck, reques
 import { allWeeks, getSettings, putWeeks, replaceAll, updateSettings } from '../store';
 import type { Theme } from '../types';
 import { confirmButton, h, openSheet, toast } from './dom';
+import { lang, setLang, t, tr } from '../i18n';
+import { APP_VERSION, CHANGELOG } from '../version';
 import { showDocxPreview } from './importPreview';
 import { IS_DEMO } from '../env';
 import { clearDemo } from '../demo';
@@ -41,68 +43,80 @@ export function renderSettings(root: HTMLElement): void {
     checkReminders();
   };
 
-  const time = h('input', { type: 'time', class: 'input', value: st.reminderTime, 'aria-label': 'שעת תזכורת' });
+  const time = h('input', { type: 'time', class: 'input', value: st.reminderTime, 'aria-label': t('שעת תזכורת') });
   time.addEventListener('change', () => {
     updateSettings({ reminderTime: time.value || '21:00' });
     checkReminders();
   });
 
-  const theme = h('select', { class: 'input', 'aria-label': 'ערכת צבעים' },
-    ([['auto', 'לפי המכשיר'], ['light', 'בהיר'], ['dark', 'כהה']] as [Theme, string][]).map(([v, t]) =>
-      h('option', { value: v, selected: st.theme === v }, t)),
+  const theme = h('select', { class: 'input', 'aria-label': t('ערכת צבעים') },
+    ([['auto', t('לפי המכשיר')], ['light', t('בהיר')], ['dark', t('כהה')]] as [Theme, string][]).map(([v, label]) =>
+      h('option', { value: v, selected: st.theme === v }, label)),
   );
   theme.addEventListener('change', () => updateSettings({ theme: theme.value as Theme }));
+
+  const langSel = h('select', { class: 'input', id: 'lang-select', 'aria-label': t('שפה') },
+    h('option', { value: 'he', selected: lang === 'he' }, t('עברית')),
+    h('option', { value: 'en', selected: lang === 'en' }, 'English'),
+  );
+  langSel.addEventListener('change', () => setLang(langSel.value === 'en' ? 'en' : 'he'));
+
+  const showChangelog = () => openSheet(t('מה חדש'), h('div', { class: 'stack' },
+    ...CHANGELOG.map((r) => h('section', { class: 'release' },
+      h('h3', null, t('גרסה {v}', { v: r.version }), ' ', h('span', { class: 'muted small' }, r.date)),
+      h('ul', null, r.items.map((i) => h('li', null, t(i))))))));
 
   const stamp = todayISO();
 
   root.replaceChildren(
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'תצוגה'),
-      toggle('שורת "מעשן?"', st.showSmoking, (v) => updateSettings({ showSmoking: v })),
-      h('div', { class: 'setting' }, h('label', null, 'ערכת צבעים'), theme),
+      h('h2', { class: 'card-title' }, t('תצוגה')),
+      toggle(t('שורת "מעשן?"'), st.showSmoking, (v) => updateSettings({ showSmoking: v })),
+      h('div', { class: 'setting' }, h('label', null, t('ערכת צבעים')), theme),
+      h('div', { class: 'setting' }, h('label', { for: 'lang-select' }, t('שפה / Language')), langSel),
     ),
 
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'סוגי פעילות שהוספת'),
+      h('h2', { class: 'card-title' }, t('סוגי פעילות שהוספת')),
       st.customSportTypes.length
-        ? h('div', { class: 'chips' }, st.customSportTypes.map((t) =>
-            confirmButton(`${t} ✕`, `למחוק את "${t}"?`,
-              () => updateSettings({ customSportTypes: st.customSportTypes.filter((x) => x !== t) }), 'chip')))
-        : h('p', { class: 'muted' }, 'אפשר להוסיף סוג חדש מחלון הספורט ("+ סוג חדש").'),
+        ? h('div', { class: 'chips' }, st.customSportTypes.map((ct) =>
+            confirmButton(`${ct} ✕`, tr`למחוק את "${ct}"?`,
+              () => updateSettings({ customSportTypes: st.customSportTypes.filter((x) => x !== ct) }), 'chip')))
+        : h('p', { class: 'muted' }, t('אפשר להוסיף סוג חדש מחלון הספורט ("+ סוג חדש").')),
     ),
 
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'תזכורות'),
-      toggle('תזכורת יומית: "עדכן את היום"', st.dailyReminder, (v) => enableReminder('dailyReminder', v), 'רק אם היום עדיין לא מולא'),
-      h('div', { class: 'setting' }, h('label', null, 'שעה'), time),
-      toggle('תזכורת ביום ראשון להזין משקל', st.weeklyWeightReminder, (v) => enableReminder('weeklyWeightReminder', v)),
+      h('h2', { class: 'card-title' }, t('תזכורות')),
+      toggle(t('תזכורת יומית: "עדכן את היום"'), st.dailyReminder, (v) => enableReminder('dailyReminder', v), t('רק אם היום עדיין לא מולא')),
+      h('div', { class: 'setting' }, h('label', null, t('שעה')), time),
+      toggle(t('תזכורת ביום ראשון להזין משקל'), st.weeklyWeightReminder, (v) => enableReminder('weeklyWeightReminder', v)),
       h('p', { class: 'hint' },
-        perm === 'unsupported' ? 'הדפדפן לא תומך בהתראות. התזכורת לשקילה תוצג בתוך האפליקציה.'
-          : perm === 'denied' ? 'התראות חסומות בהגדרות הדפדפן.'
-          : 'התראות מופעלות כשהאפליקציה פתוחה. כשהיא מותקנת (Android/Chrome) הדפדפן עשוי להעיר אותה גם ברקע — לא מובטח.'),
+        perm === 'unsupported' ? t('הדפדפן לא תומך בהתראות. התזכורת לשקילה תוצג בתוך האפליקציה.')
+          : perm === 'denied' ? t('התראות חסומות בהגדרות הדפדפן.')
+          : t('התראות מופעלות כשהאפליקציה פתוחה. כשהיא מותקנת (Android/Chrome) הדפדפן עשוי להעיר אותה גם ברקע — לא מובטח.')),
     ),
 
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'גיבוי וייבוא'),
+      h('h2', { class: 'card-title' }, t('גיבוי וייבוא')),
       h('div', { class: 'btn-grid' },
-        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-backup-${stamp}.json`, JSON.stringify(toBackup(allWeeks(), getSettings()), null, 1), 'application/json') }, 'ייצוא JSON'),
-        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-${stamp}.csv`, toCSV(allWeeks()), 'text/csv;charset=utf-8') }, 'ייצוא CSV'),
+        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-backup-${stamp}.json`, JSON.stringify(toBackup(allWeeks(), getSettings()), null, 1), 'application/json') }, t('ייצוא JSON')),
+        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-${stamp}.csv`, toCSV(allWeeks()), 'text/csv;charset=utf-8') }, t('ייצוא CSV')),
         h('button', {
           class: 'btn', onclick: () => pickFile('.json,application/json', async (f) => {
             try {
               const data = parseBackup(await f.text());
               await clearDemo();
               const body = h('div', { class: 'stack' },
-                h('p', null, `בקובץ ${data.weeks.length} שבועות${data.skipped ? ` (${data.skipped} לא תקינים דולגו)` : ''}.`),
-                h('button', { class: 'btn btn-primary', onclick: () => { const n = putWeeks(data.weeks, 'skip-existing'); close(); toast(`נוספו ${n} שבועות`); } }, 'מיזוג — הוסף רק שבועות חדשים'),
-                confirmButton('החלפת כל הנתונים', 'הקש שוב: כל הנתונים הנוכחיים יימחקו', () => { replaceAll(data.weeks, data.settings); close(); toast('הנתונים שוחזרו'); }, 'btn btn-danger'),
+                h('p', null, tr`בקובץ ${data.weeks.length} שבועות.` + (data.skipped ? ' ' + tr`${data.skipped} לא תקינים דולגו.` : '')),
+                h('button', { class: 'btn btn-primary', onclick: () => { const n = putWeeks(data.weeks, 'skip-existing'); close(); toast(tr`נוספו ${n} שבועות`); } }, t('מיזוג — הוסף רק שבועות חדשים')),
+                confirmButton(t('החלפת כל הנתונים'), t('הקש שוב: כל הנתונים הנוכחיים יימחקו'), () => { replaceAll(data.weeks, data.settings); close(); toast('הנתונים שוחזרו'); }, 'btn btn-danger'),
               );
               const close = openSheet('ייבוא גיבוי JSON', body);
             } catch (e: any) {
-              toast(e.message || 'שגיאה בקריאת הקובץ');
+              toast(e.message || t('שגיאה בקריאת הקובץ'));
             }
           }),
-        }, 'ייבוא JSON'),
+        }, t('ייבוא JSON')),
         h('button', {
           class: 'btn btn-primary', onclick: () => pickFile('.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document', async (f) => {
             try {
@@ -111,15 +125,20 @@ export function renderSettings(root: HTMLElement): void {
               await clearDemo();
               showDocxPreview(result, f.name);
             } catch (e: any) {
-              toast(e.message || 'שגיאה בקריאת הקובץ');
+              toast(e.message || t('שגיאה בקריאת הקובץ'));
             }
           }),
-        }, 'ייבוא מקובץ Word'),
+        }, t('ייבוא מקובץ Word')),
       ),
       h('p', { class: 'hint' }, IS_DEMO
-        ? 'בתצוגה המקדימה אי אפשר להוריד קבצים, לכן הייצוא כבוי. באפליקציה המותקנת הוא עובד.'
-        : 'הנתונים נשמרים רק במכשיר הזה. מומלץ לייצא גיבוי מדי פעם.'),
+        ? t('בתצוגה המקדימה אי אפשר להוריד קבצים, לכן הייצוא כבוי. באפליקציה המותקנת הוא עובד.')
+        : t('הנתונים נשמרים רק במכשיר הזה. מומלץ לייצא גיבוי מדי פעם.')),
     ),
-    h('p', { class: 'muted center' }, `משמעת אישית · ${allWeeks().length} שבועות שמורים`),
+    h('section', { class: 'card' },
+      h('div', { class: 'setting' },
+        h('label', null, tr`גרסה ${APP_VERSION}`, h('small', { class: 'hint' }, tr`${allWeeks().length} שבועות שמורים`)),
+        h('button', { class: 'btn', type: 'button', onclick: showChangelog }, t('מה חדש')),
+      ),
+    ),
   );
 }

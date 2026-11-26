@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 type Child = Node | string | number | null | undefined | false;
 type Attrs = Record<string, any>;
 
@@ -34,12 +35,12 @@ export function s(tag: string, attrs: Attrs = {}, ...children: (Node | string)[]
 }
 
 export function toast(msg: string): void {
-  const t = h('div', { class: 'toast', role: 'status' }, msg);
-  document.body.append(t);
-  setTimeout(() => t.classList.add('show'), 10);
+  const el = h('div', { class: 'toast', role: 'status' }, msg);
+  document.body.append(el);
+  setTimeout(() => el.classList.add('show'), 10);
   setTimeout(() => {
-    t.classList.remove('show');
-    setTimeout(() => t.remove(), 300);
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
   }, 2600);
 }
 
@@ -57,7 +58,7 @@ export function openSheet(title: string, body: Node, opts: { full?: boolean } = 
     { class: 'sheet' + (opts.full ? ' sheet-full' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
     h('div', { class: 'sheet-head' },
       h('h2', null, title),
-      h('button', { class: 'icon-btn', 'aria-label': 'סגור', onclick: close }, '✕'),
+      h('button', { class: 'icon-btn', 'aria-label': t('סגור'), onclick: close }, '✕'),
     ),
     h('div', { class: 'sheet-body' }, body),
   );

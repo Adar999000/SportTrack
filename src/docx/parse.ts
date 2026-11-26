@@ -93,11 +93,12 @@ function parseTable(rows: string[][], week: Week, issues: string[]) {
         day.sport = parseSportCell(raw);
       } else if (kind === 'smoking') {
         day.smoked = parseSmoke(raw);
+        if (day.smoked === null && raw) day.text = { ...day.text, smoked: raw };
       } else {
         const m = parseMark(raw);
         if (m === undefined) {
-          issues.push(`ערך לא מזוהה ב${DAY_NAMES[d]}: "${raw}"`);
           day[kind] = null;
+          day.text = { ...day.text, [kind]: raw.replace(/\s+/g, ' ') };
         } else day[kind] = m;
       }
     }

@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
+import pkg from './package.json';
 
 export default defineConfig(({ mode }) => ({
   base: './',
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   build: mode === 'artifact'
     ? { outDir: 'dist-artifact', assetsInlineLimit: 100_000_000, rollupOptions: { output: { inlineDynamicImports: true } } }
     : {},

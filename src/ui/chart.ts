@@ -1,3 +1,4 @@
+import { isRTL, t, tr } from '../i18n';
 import { daysBetween, formatShort, fromISO, MONTH_NAMES } from '../dates';
 import { quarterTrends, weightSegments, type WeightPoint } from '../stats';
 import { h, s } from './dom';
@@ -9,7 +10,7 @@ import { h, s } from './dom';
 export function weightChart(points: WeightPoint[]): HTMLElement {
   const wrap = h('div', { class: 'chart' });
   if (points.length < 2) {
-    wrap.append(h('p', { class: 'muted' }, 'צריך לפחות שתי שקילות כדי להציג גרף.'));
+    wrap.append(h('p', { class: 'muted' }, t('צריך לפחות שתי שקילות כדי להציג גרף.')));
     return wrap;
   }
   const W = 640, H = 260;
@@ -21,11 +22,11 @@ export function weightChart(points: WeightPoint[]): HTMLElement {
   const pad = Math.max(1, (hi - lo) * 0.08);
   lo = Math.floor(lo - pad); hi = Math.ceil(hi + pad);
 
-  // RTL: time flows right → left, so the newest point is on the left.
-  const x = (d: string) => m.left + iw - (daysBetween(first, d) / span) * iw;
+  // Time follows the reading direction: in Hebrew the newest point is on the left.
+  const x = (d: string) => (isRTL ? m.left + iw - (daysBetween(first, d) / span) * iw : m.left + (daysBetween(first, d) / span) * iw);
   const y = (v: number) => m.top + ih - ((v - lo) / (hi - lo)) * ih;
 
-  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'גרף משקל התחלתי שבועי', class: 'chart-svg' });
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': t('גרף משקל התחלתי שבועי'), class: 'chart-svg' });
 
   // grid + y labels
   const step = niceStep((hi - lo) / 4);
@@ -45,14 +46,14 @@ export function weightChart(points: WeightPoint[]): HTMLElement {
     const tx = x(tick);
     svg.append(s('line', { x1: tx, x2: tx, y1: m.top + ih, y2: m.top + ih + 4, class: 'axis' }));
     svg.append(s('text', { x: tx, y: H - 8, class: 'axis-label', 'text-anchor': 'middle' },
-      monthly ? `${MONTH_NAMES[mm].slice(0, 3)} ${String(yy).slice(2)}` : String(yy)));
+      monthly ? `${t(MONTH_NAMES[mm]).slice(0, 3)} ${String(yy).slice(2)}` : String(yy)));
     if (monthly) mm += 2; else yy++;
   }
   svg.append(s('line', { x1: m.left, x2: W - m.right, y1: m.top + ih, y2: m.top + ih, class: 'axis' }));
 
   // quarter trend lines
-  for (const t of quarterTrends(points)) {
-    svg.append(s('line', { x1: x(t.startDate), y1: y(t.startFit), x2: x(t.endDate), y2: y(t.endFit), class: 'trend' }));
+  for (const q of quarterTrends(points)) {
+    svg.append(s('line', { x1: x(q.startDate), y1: y(q.startFit), x2: x(q.endDate), y2: y(q.endFit), class: 'trend' }));
   }
   // weight segments (gaps stay gaps) + markers
   for (const seg of weightSegments(points)) {
@@ -79,7 +80,7 @@ export function weightChart(points: WeightPoint[]): HTMLElement {
     cross.setAttribute('x1', String(cx)); cross.setAttribute('x2', String(cx));
     focus.setAttribute('cx', String(cx)); focus.setAttribute('cy', String(cy));
     cross.setAttribute('visibility', 'visible'); focus.setAttribute('visibility', 'visible');
-    tip.textContent = `${formatShort(best.date)} · ${best.weight.toFixed(1)} ק"ג`;
+    tip.textContent = tr`${formatShort(best.date)} · ${best.weight.toFixed(1)} ק"ג`;
     tip.hidden = false;
     const left = (cx / W) * r.width;
     tip.style.left = `${Math.min(Math.max(left, 60), r.width - 60)}px`;
@@ -93,11 +94,11 @@ export function weightChart(points: WeightPoint[]): HTMLElement {
 
   wrap.append(
     h('div', { class: 'legend' },
-      h('span', { class: 'lg lg-line' }, 'משקל התחלתי'),
-      h('span', { class: 'lg lg-trend' }, 'מגמה רבעונית'),
+      h('span', { class: 'lg lg-line' }, t('משקל התחלתי')),
+      h('span', { class: 'lg lg-trend' }, t('מגמה רבעונית')),
     ),
     h('div', { class: 'chart-box' }, svg, tip),
-    h('p', { class: 'hint' }, 'שבוע בלי שקילה מופיע כרווח בקו.'),
+    h('p', { class: 'hint' }, t('שבוע בלי שקילה מופיע כרווח בקו.')),
   );
   return wrap;
 }

@@ -1,3 +1,4 @@
+import { t } from './i18n';
 /** Date helpers. All dates are local calendar dates represented as "YYYY-MM-DD". */
 
 export const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -52,7 +53,7 @@ export function formatShort(iso: string): string {
 
 /** "תאריך 22/11/26 עד 28/11/26" range part */
 export function weekRangeLabel(sunday: string): string {
-  return `${formatShort(sunday)} עד ${formatShort(addDays(sunday, 6))}`;
+  return t('{a} עד {b}', { a: formatShort(sunday), b: formatShort(addDays(sunday, 6)) });
 }
 
 export function monthKey(iso: string): string {
@@ -61,7 +62,7 @@ export function monthKey(iso: string): string {
 
 export function monthLabel(key: string): string {
   const [y, m] = key.split('-').map(Number);
-  return `${MONTH_NAMES[m - 1]} ${y}`;
+  return `${t(MONTH_NAMES[m - 1])} ${y}`;
 }
 
 export function quarterKey(iso: string): string {
@@ -71,7 +72,7 @@ export function quarterKey(iso: string): string {
 
 export function quarterLabel(key: string): string {
   const [y, q] = key.split('-Q');
-  return `רבעון ${q} ${y}`;
+  return t('רבעון {q} {y}', { q, y });
 }
 
 /** Parse "D/M/YY" or "DD/MM/YYYY" into ISO. Returns null if invalid. */

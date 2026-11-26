@@ -8,7 +8,7 @@ export const BUILTIN_SPORT_TYPES = [
  * Labels that are logged in the sport row but are NOT workouts.
  * Matches "חופשה", "חופשה ביוון", "מנוחה", "מנוחת קעקוע", "צימר בצפון".
  */
-const NON_WORKOUT_PATTERNS = [/^\s*חופש/, /^\s*מנוח/, /^\s*צימר/];
+const NON_WORKOUT_PATTERNS = [/^\s*חופש/, /^\s*מנוח/, /^\s*צימר/, /^\s*(vacation|holiday|rest)\b/i];
 
 export function isNonWorkoutLabel(label: string | undefined): boolean {
   if (!label) return false;
@@ -63,7 +63,8 @@ export function isWorkout(s: SportCell): boolean {
 export function weekHasData(w: Week): boolean {
   if (w.startWeight !== undefined || (w.note && w.note.trim()) || w.photoId) return true;
   return w.days.some(
-    (d) => d.breakfast || d.lunch || d.dinner || d.sport.status || (d.smoked !== null && d.smoked !== undefined),
+    (d) => d.breakfast || d.lunch || d.dinner || d.sport.status || (d.smoked !== null && d.smoked !== undefined) ||
+      (d.text && Object.keys(d.text).length),
   );
 }
 
@@ -71,6 +72,15 @@ export function weekHasData(w: Week): boolean {
 export function sportShort(s: SportCell): string {
   if (s.status === 'V') return s.label || 'V';
   return s.status ?? '';
+}
+
+function cellText(raw: any): { text?: Day['text'] } {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Day['text'] = {};
+  for (const k of ['breakfast', 'lunch', 'dinner', 'smoked'] as const) {
+    if (typeof raw[k] === 'string' && raw[k].trim()) out[k] = raw[k].trim();
+  }
+  return Object.keys(out).length ? { text: out } : {};
 }
 
 /** Normalizes a possibly-partial / older week object into a valid Week. */
@@ -93,6 +103,7 @@ export function normalizeWeek(raw: any): Week | null {
           status === 'V' ? (typeof s.countsAsWorkout === 'boolean' ? s.countsAsWorkout : !isNonWorkoutLabel(label)) : false,
       },
       smoked: typeof d.smoked === 'boolean' ? d.smoked : null,
+      ...cellText(d.text),
     };
   });
   const w: Week = { sundayDate: raw.sundayDate, days };

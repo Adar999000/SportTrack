@@ -11,7 +11,11 @@ import { getSyncState, onSync, resetPullCursor, scheduleSync, syncNow } from './
 import { renderAdmin, renderAdminUser } from './ui/adminView';
 import { renderAuth } from './ui/authView';
 import { renderChat } from './ui/chatView';
-import { h, openSheet } from './ui/dom';
+import { h, openSheet, toast } from './ui/dom';
+import { icon, logo } from './ui/icons';
+import { applyDocumentLang, t, tr } from './i18n';
+import { APP_VERSION } from './version';
+import { updateSettings } from './store';
 import { renderHistory } from './ui/historyView';
 import { renderProfile, renderProfileForm } from './ui/profileView';
 import { HASH, parseRoute, type Route } from './ui/router';
@@ -24,31 +28,46 @@ interface Tab { names: Route['name'][]; hash: string; label: string; icon: strin
 function tabs(): Tab[] {
   if (!hasBackend()) {
     return [
-      { names: ['week'], hash: HASH.week(), label: 'שבוע', icon: '▦' },
-      { names: ['history'], hash: HASH.history, label: 'היסטוריה', icon: '☰' },
-      { names: ['stats'], hash: HASH.stats, label: 'סטטיסטיקה', icon: '◔' },
-      { names: ['settings'], hash: HASH.settings, label: 'הגדרות', icon: '⚙' },
+      { names: ['week'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
+      { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
+      { names: ['stats'], hash: HASH.stats, label: t('סטטיסטיקה'), icon: 'stats' },
+      { names: ['settings'], hash: HASH.settings, label: t('הגדרות'), icon: 'settings' },
     ];
   }
-  const t: Tab[] = [
-    { names: ['week'], hash: HASH.week(), label: 'שבוע', icon: '▦' },
-    { names: ['history'], hash: HASH.history, label: 'היסטוריה', icon: '☰' },
-    { names: ['chat'], hash: HASH.chat, label: 'עוזר', icon: '✦' },
-    { names: ['profile', 'stats', 'settings'], hash: HASH.profile, label: 'פרופיל', icon: '◉' },
+  const list: Tab[] = [
+    { names: ['week'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
+    { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
+    { names: ['chat'], hash: HASH.chat, label: t('עוזר'), icon: 'chat' },
+    { names: ['profile', 'stats', 'settings'], hash: HASH.profile, label: t('פרופיל'), icon: 'profile' },
   ];
-  if (isAdmin()) t.push({ names: ['admin', 'adminUser'], hash: HASH.admin, label: 'ניהול', icon: '★' });
-  return t;
+  if (isAdmin()) list.push({ names: ['admin', 'adminUser'], hash: HASH.admin, label: t('ניהול'), icon: 'admin' });
+  return list;
 }
 
 const main = h('main', { id: 'main', class: 'content' });
-const nav = h('nav', { class: 'tabbar', 'aria-label': 'ניווט ראשי' });
+const nav = h('nav', { class: 'tabbar', 'aria-label': t('ניווט ראשי') });
 const syncBadge = h('span', { class: 'sync-badge', 'aria-live': 'polite' });
+
+function isDark(): boolean {
+  const th = getSettings().theme;
+  return th === 'dark' || (th === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+const themeBtn = h('button', {
+  class: 'icon-btn theme-btn', type: 'button',
+  onclick: () => updateSettings({ theme: isDark() ? 'light' : 'dark' }),
+});
+function drawThemeBtn() {
+  const dark = isDark();
+  themeBtn.replaceChildren(icon(dark ? 'sun' : 'moon', 20));
+  themeBtn.setAttribute('aria-label', dark ? t('מעבר למצב בהיר') : t('מעבר למצב כהה'));
+  themeBtn.title = themeBtn.getAttribute('aria-label')!;
+}
 let lastRoute = '';
 
 function applyTheme() {
-  const t = getSettings().theme;
-  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', t);
+  const th = getSettings().theme;
+  if (th === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', th);
 }
 
 function drawSyncBadge() {
@@ -56,15 +75,16 @@ function drawSyncBadge() {
   const { state } = getSyncState();
   const pending = dirtyCount();
   syncBadge.textContent =
-    state === 'syncing' ? 'מסתנכרן…'
-      : state === 'offline' ? `לא מחובר${pending ? ` · ${pending} ממתינים` : ''}`
-      : state === 'error' ? 'שגיאת סנכרון'
-      : pending ? `${pending} ממתינים לסנכרון` : '';
+    state === 'syncing' ? t('מסתנכרן…')
+      : state === 'offline' ? t('לא מחובר') + (pending ? ' · ' + tr`${pending} ממתינים` : '')
+      : state === 'error' ? t('שגיאת סנכרון')
+      : pending ? tr`${pending} ממתינים לסנכרון` : '';
   syncBadge.dataset.state = state;
 }
 
 function render() {
   applyTheme();
+  drawThemeBtn();
   drawSyncBadge();
   const route = parseRoute(location.hash);
 
@@ -84,12 +104,14 @@ function render() {
 
   nav.hidden = false;
   nav.replaceChildren(
-    ...tabs().map((t) =>
-      h('a', { href: t.hash, class: 'tab', 'aria-current': t.names.includes(route.name) ? 'page' : undefined },
-        h('span', { class: 'tab-icon', 'aria-hidden': 'true' }, t.icon), h('span', null, t.label)),
+    h('div', { class: 'nav-brand' }, logo(34), h('span', null, t('משמעת אישית'))),
+    ...tabs().map((tab) =>
+      h('a', { href: tab.hash, class: 'tab', 'aria-current': tab.names.includes(route.name) ? 'page' : undefined },
+        h('span', { class: 'tab-icon' }, icon(tab.icon)), h('span', null, t(tab.label))),
     ),
+    h('div', { class: 'nav-version' }, `v${APP_VERSION}`),
   );
-  nav.style.gridTemplateColumns = `repeat(${nav.children.length}, 1fr)`;
+  nav.style.setProperty('--tabs', String(tabs().length));
 
   switch (route.name) {
     case 'week': renderWeek(main, route.sunday ?? sundayOf(todayISO())); break;
@@ -134,9 +156,9 @@ async function adoptLocalData(): Promise<void> {
       resolve();
     };
     const body = h('div', { class: 'stack' },
-      h('p', null, `במכשיר שמורים ${local} שבועות מלפני ההתחברות. להוסיף אותם לחשבון שלך?`),
-      h('button', { class: 'btn btn-primary', onclick: () => done(true) }, `כן, העלה ${local} שבועות`),
-      h('button', { class: 'btn', onclick: () => done(false) }, 'לא, התחל מהנתונים שבחשבון'),
+      h('p', null, tr`במכשיר שמורים ${local} שבועות מלפני ההתחברות. להוסיף אותם לחשבון שלך?`),
+      h('button', { class: 'btn btn-primary', onclick: () => done(true) }, tr`כן, העלה ${local} שבועות`),
+      h('button', { class: 'btn', onclick: () => done(false) }, t('לא, התחל מהנתונים שבחשבון')),
     );
     const close = openSheet('נתונים במכשיר', body);
   });
@@ -149,15 +171,17 @@ async function onLogin() {
 }
 
 async function boot() {
-  document.documentElement.lang = 'he';
-  document.documentElement.dir = 'rtl';
+  applyDocumentLang();
   const app = document.getElementById('app')!;
   const demoBar = h('div', { class: 'demo-bar', hidden: true },
-    h('span', null, 'אלה נתוני דוגמה. ייבוא קובץ Word בהגדרות יחליף אותם.'),
-    h('button', { class: 'link-btn', type: 'button', onclick: () => clearDemo() }, 'נקה'),
+    h('span', null, t('אלה נתוני דוגמה. ייבוא קובץ Word בהגדרות יחליף אותם.')),
+    h('button', { class: 'link-btn', type: 'button', onclick: () => clearDemo() }, t('נקה')),
   );
   app.replaceChildren(
-    h('header', { class: 'topbar' }, h('h1', null, 'משמעת אישית'), syncBadge),
+    h('header', { class: 'topbar' },
+      h('h1', null, logo(26), h('span', null, t('משמעת אישית'))),
+      h('div', { class: 'topbar-end' }, syncBadge, themeBtn),
+    ),
     demoBar,
     main,
     nav,
@@ -171,6 +195,12 @@ async function boot() {
     subscribe(sync);
   }
   render();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawThemeBtn);
+  try {
+    const seen = localStorage.getItem('mishmaat-version');
+    if (seen && seen !== APP_VERSION) setTimeout(() => toast(t('עודכן לגרסה {v}. מה חדש: הגדרות ← גרסה', { v: APP_VERSION })), 800);
+    localStorage.setItem('mishmaat-version', APP_VERSION);
+  } catch { /* ignore */ }
   subscribe(() => {
     render();
     if (dirtyCount()) scheduleSync();

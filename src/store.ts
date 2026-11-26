@@ -34,6 +34,10 @@ export async function loadStore(): Promise<void> {
       if (n) state.weeks[n.sundayDate] = n;
     }
     state.settings = { ...DEFAULT_SETTINGS, ...(settings ?? {}) };
+    if (settings && (settings.rev ?? 0) < 2) {
+      // v1.1: the smoking row is hidden by default (it can be turned on in settings)
+      state.settings = { ...state.settings, showSmoking: false, rev: 2 };
+    }
   } catch (e) {
     // IndexedDB unavailable (e.g. some private modes) — fall back to localStorage.
     console.warn('IndexedDB unavailable, using localStorage', e);

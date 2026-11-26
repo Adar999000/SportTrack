@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { addDays, daysBetween, monthKey, quarterKey, sundayOf } from './dates';
 import { isWorkout } from './model';
 import { MEALS, type Day, type MealKey, type Week } from './types';
@@ -287,23 +288,23 @@ export function warnings(weeks: Week[], today: string): string[] {
 
   const pts = weightPoints(weeks);
   if (!pts.length) {
-    out.push('עדיין לא הוזן משקל');
+    out.push(t('עדיין לא הוזן משקל'));
   } else {
     const n = Math.floor(daysBetween(pts[pts.length - 1].date, thisSunday) / 7);
-    if (n >= 2) out.push(`אין שקילה כבר ${n} שבועות`);
+    if (n >= 2) out.push(t('אין שקילה כבר {n} שבועות', { n }));
   }
 
   const from = addDays(today, -13);
   const recent = datedDays(weeks, today).filter((d) => d.date >= from);
   const tracked = recent.filter((d) => dayHasData(d.day));
   if (tracked.length >= 7 && !recent.some((d) => isWorkout(d.day.sport))) {
-    out.push('0 אימונים ב-2 השבועות האחרונים');
+    out.push(t('0 אימונים ב-2 השבועות האחרונים'));
   }
 
   const lastData = datedDays(weeks, today).filter((d) => dayHasData(d.day)).pop();
   if (lastData) {
     const gap = daysBetween(lastData.date, today);
-    if (gap >= 3) out.push(`לא עודכנו נתונים כבר ${gap} ימים`);
+    if (gap >= 3) out.push(t('לא עודכנו נתונים כבר {n} ימים', { n: gap }));
   }
   return out;
 }

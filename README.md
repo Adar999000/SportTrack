@@ -6,6 +6,10 @@ A mobile-first, Hebrew (RTL) Progressive Web App for tracking weekly habits and 
 - **Optional accounts:** with the Google Apps Script backend in [`apps-script/`](apps-script/README.md), users sign in and their data syncs to a spreadsheet in the owner's Drive. That adds profiles with photos, a weekly photo, an admin panel across all users, and an AI assistant (OpenAI). Without the backend URL, the app runs local-only with no login.
 - Installable as a PWA (manifest + service worker), with light and dark mode.
 
+Releases are listed in [CHANGELOG.md](CHANGELOG.md). The version comes from `package.json`, is shown in Settings, and the in-app "What's new" list lives in `src/version.ts`.
+
+The UI is available in Hebrew and English. Hebrew strings are the keys; English lives in `src/i18n-en.ts`. Run `node scripts/i18n-keys.mjs --missing` to find untranslated strings; a test fails if any are missing.
+
 ## Run
 
 ```bash

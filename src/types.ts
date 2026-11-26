@@ -15,7 +15,11 @@ export interface Day {
   dinner: Mark | null;
   sport: SportCell;
   smoked?: boolean | null;
+  /** Free text written in a cell instead of a mark, e.g. "חופשה". */
+  text?: Partial<Record<TextCellKey, string>>;
 }
+
+export type TextCellKey = 'breakfast' | 'lunch' | 'dinner' | 'smoked';
 
 export interface Week {
   /** ISO date (YYYY-MM-DD) of the week's Sunday. Identifies the week. */
@@ -34,6 +38,7 @@ export type MealKey = 'breakfast' | 'lunch' | 'dinner';
 export const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner'];
 
 export type Theme = 'auto' | 'light' | 'dark';
+export type Lang = 'he' | 'en';
 
 export interface Settings {
   showSmoking: boolean;
@@ -44,13 +49,16 @@ export interface Settings {
   /** "HH:MM" local time. */
   reminderTime: string;
   weeklyWeightReminder: boolean;
+  /** Settings schema revision, for one-time migrations. */
+  rev?: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  showSmoking: true,
+  showSmoking: false,
   theme: 'auto',
   customSportTypes: [],
   dailyReminder: false,
   reminderTime: '21:00',
   weeklyWeightReminder: true,
+  rev: 2,
 };

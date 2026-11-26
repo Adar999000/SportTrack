@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n';
 import { formatShort, monthLabel, quarterLabel, todayISO } from '../dates';
 import {
   lunchStreak, monthlyStats, quarterTrends, warnings, weightPoints, weightSummary, workoutWeekStreak, countWorkouts,
@@ -16,7 +17,7 @@ function tile(label: string, value: string, sub?: string) {
 /** Stats sections for a list of weeks (the current user's by default). */
 export function statsSections(weeks: Week[] = allWeeks()): (Node | string)[] {
   const today = todayISO();
-  if (!weeks.length) return [h('section', { class: 'card' }, h('p', { class: 'muted' }, 'אין עדיין נתונים להצגה.'))];
+  if (!weeks.length) return [h('section', { class: 'card' }, h('p', { class: 'muted' }, t('אין עדיין נתונים להצגה.')))];
   const pts = weightPoints(weeks);
   const ws = weightSummary(pts);
   const warn = warnings(weeks, today);
@@ -28,38 +29,38 @@ export function statsSections(weeks: Week[] = allWeeks()): (Node | string)[] {
 
   return [
     warn.length
-      ? h('section', { class: 'card warnings', 'aria-label': 'התראות' }, h('ul', null, warn.map((w) => h('li', null, w))))
+      ? h('section', { class: 'card warnings', 'aria-label': t('התראות') }, h('ul', null, warn.map((w) => h('li', null, w))))
       : '',
 
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'משקל'),
+      h('h2', { class: 'card-title' }, t('משקל')),
       ws
         ? h('div', { class: 'tiles' },
-            tile('נוכחי', fmtKg(ws.current.weight), formatShort(ws.current.date)),
-            tile('שינוי כולל', signed(ws.change), `מאז ${formatShort(ws.first.date)}`),
-            tile('מינימום', fmtKg(ws.min.weight), formatShort(ws.min.date)),
-            tile('מקסימום', fmtKg(ws.max.weight), formatShort(ws.max.date)),
+            tile(t('נוכחי'), fmtKg(ws.current.weight), formatShort(ws.current.date)),
+            tile(t('שינוי כולל'), signed(ws.change), tr`מאז ${formatShort(ws.first.date)}`),
+            tile(t('מינימום'), fmtKg(ws.min.weight), formatShort(ws.min.date)),
+            tile(t('מקסימום'), fmtKg(ws.max.weight), formatShort(ws.max.date)),
           )
-        : h('p', { class: 'muted' }, 'אין שקילות.'),
+        : h('p', { class: 'muted' }, t('אין שקילות.')),
       weightChart(pts),
     ),
 
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'רצפים'),
+      h('h2', { class: 'card-title' }, t('רצפים')),
       h('div', { class: 'tiles' },
-        tile('ימים רצופים עם צהריים V', String(lunch.current), `שיא: ${lunch.best}`),
-        tile('שבועות רצופים עם 3+ אימונים', String(wk.current), `שיא: ${wk.best}`),
-        tile('סה"כ אימונים', String(countWorkouts(weeks)), `${weeks.length} שבועות`),
+        tile(t('ימים רצופים עם צהריים V'), String(lunch.current), tr`שיא: ${lunch.best}`),
+        tile(t('שבועות רצופים עם 3+ אימונים'), String(wk.current), tr`שיא: ${wk.best}`),
+        tile(t('סה"כ אימונים'), String(countWorkouts(weeks)), tr`${weeks.length} שבועות`),
       ),
     ),
 
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'לפי חודש'),
+      h('h2', { class: 'card-title' }, t('לפי חודש')),
       h('div', { class: 'table-scroll' },
         h('table', { class: 'data-table' },
           h('thead', null, h('tr', null,
-            ['חודש', 'משקל ממוצע', 'אימונים לשבוע', 'ימי ספורט', 'בוקר V%', 'צהריים V%', 'ערב V%', showSmoke && 'עישון כן%']
-              .filter(Boolean).map((t) => h('th', { scope: 'col' }, t as string)),
+            [t('חודש'), t('משקל ממוצע'), t('אימונים לשבוע'), t('ימי ספורט'), t('בוקר V%'), t('צהריים V%'), t('ערב V%'), showSmoke && t('עישון כן%')]
+              .filter(Boolean).map((c) => h('th', { scope: 'col' }, c as string)),
           )),
           h('tbody', null, months.map((mo) => h('tr', null,
             h('th', { scope: 'row' }, monthLabel(mo.key)),
@@ -73,15 +74,15 @@ export function statsSections(weeks: Week[] = allWeeks()): (Node | string)[] {
           ))),
         ),
       ),
-      h('p', { class: 'hint' }, 'אחוז V מחושב רק מתוך תאים שסומנו V או X. אימונים לא כוללים חופשה ומנוחה.'),
+      h('p', { class: 'hint' }, t('אחוז V מחושב רק מתוך תאים שסומנו V או X. אימונים לא כוללים חופשה ומנוחה.')),
     ),
 
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, 'שלבים (מגמה לפי רבעון)'),
+      h('h2', { class: 'card-title' }, t('שלבים (מגמה לפי רבעון)')),
       quarters.length
         ? h('div', { class: 'table-scroll' },
             h('table', { class: 'data-table' },
-              h('thead', null, h('tr', null, ['רבעון', 'שקילות', 'שינוי במגמה', 'ק"ג לשבוע'].map((t) => h('th', { scope: 'col' }, t)))),
+              h('thead', null, h('tr', null, [t('רבעון'), t('שקילות'), t('שינוי במגמה'), t('ק"ג לשבוע')].map((c) => h('th', { scope: 'col' }, c)))),
               h('tbody', null, quarters.map((q) => h('tr', null,
                 h('th', { scope: 'row' }, quarterLabel(q.key)),
                 h('td', null, q.n),
@@ -90,7 +91,7 @@ export function statsSections(weeks: Week[] = allWeeks()): (Node | string)[] {
               ))),
             ),
           )
-        : h('p', { class: 'muted' }, 'צריך לפחות שתי שקילות ברבעון.'),
+        : h('p', { class: 'muted' }, t('צריך לפחות שתי שקילות ברבעון.')),
     ),
   ];
 }
