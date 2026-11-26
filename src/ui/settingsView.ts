@@ -12,6 +12,7 @@ import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION, CHANGELOG } from '../version';
 import { showDocxPreview } from './importPreview';
 import { installButton } from './installButton';
+import { resetTours } from './tour';
 import { IS_DEMO } from '../env';
 import { clearDemo } from '../demo';
 
@@ -161,6 +162,11 @@ export function renderSettings(root: HTMLElement): void {
         h('label', null, tr`גרסה ${APP_VERSION}`, h('small', { class: 'hint' }, tr`${allWeeks().length} שבועות שמורים`)),
         h('button', { class: 'btn', type: 'button', onclick: showChangelog }, t('מה חדש')),
       ),
+      h('div', { class: 'setting' },
+        h('label', null, t('מדריכי היכרות')),
+        h('button', { class: 'btn', type: 'button', onclick: () => { resetTours(); toast(t('המדריכים יוצגו שוב בכל מסך')); location.hash = '#week'; } }, t('הצג שוב')),
+      ),
+      h('p', { class: 'credit' }, t('פותח על ידי'), ' ', h('strong', null, 'AZ Creative')),
     ),
   );
 }

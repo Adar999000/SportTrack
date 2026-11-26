@@ -4,7 +4,21 @@
 import { createServer } from 'node:http';
 import { createBackend } from '../tests/gas/mock.mjs';
 
-const be = createBackend({ openaiReply: 'זו תשובה מהשרת המדומה. בשרת האמיתי כאן תופיע תשובת OpenAI.' });
+// Simulated OpenAI: "תסמן" asks for an action; "פנייה" contacts the admin; anything else gets a canned reply.
+const today = () => new Date().toISOString().slice(0, 10);
+const be = createBackend({
+  openaiReply: (p) => {
+    const last = [...p.messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+    if (p.tools && /תסמן|mark/i.test(last)) {
+      return { content: '', tool_calls: [{ id: 't1', type: 'function', function: { name: 'mark_meal', arguments: JSON.stringify({ date: today(), meal: 'lunch', mark: 'V' }) } }] };
+    }
+    if (p.tools && /פנייה למנהל|admin/i.test(last)) {
+      return { content: '', tool_calls: [{ id: 't2', type: 'function', function: { name: 'contact_admin', arguments: JSON.stringify({ subject: 'מהעוזר', message: last }) } }] };
+    }
+    if (p.messages.some((m) => m.role === 'tool')) return { content: 'בוצע.' };
+    return { content: 'זו תשובה מהשרת המדומה. בשרת האמיתי כאן תופיע תשובת OpenAI.' };
+  },
+});
 be.properties.set('OPENAI_API_KEY', 'sk-mock');
 const port = Number(process.argv[2]) || 8787;
 createServer((req, res) => {

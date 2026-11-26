@@ -26,6 +26,8 @@ import { renderRewards } from './ui/rewardsView';
 import { renderShare } from './ui/shareView';
 import { renderLanding } from './ui/landingView';
 import { initInstall } from './install';
+import { mountFloatingChat } from './ui/floatingChat';
+import { maybeStartTour } from './ui/tour';
 import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
@@ -42,8 +44,8 @@ function tabs(): Tab[] {
   const list: Tab[] = [
     { names: ['week'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
     { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
-    { names: ['chat'], hash: HASH.chat, label: t('עוזר'), icon: 'chat' },
-    { names: ['profile', 'stats', 'settings', 'rewards', 'share'], hash: HASH.profile, label: t('פרופיל'), icon: 'profile' },
+    { names: ['rewards', 'share'], hash: HASH.rewards, label: t('מטבעות'), icon: 'coin' },
+    { names: ['profile', 'stats', 'settings', 'chat'], hash: HASH.profile, label: t('פרופיל'), icon: 'profile' },
   ];
   if (isAdmin()) list.push({ names: ['admin', 'adminUser'], hash: HASH.admin, label: t('ניהול'), icon: 'admin' });
   return list;
@@ -76,6 +78,7 @@ function drawThemeBtn() {
   themeBtn.title = themeBtn.getAttribute('aria-label')!;
 }
 let lastRoute = '';
+let floating: { refresh: () => void } | null = null;
 
 function applyTheme() {
   const { theme: th, accent } = getSettings();
@@ -103,6 +106,7 @@ function drawSyncBadge() {
 }
 
 function render() {
+  queueMicrotask(() => { floating?.refresh(); maybeStartTour(); });
   applyTheme();
   drawThemeBtn();
   drawSyncBadge();
@@ -222,6 +226,7 @@ async function boot() {
   );
   await loadStore();
   await loadSession();
+  floating = mountFloatingChat();
   if (IS_DEMO) {
     await seedDemoIfEmpty();
     const sync = () => (demoBar.hidden = !isDemoActive());

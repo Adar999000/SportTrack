@@ -9,6 +9,7 @@ import { avatar } from './avatar';
 import { confirmButton, fmtKg, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { statsSections } from './statsView';
+import { aiBadge } from './icons';
 import { getRewards, levelLabel } from '../rewards';
 
 function age(birth?: string): number | null {
@@ -171,7 +172,7 @@ export function renderProfile(root: HTMLElement): void {
     })(),
     ...statsSections(weeks, { days: getRewards()?.frozenDays, weeks: getRewards()?.frozenWeeks }),
     h('section', { class: 'card stack' },
-      h('button', { class: 'btn', onclick: () => navigate(HASH.chat) }, t('שאל את העוזר על הנתונים שלך')),
+      h('button', { class: 'btn ai-btn', onclick: () => navigate(HASH.chat) }, aiBadge(), ' ', t('שאל את העוזר על הנתונים שלך')),
       isAdmin() && h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.admin) }, t('לוח מנהל')),
       h('button', { class: 'btn', onclick: () => navigate(HASH.settings) }, t('הגדרות, ייבוא וייצוא')),
       h('button', { class: 'btn', onclick: changePasswordSheet }, t('שינוי סיסמה')),

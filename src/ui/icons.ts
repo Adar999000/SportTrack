@@ -10,6 +10,7 @@ const P: Record<string, string> = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z"/>',
   camera: '<path d="M4 8.5h3l1.8-2.5h6.4L17 8.5h3a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  coin: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.5 9.5c0-1 1.1-1.6 2.5-1.6s2.5.7 2.5 1.7c0 2.4-5 1.4-5 3.8 0 1 1.1 1.7 2.5 1.7s2.5-.6 2.5-1.6"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/>',
 };
@@ -26,3 +27,21 @@ export function logo(size = 32): SVGSVGElement {
   wrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}" aria-hidden="true" focusable="false"><rect width="512" height="512" rx="112" fill="var(--brand, #2f6f5e)"/><g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="14"><rect x="96" y="112" width="320" height="288" rx="28"/><path d="M96 192h320M202 112v288M310 112v288"/></g><path d="M168 300l62 58 128-150" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return wrap.firstElementChild as SVGSVGElement;
 }
+
+/** The mark used on everything AI-related: sparkles + "AI". */
+export function aiMark(size = 16): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'ai-mark';
+  el.setAttribute('aria-hidden', 'true');
+  el.append(icon('chat', size));
+  return el;
+}
+
+/** A small "AI" pill for buttons and titles. */
+export function aiBadge(): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'ai-badge';
+  el.append(icon('chat', 12), document.createTextNode('AI'));
+  return el;
+}
+

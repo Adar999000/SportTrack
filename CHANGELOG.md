@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0 (2026-11-26)
+- Floating AI assistant on every signed-in screen (replaces the Assistant tab; the tab is now "Coins"). It can perform actions through OpenAI tool calls: mark a meal, log sport, set the weekly weight, write a note or cell text, open a page, contact the admin. The server validates calls (last 60 days, sane values); data changes are applied on the device with an undo, and admin views of other users get no write tools.
+- Messages to the admin: users write from the assistant panel (or ask the assistant). Admins get an email and an inbox in the admin panel; replies reach the user in the app and by email. Unread badge on the floating button.
+- AI mark (sparkles / "AI" pill) on every AI feature.
+- Onboarding: a three-slide welcome for new users, then a guided tour the first time each screen is opened (Settings → Intro guides → Show again).
+- Landing page redesign: brand hero with a phone mock-up (table, coins, AI chat), coins/levels band, FAQ, mobile sticky sign-up bar, "Developed by AZ Creative" (also in Settings).
+- Needs the updated `apps-script/Code.gs` (new `Messages` tab).
+
 ## 2.4.0 (2026-11-26)
 - Open sign-up: no invite code needed. A code is optional; joining with one gives the new user 50 coins and the inviter 50 (+50 after the friend's first full week, paid for up to 5 friends).
 - Each user has one permanent personal invite code that works for any number of sign-ups (admin-panel codes stay single-use).

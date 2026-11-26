@@ -46,6 +46,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
     Weeks: new Sheet('Weeks', ['userId', 'sundayDate', 'startWeight', 'workouts', 'mealsPct', 'photoId', 'updatedAt', 'data']),
     Invites: new Sheet('Invites', ['code', 'createdAt', 'usedBy', 'usedAt', 'createdBy', 'multi'], 200),
     Ledger: new Sheet('Ledger', ['userId', 'at', 'amount', 'ref', 'label']),
+    Messages: new Sheet('Messages', ['id', 'userId', 'at', 'from', 'subject', 'text', 'status']),
   };
   const files = new Map();
   const properties = new Map();
@@ -98,7 +99,10 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
         fetches.push({ url, opts });
         return {
           getResponseCode: () => 200,
-          getContentText: () => JSON.stringify({ choices: [{ message: { content: openaiReply } }] }),
+          getContentText: () => {
+            const msg = typeof openaiReply === 'function' ? openaiReply(JSON.parse(opts.payload)) : { content: openaiReply };
+            return JSON.stringify({ choices: [{ message: msg }] });
+          },
         };
       },
     },

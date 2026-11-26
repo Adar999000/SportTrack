@@ -98,7 +98,7 @@ function shopCard(r: Rewards): HTMLElement {
       item(t('הקפאת שבוע'), t('שבוע חלש לא ישבור את רצף האימונים'), r.costs.freezeWeek,
         h('button', { class: 'btn', type: 'button', disabled: r.balance < r.costs.freezeWeek, onclick: () =>
           pickDateSheet(t('איזה שבוע להקפיא?'), weeks.map((s) => ({ value: s, label: tr`שבוע ${formatShort(s)}` })), (s) => spend('freezeWeek', { date: s })) }, t('בחר שבוע'))),
-      item(t('10 הודעות לבוט'), tr`מעבר למגבלה היומית · יש לך ${r.chatCredits}`, r.costs.chat10,
+      item(t('10 הודעות לבוט') + ' ✦AI', tr`מעבר למגבלה היומית · יש לך ${r.chatCredits}`, r.costs.chat10,
         confirmButton(t('קנה'), t('הקש שוב לאישור'), () => buy(() => spend('chat10')), 'btn')),
       ...ACCENTS.filter((a) => a.premium).map((a) => {
         const owned = r.unlockedColors.includes(a.id);

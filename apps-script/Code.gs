@@ -61,6 +61,12 @@ function route(req) {
     case 'spend': return spend(me, req);
     case 'leaderboard': return { leaders: leaderboard(String(req.period || 'week')) };
     case 'myInvite': return myInvite(me);
+    case 'contactAdmin': return { message: createMessage(me, String(req.subject || ''), String(req.text || '')) };
+    case 'myMessages': return myMessages(me);
+    case 'unreadCount': return { unread: messageRows().filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length };
+    case 'adminInbox': requireAdmin(me); return { threads: adminInbox() };
+    case 'adminThread': requireAdmin(me); return { messages: adminThread(String(req.userId || '')) };
+    case 'adminReply': requireAdmin(me); return { message: adminReply(me, String(req.userId || ''), String(req.text || '')) };
     // admin
     case 'listUsers': requireAdmin(me); return { users: listUsers() };
     case 'userSummary': requireAdmin(me); return { summary: userSummary(String(req.userId || '')) };
@@ -866,6 +872,101 @@ function leaderboard(period) {
   return list.slice().sort((a, b) => b[k] - a[k]);
 }
 
+// ------------------------------------------------------------------ messages to the admin (support)
+
+const M = { id: 0, user: 1, at: 2, from: 3, subject: 4, text: 5, status: 6 };
+
+function messagesSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sh = ss.getSheetByName('Messages');
+  if (!sh) {
+    sh = ss.insertSheet('Messages');
+    sh.getRange(1, 1, 1, 7).setValues([['id', 'userId', 'at', 'from', 'subject', 'text', 'status']]);
+  }
+  return sh;
+}
+
+function messageRows() {
+  const sh = messagesSheet();
+  const n = sh.getLastRow();
+  return n < 2 ? [] : sh.getRange(2, 1, n - 1, 7).getValues().map((r) => r.map(cell));
+}
+
+function msgOut(r) {
+  return { id: r[M.id], at: r[M.at], from: r[M.from], subject: r[M.subject], text: r[M.text], status: r[M.status] };
+}
+
+function safeMail(to, subject, body) {
+  try { MailApp.sendEmail({ to: to, subject: subject, body: body, name: 'משמעת אישית' }); } catch (e) { /* quota or permission: the message is still saved */ }
+}
+
+/** A user's question or request to the admin. The admin gets an email. */
+function createMessage(me, subject, text) {
+  subject = subject.trim().slice(0, 120);
+  text = text.trim().slice(0, 2000);
+  if (!text) throw new Error('נא לכתוב את הפנייה');
+  const cache = CacheService.getScriptCache();
+  const ck = 'msg-' + me.r[U.id] + '-' + new Date().toISOString().slice(0, 10);
+  const n = Number(cache.get(ck)) || 0;
+  if (n >= 10) throw new Error('אפשר לשלוח עד 10 פניות ביום');
+  cache.put(ck, String(n + 1), 6 * 3600);
+  const row = [Utilities.getUuid().slice(0, 8), me.r[U.id], new Date().toISOString(), 'user', subject || 'פנייה', text, 'new'];
+  appendRows(messagesSheet(), [row]);
+  rows('Users').filter((r) => r[U.role] === 'admin').forEach((a) => {
+    safeMail(a[U.email], 'פנייה חדשה במשמעת אישית: ' + (subject || 'פנייה'),
+      'מאת: ' + me.r[U.name] + ' (' + me.r[U.email] + ')\n\n' + text + '\n\nאפשר לענות בלוח המנהל באפליקציה.');
+  });
+  return msgOut(row);
+}
+
+function myMessages(me) {
+  const sh = messagesSheet();
+  const all = messageRows();
+  const mine = [];
+  all.forEach((r, i) => {
+    if (r[M.user] !== me.r[U.id]) return;
+    if (r[M.from] === 'admin' && r[M.status] === 'unread') sh.getRange(i + 2, M.status + 1).setValue('read');
+    mine.push(msgOut(r));
+  });
+  const unread = all.filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length;
+  return { messages: mine, unread: unread };
+}
+
+function adminInbox() {
+  const users = {};
+  rows('Users').forEach((r) => { users[r[U.id]] = r; });
+  const threads = {};
+  messageRows().forEach((r) => {
+    const t = threads[r[M.user]] = threads[r[M.user]] || { userId: r[M.user], name: users[r[M.user]] ? users[r[M.user]][U.name] : '?', photoId: users[r[M.user]] ? users[r[M.user]][U.photo] || null : null, last: null, unread: 0, count: 0 };
+    t.count++;
+    t.last = msgOut(r);
+    if (r[M.from] === 'user' && r[M.status] === 'new') t.unread++;
+  });
+  return Object.keys(threads).map((k) => threads[k]).sort((a, b) => String(b.last.at).localeCompare(String(a.last.at)));
+}
+
+function adminThread(userId) {
+  const sh = messagesSheet();
+  const out = [];
+  messageRows().forEach((r, i) => {
+    if (r[M.user] !== userId) return;
+    if (r[M.from] === 'user' && r[M.status] === 'new') sh.getRange(i + 2, M.status + 1).setValue('read');
+    out.push(msgOut(r));
+  });
+  return out;
+}
+
+function adminReply(me, userId, text) {
+  text = text.trim().slice(0, 2000);
+  if (!text) throw new Error('נא לכתוב תשובה');
+  const u = findUser((r) => r[U.id] === userId);
+  if (!u) throw new Error('המשתמש לא נמצא');
+  const row = [Utilities.getUuid().slice(0, 8), userId, new Date().toISOString(), 'admin', '', text, 'unread'];
+  appendRows(messagesSheet(), [row]);
+  safeMail(u.r[U.email], 'קיבלת תשובה במשמעת אישית', 'שלום ' + u.r[U.name] + ',\n\nהמנהל ענה לפנייה שלך:\n\n' + text + '\n\nאפשר להמשיך את השיחה בעוזר שבאפליקציה.');
+  return msgOut(row);
+}
+
 // ------------------------------------------------------------------ AI chat
 
 const APP_GUIDE = [
@@ -985,25 +1086,81 @@ function chat(me, req) {
     role: m.role === 'assistant' ? 'assistant' : 'user',
     content: String(m.content || '').slice(0, 800),
   }));
+  // Actions only on the user's own data (never in the admin's views of others).
+  const ownScope = !(isAdmin && (req.scope === 'all' || (req.userId && req.userId !== me.r[U.id])));
+  const tools = ownScope ? CHAT_TOOLS : CHAT_TOOLS.filter((t) => t.function.name === 'open_page');
+  const msgs = [{ role: 'system', content: system + '\n\n' + TOOLS_GUIDE }].concat(history);
+  let msg = openai(key, msgs, tools);
+  const actions = [];
+  if (msg.tool_calls && msg.tool_calls.length) {
+    const results = msg.tool_calls.slice(0, 8).map((tc) => {
+      let args = {};
+      try { args = JSON.parse(tc.function.arguments || '{}'); } catch (e) { /* ignore bad arguments */ }
+      return { role: 'tool', tool_call_id: tc.id, content: runTool(me, tc.function.name, args, actions) };
+    });
+    msg = openai(key, msgs.concat([{ role: 'assistant', content: msg.content || '', tool_calls: msg.tool_calls.slice(0, 8) }]).concat(results), null);
+  }
+  if (useCredit) setExtra(me, { chatCredits: (Number(extraOf(me.r).chatCredits) || 0) - 1 });
+  cache.put(ck, String(used + 1), 6 * 3600);
+  cache.put(gk, String(usedAll + 1), 6 * 3600);
+  return { reply: msg.content || '', actions: actions };
+}
+
+function openai(key, messages, tools) {
+  const payload = {
+    model: props().getProperty('OPENAI_MODEL') || DEFAULT_MODEL,
+    messages: messages,
+    max_tokens: Number(props().getProperty('CHAT_MAX_REPLY_TOKENS')) || 350,
+  };
+  if (tools && tools.length) payload.tools = tools;
   const res = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
     method: 'post',
     contentType: 'application/json',
     headers: { Authorization: 'Bearer ' + key },
     muteHttpExceptions: true,
-    payload: JSON.stringify({
-      model: props().getProperty('OPENAI_MODEL') || DEFAULT_MODEL,
-      messages: [{ role: 'system', content: system }].concat(history),
-      max_tokens: Number(props().getProperty('CHAT_MAX_REPLY_TOKENS')) || 350,
-    }),
+    payload: JSON.stringify(payload),
   });
   const body = parseJSON(res.getContentText(), {});
   if (res.getResponseCode() !== 200) {
     throw new Error('שגיאה מ-OpenAI: ' + ((body.error && body.error.message) || res.getResponseCode()));
   }
-  if (useCredit) setExtra(me, { chatCredits: (Number(extraOf(me.r).chatCredits) || 0) - 1 });
-  cache.put(ck, String(used + 1), 6 * 3600);
-  cache.put(gk, String(usedAll + 1), 6 * 3600);
-  return { reply: body.choices[0].message.content };
+  return body.choices[0].message;
+}
+
+const DATE_PARAM = { type: 'string', description: 'תאריך בפורמט YYYY-MM-DD' };
+const CHAT_TOOLS = [
+  { type: 'function', function: { name: 'mark_meal', description: 'סימון ארוחה בטבלה', parameters: { type: 'object', properties: { date: DATE_PARAM, meal: { type: 'string', enum: ['breakfast', 'lunch', 'dinner'] }, mark: { type: 'string', enum: ['V', 'X', '-', 'clear'] } }, required: ['date', 'meal', 'mark'] } } },
+  { type: 'function', function: { name: 'log_sport', description: 'רישום פעילות ספורט ביום (status V עם label, או X / - / clear)', parameters: { type: 'object', properties: { date: DATE_PARAM, status: { type: 'string', enum: ['V', 'X', '-', 'clear'] }, label: { type: 'string', description: 'למשל "ריצה 5 ק\"מ"' } }, required: ['date', 'status'] } } },
+  { type: 'function', function: { name: 'set_weight', description: 'משקל התחלתי לשבוע שבו נמצא התאריך', parameters: { type: 'object', properties: { date: DATE_PARAM, kg: { type: 'number' } }, required: ['date', 'kg'] } } },
+  { type: 'function', function: { name: 'set_note', description: 'הערה לשבוע שבו נמצא התאריך', parameters: { type: 'object', properties: { date: DATE_PARAM, text: { type: 'string' } }, required: ['date', 'text'] } } },
+  { type: 'function', function: { name: 'cell_text', description: 'כתיבת טקסט חופשי בתא (למשל "חופשה")', parameters: { type: 'object', properties: { date: DATE_PARAM, row: { type: 'string', enum: ['breakfast', 'lunch', 'dinner'] }, text: { type: 'string' } }, required: ['date', 'row', 'text'] } } },
+  { type: 'function', function: { name: 'open_page', description: 'פתיחת מסך באפליקציה', parameters: { type: 'object', properties: { page: { type: 'string', enum: ['week', 'history', 'rewards', 'share', 'profile', 'settings'] } }, required: ['page'] } } },
+  { type: 'function', function: { name: 'contact_admin', description: 'שליחת פנייה או שאלה טכנית למנהל האפליקציה, רק כשהמשתמש מבקש', parameters: { type: 'object', properties: { subject: { type: 'string' }, message: { type: 'string' } }, required: ['message'] } } },
+];
+const TOOLS_GUIDE = [
+  'אפשר לבצע פעולות בשביל המשתמש בעזרת הכלים, רק כשהוא מבקש במפורש. "היום" ו"אתמול" לפי התאריך שקיבלת.',
+  'אחרי פעולה, אשר במשפט קצר מה בוצע. אם חסר פרט (איזה יום, איזו ארוחה), שאל לפני שמבצעים.',
+  'פנייה למנהל: רק כשהמשתמש מבקש לפנות למנהל או מדווח על תקלה. נסח את הפנייה בשמו בקצרה.',
+].join('\n');
+
+/** Validates a tool call; data changes are returned to the app (local-first) and applied there. */
+function runTool(me, name, a, actions) {
+  const dateOk = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) && String(d) <= todayStr() && String(d) >= addDaysStr(todayStr(), -60);
+  if (name === 'contact_admin') {
+    createMessage(me, String(a.subject || ''), String(a.message || ''));
+    return 'הפנייה נשלחה למנהל.';
+  }
+  if (name === 'open_page') {
+    actions.push({ type: 'open_page', page: String(a.page) });
+    return 'המסך ייפתח.';
+  }
+  if (!dateOk(a.date)) return 'שגיאה: אפשר לשנות רק תאריכים מ-60 הימים האחרונים ועד היום.';
+  if (name === 'set_weight' && !(Number(a.kg) > 20 && Number(a.kg) < 400)) return 'שגיאה: משקל לא סביר.';
+  if (['mark_meal', 'log_sport', 'set_weight', 'set_note', 'cell_text'].indexOf(name) < 0) return 'שגיאה: כלי לא מוכר.';
+  const action = { type: name };
+  ['date', 'meal', 'mark', 'status', 'label', 'kg', 'text', 'row'].forEach((k) => { if (a[k] !== undefined) action[k] = typeof a[k] === 'string' ? a[k].slice(0, 80) : a[k]; });
+  actions.push(action);
+  return 'בוצע.';
 }
 
 /** Run once from the editor to grant permissions (Spreadsheet, Drive, external requests). */
