@@ -13,6 +13,7 @@ import { APP_VERSION, CHANGELOG } from '../version';
 import { showDocxPreview } from './importPreview';
 import { installButton } from './installButton';
 import { MASCOTS, mascot, ownsMascot } from './mascot';
+import { openStoreAt } from './rewardsView';
 import { a11yButtonVisible, setA11yButtonVisible } from './a11yWidget';
 import { resetTours } from './tour';
 import { IS_DEMO } from '../env';
@@ -129,19 +130,15 @@ export function renderSettings(root: HTMLElement): void {
       h('div', { class: 'setting setting-col' },
         h('span', { id: 'mascot-label' }, t('דמות העוזר')),
         h('div', { class: 'mascot-pick', role: 'radiogroup', 'aria-labelledby': 'mascot-label' },
-          MASCOTS.filter((m) => m.free || hasBackend()).map((m) => {
-            const locked = !ownsMascot(m.id);
-            const label = locked ? tr`${t(m.name)} (נפתח במטבעות)` : t(m.name);
-            return h('button', {
-              class: 'mascot-opt' + (locked ? ' locked' : ''), type: 'button', role: 'radio', title: label, 'aria-label': label,
-              'aria-checked': String((st.mascot ?? 'lion') === m.id),
-              onclick: () => {
-                if (locked) { toast(t('את הדמות הזאת פותחים במטבעות בחנות')); navigate(HASH.rewards); return; }
-                updateSettings({ mascot: m.id });
-              },
-            }, mascot(44, '', m.id, {}));
-          })),
-        hasBackend() && h('small', { class: 'hint' }, t('דמויות נוספות, הילות ותגים לעוזר בחנות המטבעות.')),
+          // only the characters you own; the rest are in the store with a picture and a price
+          ...MASCOTS.filter((m) => ownsMascot(m.id)).map((m) => h('button', {
+            class: 'mascot-opt', type: 'button', role: 'radio', title: t(m.name), 'aria-label': t(m.name),
+            'aria-checked': String((st.mascot ?? 'lion') === m.id),
+            onclick: () => updateSettings({ mascot: m.id }),
+          }, mascot(44, '', m.id, {}))),
+          hasBackend() && h('button', { class: 'mascot-opt mascot-more', type: 'button', 'aria-label': tr`עוד ${MASCOTS.filter((m) => !ownsMascot(m.id)).length} דמויות בחנות`,
+            onclick: () => { openStoreAt('mascot'); navigate(HASH.rewards); } }, h('b', null, '+' + MASCOTS.filter((m) => !ownsMascot(m.id)).length), h('small', null, t('בחנות')))),
+        hasBackend() && h('small', { class: 'hint' }, t('עוד דמויות, הילות ותגים לעוזר בחנות המטבעות.')),
       ),
       h('div', { class: 'setting' }, h('label', { for: 'lang-select' }, t('שפה / Language')), langSel),
       installButton('btn install-setting'),

@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '5.4.1',
+    date: '2026-11-26',
+    items: ['בהגדרות מוצגות רק הדמויות שלך, והשאר בחנות עם תמונה ומחיר'],
+  },
+  {
     version: '5.4.0',
     date: '2026-11-26',
     items: [

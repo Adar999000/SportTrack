@@ -1581,3 +1581,7 @@ body.scrolled .topbar { box-shadow: 0 1px 0 var(--line); }
 .card-title { font-size: 1.1rem; }
 .week-title h2 { font-size: 1.15rem; }
 .greet { letter-spacing: .02em; }
+.mascot-more { flex-direction: column; gap: 0; border-style: dashed; color: var(--text); }
+.mascot-more b { font-size: 1.1rem; font-weight: 900; line-height: 1; }
+.mascot-more small { font-size: 0.68rem; color: var(--muted); }
+.mascot-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 8px; }

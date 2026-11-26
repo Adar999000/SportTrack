@@ -1497,4 +1497,8 @@ export const EN: Record<string, string> = {
   "גרירת המסך עוברת בין היום, התקדמות ואני, והעמוד זז עם האצבע": "Drag the page to move between Today, Progress and Me; it follows your finger",
   "כפתור הבוט נגרר לכל מקום במסך, ולכפתור הנגישות יש X להסתרה": "Drag the bot button anywhere on screen, and the accessibility button has an X to hide it",
   "אייקונים אמיתיים של הרשתות בהזמנת חברים, בצבעי האפליקציה": "Real network icons in Invite friends, in the app's colours",
+  "עוד {0} דמויות בחנות": "{0} more characters in the store",
+  "בחנות": "in store",
+  "עוד דמויות, הילות ותגים לעוזר בחנות המטבעות.": "More characters, auras and badges for the assistant in the coin store.",
+  "בהגדרות מוצגות רק הדמויות שלך, והשאר בחנות עם תמונה ומחיר": "Settings show only your characters; the rest are in the store with a picture and price",
 };

@@ -1,5 +1,8 @@
 # Changelog
 
+## 5.4.1 (2026-11-26)
+- Settings → Assistant character lists only owned characters plus a "+N in store" tile that opens the store on the characters tab (no more grid of locked, half-loaded tiles).
+
 ## 5.4.0 (2026-11-26)
 - Today: three activity rings (meals today, sport today, full days this week) instead of one.
 - Progress: a bento grid (weight with sparkline, workouts / healthy meals / full days in 30 days, week streak, km recorded).

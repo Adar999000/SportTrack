@@ -96,6 +96,9 @@ function pickSheet(title: string, options: { value: string; label: string }[], o
 type Cat = 'all' | 'useful' | 'skin' | 'mascot' | 'acc' | 'color' | 'bg' | 'frame' | 'effect' | 'levels';
 let shopCat: Cat = 'all';
 let shopOnlyAffordable = false;
+/** Open the store on a category (e.g. from Settings → "more characters"). */
+export function openStoreAt(cat: string): void { shopCat = cat as Cat; scrollToStore = true; }
+let scrollToStore = false;
 const NEW_ITEMS = new Set(['skin']);
 const POPULAR = new Set(['mascot:tiger', 'mascot:dragon', 'acc:galaxy', 'acc:rainbow', 'frame:fire', 'bg:midnight', 'color:indigo', 'effect:confetti']);
 
@@ -204,6 +207,7 @@ function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   });
   affordable.addEventListener('change', () => { shopOnlyAffordable = affordable.checked; draw(); });
   draw();
+  if (scrollToStore) { scrollToStore = false; setTimeout(() => tabs.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350); }
   const ownedCount = products.filter((p) => p.owned).length;
   return h('section', { class: 'card store' },
     h('div', { class: 'store-hero' },
