@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.0.2 (2026-11-26)
+- Top bar: the profile picture sits next to the level/coins chip; the app logo is back beside the name.
+
 ## 4.0.1 (2026-11-26)
 - Top bar: the signed-in user's profile picture (with their frame) replaces the app logo and opens the Me screen; visitors still see the logo.
 

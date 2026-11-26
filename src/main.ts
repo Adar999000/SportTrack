@@ -61,8 +61,8 @@ function drawBrand() {
   if (key === brandKey) return;
   brandKey = key;
   brandMark.replaceChildren(u && hasBackend()
-    ? h('a', { href: HASH.profile, class: 'brand-avatar', 'aria-label': tr`הפרופיל של ${u.name}` }, avatar(u.name, u.photoId, 34, frame))
-    : logo(26));
+    ? h('a', { href: HASH.profile, class: 'brand-avatar', 'aria-label': tr`הפרופיל של ${u.name}` }, avatar(u.name, u.photoId, 36, frame))
+    : '');
 }
 /** A back link to the Me screen on pages opened from it. */
 const crumb = h('div', { class: 'crumb', hidden: true });
@@ -259,8 +259,8 @@ async function boot() {
   app.replaceChildren(
     h('a', { class: 'skip-link', href: '#main', onclick: (e: Event) => { e.preventDefault(); main.setAttribute('tabindex', '-1'); main.focus(); } }, t('דלג לתוכן הראשי')),
     h('header', { class: 'topbar' },
-      h('h1', null, brandMark, h('span', null, t('משמעת אישית'))),
-      h('div', { class: 'topbar-end' }, syncBadge, coinChip, themeBtn),
+      h('h1', null, logo(26), h('span', null, t('משמעת אישית'))),
+      h('div', { class: 'topbar-end' }, syncBadge, h('div', { class: 'me-chip' }, brandMark, coinChip), themeBtn),
     ),
     demoBar,
     crumb,
