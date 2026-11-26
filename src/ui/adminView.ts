@@ -60,6 +60,73 @@ const AUDIT_LABEL: Record<string, string> = {
   reset_done: 'איפוס סיסמה', logout_all: 'ניתוק כל המכשירים', register: 'הרשמה', admin_view: 'צפייה של מנהל', role_change: 'שינוי הרשאה', public_contact: 'פנייה מהאתר',
 };
 
+interface Analytics { days: number; daily: { day: string; users: number; events: number }[]; dau: number; wau: number; mau: number; totalUsers: number;
+  events: { event: string; count: number; users: number; count7: number; users7: number }[] }
+
+const EVENT_LABEL: Record<string, string> = {
+  'screen:week': 'מסך שבוע', 'screen:history': 'היסטוריה', 'screen:stats': 'סטטיסטיקה', 'screen:profile': 'פרופיל', 'screen:settings': 'הגדרות',
+  'screen:rewards': 'מטבעות וחנות', 'screen:share': 'הזמנת חברים', 'screen:feed': 'קהילה', 'screen:tracker': 'מעקב מותאם', 'screen:chat': 'צ\'אט מלא',
+  'screen:admin': 'ניהול', 'screen:adminuser': 'ניהול: משתמש',
+  'mark:meal': 'סימון ארוחה', 'mark:sport': 'סימון ספורט', 'cell:vxd': 'תא מותאם V/X', 'cell:check': 'תא וי', 'cell:emoji': 'תא מצב רוח', 'cell:stars': 'תא כוכבים',
+  'cell:number': 'תא מספר', 'cell:text': 'תא טקסט', 'table:customize': 'עריכת הטבלה', 'chat:me': 'שאלה לעוזר', 'chat:all': 'עוזר מנהל', 'chat:user': 'עוזר על משתמש',
+  'fab:open': 'פתיחת העוזר הצף', 'post:create': 'פוסט חדש', 'post:like': 'לייק', 'post:comment': 'תגובה', 'share:achievement': 'שיתוף הישג בקהילה',
+  'share:outside': 'שיתוף לרשתות', 'store:buy': 'קנייה בחנות', 'store:try': 'ניסיון פריט', 'duel:create': 'יצירת אתגר', 'duel:join': 'הצטרפות לאתגר', 'duel:join-link': 'הצטרפות מקישור',
+  'duel:invite': 'הזמנה לאתגר', 'theme:toggle': 'החלפת בהיר/כהה', 'a11y:open': 'תפריט נגישות',
+};
+const eventLabel = (e: string) => t(EVENT_LABEL[e] ?? (e.startsWith('tracker:create:') ? 'מעקב חדש' : e));
+
+function activityChart(daily: Analytics['daily']): SVGSVGElement {
+  const W = 600, H = 150, pad = 22;
+  const max = Math.max(1, ...daily.map((d) => d.users));
+  const bw = (W - pad * 2) / daily.length;
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('class', 'act-chart'); svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', tr`משתמשים פעילים ביום, ${daily.length} ימים אחרונים. מקסימום ${max}`);
+  const el = (n: string, a: Record<string, any>, text?: string) => { const x = document.createElementNS(NS, n); for (const k in a) x.setAttribute(k, String(a[k])); if (text) x.textContent = text; svg.append(x); return x; };
+  el('line', { x1: pad, x2: W - pad, y1: H - pad, y2: H - pad, class: 'axis' });
+  el('text', { x: pad - 4, y: pad, class: 'axis-label', 'text-anchor': 'end' }, String(max));
+  daily.forEach((d, i) => {
+    const h0 = ((H - pad * 2) * d.users) / max;
+    const r = el('rect', { x: pad + i * bw + 1, y: H - pad - h0, width: Math.max(1, bw - 2), height: h0, rx: 2, class: 'act-bar' });
+    const tt = document.createElementNS(NS, 'title'); tt.textContent = `${formatShort(d.day)}: ${d.users} · ${d.events}`; r.append(tt);
+  });
+  el('text', { x: W - pad, y: H - 6, class: 'axis-label', 'text-anchor': 'end' }, formatShort(daily[daily.length - 1].day).slice(0, 5));
+  el('text', { x: pad, y: H - 6, class: 'axis-label' }, formatShort(daily[0].day).slice(0, 5));
+  return svg;
+}
+
+function analyticsCard(): HTMLElement {
+  const body = h('div', { class: 'stack' }, h('p', { class: 'muted' }, t('טוען…')));
+  let days = 30;
+  const load = async () => {
+    try {
+      const a = await call<Analytics>('adminAnalytics', { days });
+      const feats = a.events.filter((e) => !e.event.startsWith('screen:'));
+      const screens = a.events.filter((e) => e.event.startsWith('screen:'));
+      const maxF = Math.max(1, ...feats.map((e) => e.count)), maxS = Math.max(1, ...screens.map((e) => e.count));
+      const table = (list: Analytics['events'], max: number) => list.length ? h('div', { class: 'table-scroll' }, h('table', { class: 'data-table an-table' },
+        h('thead', null, h('tr', null, [t('פיצ\'ר'), tr`${a.days} ימים`, t('7 ימים'), t('משתמשים')].map((c) => h('th', { scope: 'col' }, c)))),
+        h('tbody', null, list.slice(0, 20).map((e) => h('tr', null,
+          h('th', { scope: 'row' }, h('span', { class: 'an-name' }, eventLabel(e.event)), h('span', { class: 'an-bar', style: { width: Math.round((e.count / max) * 100) + '%' } })),
+          h('td', null, e.count.toLocaleString('en-US')), h('td', null, e.count7.toLocaleString('en-US')), h('td', null, String(e.users))))))) : h('p', { class: 'muted' }, t('עוד אין נתונים.'));
+      const seg = h('div', { class: 'seg', role: 'group', 'aria-label': t('תקופה') }, [7, 30, 90].map((n) => h('button', { type: 'button', 'aria-pressed': String(n === days), onclick: () => { days = n; load(); } }, tr`${n} ימים`)));
+      body.replaceChildren(
+        seg,
+        h('div', { class: 'tiles' },
+          tile(t('פעילים היום'), String(a.dau)), tile(t('פעילים השבוע'), String(a.wau)),
+          tile(tr`פעילים ב-${a.days} ימים`, String(a.mau)), tile(t('אחוז פעילים השבוע'), a.totalUsers ? Math.round((a.wau / a.totalUsers) * 100) + '%' : '—')),
+        h('h3', { class: 'section-title' }, t('משתמשים פעילים ביום')), activityChart(a.daily),
+        h('h3', { class: 'section-title' }, t('הפיצ\'רים המובילים')), table(feats, maxF),
+        h('h3', { class: 'section-title' }, t('מסכים')), table(screens, maxS),
+        h('p', { class: 'hint' }, t('נאספים רק שמות פעולות ומספרים מצטברים ליום, בלי תוכן ובלי פרטים אישיים.')),
+      );
+    } catch (e: any) { body.replaceChildren(h('p', { class: 'form-error' }, /לא מוכרת|Unknown action/.test(e.message) ? t('האנליטיקס יופעל אחרי עדכון קוד השרת.') : e.message)); }
+  };
+  load();
+  return h('section', { class: 'card' }, h('h2', { class: 'card-title' }, '📊 ', t('אנליטיקס שימוש')), body);
+}
+
 function communityCard(): HTMLElement {
   const body = h('div', { class: 'stack' });
   const det = h('details', null, h('summary', null, t('קהילה: תחרויות ודיווחים')), body);
@@ -220,6 +287,7 @@ export function renderAdmin(root: HTMLElement): void {
       h('p', { class: 'hint' }, t('בעמודה השמאלית: שינוי משקל מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים. מוצגים רק נתונים סטטיסטיים.')),
       list,
     ),
+    analyticsCard(),
     settingsCard(),
     communityCard(),
     auditCard(Object.fromEntries((usersCache ?? []).map((u) => [u.userId, u.name]))),

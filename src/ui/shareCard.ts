@@ -7,6 +7,7 @@ import { currentUser } from '../session';
 import { call } from '../api';
 import { h, openSheet, toast } from './dom';
 import { navigate, HASH } from './router';
+import { track } from '../analytics';
 
 /** What a shareable achievement shows (also stored as a feed post's data). */
 export interface Achievement { icon: string; title: string; subtitle: string; tone?: string }
@@ -92,6 +93,7 @@ function wrap(g: CanvasRenderingContext2D, text: string, x: number, y: number, m
 
 /** Share outside the app: the phone's share sheet (Instagram, WhatsApp…) or download. */
 export async function shareOutside(a: Achievement): Promise<void> {
+  track('share:outside');
   const blob = await cardImage(a);
   const file = new File([blob], 'mishmaat.png', { type: 'image/png' });
   const text = `${a.icon} ${a.title} · ${a.subtitle}\n${t('משמעת אישית')}`;
@@ -141,7 +143,7 @@ export function openShareAchievement(onPosted?: () => void): void {
       (e.currentTarget as HTMLButtonElement).disabled = true;
       try {
         await call('createPost', { kind: 'achievement', data: chosen, text: text.value, visibility: vis.value });
-        close(); toast(t('פורסם בקהילה')); onPosted ? onPosted() : navigate(HASH.feed);
+        close(); toast(t('פורסם בקהילה')); track('share:achievement'); onPosted ? onPosted() : navigate(HASH.feed);
       } catch (ex: any) { toast(ex.message); (e.currentTarget as HTMLButtonElement).disabled = false; }
     } }, '👥 ', t('פרסם בקהילה')),
     h('button', { class: 'btn', type: 'button', onclick: () => shareOutside(chosen) }, '📤 ', t('שתף לאינסטגרם, וואטסאפ ועוד')),

@@ -2,6 +2,7 @@ import { t, tr } from '../i18n';
 import { CELL_TYPES, ICONS, TEMPLATES, deleteTracker, mainCfg, saveMainCfg, saveTracker, uid, type CellType, type TCol, type TRow, type Tracker } from '../trackers';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
+import { track } from '../analytics';
 
 const MAX_ROWS = 20, MAX_COLS = 14;
 
@@ -92,6 +93,7 @@ function pickTemplate(): void {
     ...TEMPLATES.map((tp) => h('button', { class: 'btn template-btn', type: 'button', onclick: () => {
       const tr = { ...tp.make(), id: uid(), createdAt: Date.now() };
       saveTracker(tr);
+      track('tracker:create:' + tp.id);
       close();
       navigate(HASH.tracker(tr.id));
       setTimeout(() => openTrackerEditor(tr), 50);
@@ -115,6 +117,7 @@ export function openMainEditor(showSmoking: boolean): void {
     e.preventDefault();
     const next: typeof labels = {};
     inputs.forEach(([k, i]) => { if (i.value.trim()) next[k] = i.value.trim().slice(0, 40); });
+    track('table:customize');
     saveMainCfg({ corner: corner.value.trim() || undefined, labels: next, extraRows: clean(extra) });
     close();
     toast(t('נשמר'));

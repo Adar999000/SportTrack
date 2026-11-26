@@ -20,6 +20,14 @@ function vacationWeeks(weeks: Week[]): string[] {
   return weeks.filter((w) => w.days.some((d) => d.sport.status === 'V' && !d.sport.countsAsWorkout && /חופש|vacation|holiday/i.test(d.sport.label ?? ''))).map((w) => w.sundayDate);
 }
 
+/** A table cell with a small progress bar under the number. */
+function barTd(text: string, pct: number | null, kind = ''): HTMLElement {
+  const td = h('td', { class: 'bar-td' + (kind ? ' bar-' + kind : '') }, h('span', null, text));
+  if (pct !== null) td.style.setProperty('--p', Math.round(pct) + '%');
+  else td.classList.add('no-bar');
+  return td;
+}
+
 export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: string[]; weeks?: string[]; goal?: number } = {}): (Node | string)[] {
   const today = todayISO();
   if (!weeks.length) return [h('section', { class: 'card' }, h('p', { class: 'muted' }, t('אין עדיין נתונים להצגה.')))];
@@ -70,12 +78,12 @@ export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: strin
           h('tbody', null, months.map((mo) => h('tr', null,
             h('th', { scope: 'row' }, monthLabel(mo.key)),
             h('td', null, fmtKg(mo.avgWeight)),
-            h('td', null, mo.workoutsPerWeek === null ? '—' : mo.workoutsPerWeek.toFixed(1)),
+            barTd(mo.workoutsPerWeek === null ? '—' : mo.workoutsPerWeek.toFixed(1), mo.workoutsPerWeek === null ? null : Math.min(100, (mo.workoutsPerWeek / 4) * 100), 'sport'),
             h('td', null, mo.sportDays),
-            h('td', null, fmtPct(mo.breakfast.pct)),
-            h('td', null, fmtPct(mo.lunch.pct)),
-            h('td', null, fmtPct(mo.dinner.pct)),
-            showSmoke && h('td', null, fmtPct(mo.smoking.pct)),
+            barTd(fmtPct(mo.breakfast.pct), mo.breakfast.pct),
+            barTd(fmtPct(mo.lunch.pct), mo.lunch.pct),
+            barTd(fmtPct(mo.dinner.pct), mo.dinner.pct),
+            showSmoke && barTd(fmtPct(mo.smoking.pct), mo.smoking.pct, 'smoke'),
           ))),
         ),
       ),
@@ -91,8 +99,8 @@ export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: strin
               h('tbody', null, quarters.map((q) => h('tr', null,
                 h('th', { scope: 'row' }, quarterLabel(q.key)),
                 h('td', null, q.n),
-                h('td', null, signed(q.change)),
-                h('td', null, signed(q.slopePerWeek, 2)),
+                h('td', { class: q.change < 0 ? 'good' : q.change > 0 ? 'bad' : '' }, (q.change < 0 ? '▼ ' : q.change > 0 ? '▲ ' : '') + signed(q.change)),
+                h('td', { class: q.slopePerWeek < 0 ? 'good' : q.slopePerWeek > 0 ? 'bad' : '' }, signed(q.slopePerWeek, 2)),
               ))),
             ),
           )

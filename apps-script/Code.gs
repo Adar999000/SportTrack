@@ -95,6 +95,14 @@ function route(req) {
     case 'suggestEvent': return suggestEvent(me, req);
     case 'adminEvents': requireAdmin(me); return { events: adminEvents() };
     case 'setEventStatus': requireAdmin(me); return setEventStatus(me, req);
+    case 'duels': return { duels: myDuels(me) };
+    case 'createDuel': return createDuel(me, req);
+    case 'respondDuel': return respondDuel(me, req);
+    case 'joinDuel': return joinDuel(me, req);
+    case 'leaveDuel': return leaveDuel(me, req);
+    case 'friends': return { friends: friendsList(me) };
+    case 'track': return track(me, req.events);
+    case 'adminAnalytics': requireAdmin(me); return adminAnalytics(req.days);
     case 'contactAdmin': return { message: createMessage(me, String(req.subject || ''), String(req.text || '')) };
     case 'myMessages': return myMessages(me);
     case 'unreadCount': return { unread: messageRows().filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length };
@@ -1337,6 +1345,16 @@ function deleteAccount(me, req) {
     deleteRowsWhere(messagesSheet(), M.user, (v) => v === uid);
     deleteRowsWhere(sheet('Invites'), 4, (v) => v === uid);
     deleteRowsWhere(docsSheet(), D.user, (v) => v === uid);
+    const ash = analyticsSheet();
+    allRows(ash, 4).forEach((r, i) => {
+      const us = parseJSON(r[AN.users], []) || [];
+      if (us.indexOf(uid) >= 0) ash.getRange(i + 2, AN.users + 1).setValue(JSON.stringify(us.filter((x) => x !== uid)));
+    });
+    const dsh = duelsSheet();
+    allRows(dsh, DUEL_W).forEach((r, i) => {
+      const ms = parseJSON(r[DU.members], []) || [];
+      if (ms.some((m) => m.userId === uid)) dsh.getRange(i + 2, DU.members + 1).setValue(JSON.stringify(ms.filter((m) => m.userId !== uid)));
+    });
     allRows(postsSheet(), POST_W).filter((r) => r[P.user] === uid && r[P.photo]).forEach((r) => { try { DriveApp.getFileById(r[P.photo]).setTrashed(true); } catch (e) {} });
     deleteRowsWhere(postsSheet(), P.user, (v) => v === uid);
     const psh = postsSheet();
@@ -1912,4 +1930,234 @@ function setEventStatus(me, req) {
     audit(me.r[U.id], 'event_' + req.status, all[i][E.title]);
     return { ok: true };
   });
+}
+
+// ------------------------------------------------------------------ friend challenges (duels)
+
+const DUEL_METRICS = {
+  workouts: 'הכי הרבה אימונים',
+  runs: 'הכי הרבה ריצות',
+  healthy: 'הכי הרבה ארוחות בריאות',
+  fullDays: 'הכי הרבה ימים מלאים',
+  coins: 'הכי הרבה מטבעות',
+};
+const DUEL_PRIZE = 100;
+const DU = { id: 0, by: 1, title: 2, metric: 3, start: 4, end: 5, members: 6, code: 7, status: 8, at: 9, winners: 10 };
+const DUEL_W = 11;
+function duelsSheet() { return lazySheet('Duels', ['id', 'createdBy', 'title', 'metric', 'start', 'end', 'members', 'code', 'status', 'createdAt', 'winners']); }
+
+/** A member's score for a metric between two dates (inclusive), from their own data. */
+function duelScore(uid, metric, start, end, ctx) {
+  const until = end < todayStr() ? end : todayStr();
+  if (start > until) return 0;
+  if (metric === 'coins') {
+    const u = ctx.users.find((r) => r[U.id] === uid);
+    if (!u) return 0;
+    return rewardsFor(u, ctx).items.filter((x) => x.amount > 0 && x.date >= start && x.date <= until && x.kind !== 'spend').reduce((s, x) => s + x.amount, 0);
+  }
+  let n = 0;
+  ctx.weeks.forEach((r) => {
+    if (r[W.user] !== uid) return;
+    const sunday = String(r[W.sunday]);
+    if (addDaysStr(sunday, 6) < start || sunday > until) return;
+    const d = parseJSON(r[W.data], null);
+    if (!d || !d.days) return;
+    d.days.forEach((day, i) => {
+      const date = addDaysStr(sunday, i);
+      if (date < start || date > until || !day) return;
+      if (metric === 'workouts' && isWorkout(day)) n++;
+      if (metric === 'runs' && isWorkout(day) && /ריצ|run|jog/i.test(String(day.sport.label || ''))) n++;
+      if (metric === 'healthy') ['breakfast', 'lunch', 'dinner'].forEach((k) => { if (day[k] === 'V') n++; });
+      if (metric === 'fullDays' && isFullDay(day)) n++;
+    });
+  });
+  return n;
+}
+
+function duelOut(r, uid, ctx, people) {
+  const members = parseJSON(r[DU.members], []) || [];
+  const standings = members.filter((m) => m.status !== 'declined').map((m) => {
+    const p = people[m.userId] || {};
+    return { userId: m.userId, name: p.name || '—', photoId: p.photoId || null, frame: p.frame || '', status: m.status,
+      score: m.status === 'in' ? duelScore(m.userId, r[DU.metric], String(r[DU.start]), String(r[DU.end]), ctx) : 0 };
+  }).sort((a, b) => b.score - a.score);
+  const me = members.find((m) => m.userId === uid);
+  return {
+    id: r[DU.id], title: r[DU.title], metric: r[DU.metric], metricName: DUEL_METRICS[r[DU.metric]] || '', start: String(r[DU.start]), end: String(r[DU.end]),
+    code: me && me.status === 'in' ? r[DU.code] : '', status: r[DU.status], mine: r[DU.by] === uid, myStatus: me ? me.status : '',
+    winners: parseJSON(r[DU.winners], []) || [], prize: DUEL_PRIZE, standings: standings,
+  };
+}
+
+function duelCtx() { return { weeks: rows('Weeks'), users: rows('Users'), ledger: ledgerRows() }; }
+
+/** Close finished challenges: winners (top score above 0) get the prize once. */
+function settleDuels() {
+  const sh = duelsSheet();
+  const all = allRows(sh, DUEL_W);
+  const today = todayStr();
+  const due = all.map((r, i) => ({ r: r, i: i })).filter((x) => x.r[DU.status] === 'active' && String(x.r[DU.end]) < today);
+  if (!due.length) return;
+  withLock(() => {
+    const ctx = duelCtx();
+    due.forEach((x) => {
+      const members = (parseJSON(x.r[DU.members], []) || []).filter((m) => m.status === 'in');
+      const scores = members.map((m) => ({ userId: m.userId, score: duelScore(m.userId, x.r[DU.metric], String(x.r[DU.start]), String(x.r[DU.end]), ctx) }));
+      const top = Math.max.apply(null, scores.map((s) => s.score).concat([0]));
+      const winners = members.length > 1 && top > 0 ? scores.filter((s) => s.score === top).map((s) => s.userId) : [];
+      sh.getRange(x.i + 2, DU.status + 1).setValue('done');
+      sh.getRange(x.i + 2, DU.winners + 1).setValue(JSON.stringify(winners));
+      const ref = 'duel:' + x.r[DU.id];
+      const paid = ledgerRows().some((l) => String(l[3]) === ref);
+      if (!paid && winners.length) appendRows(ledgerSheet(), winners.map((w) => [w, new Date().toISOString(), DUEL_PRIZE, ref, 'ניצחון באתגר: ' + x.r[DU.title]]));
+    });
+  });
+  CacheService.getScriptCache().remove('lb-v1');
+}
+
+function myDuels(me) {
+  settleDuels();
+  const uid = me.r[U.id];
+  const ctx = duelCtx();
+  const people = peopleIndex();
+  return allRows(duelsSheet(), DUEL_W)
+    .filter((r) => (parseJSON(r[DU.members], []) || []).some((m) => m.userId === uid && m.status !== 'declined'))
+    .sort((a, b) => String(b[DU.at]).localeCompare(String(a[DU.at])))
+    .slice(0, 30)
+    .map((r) => duelOut(r, uid, ctx, people));
+}
+
+function createDuel(me, req) {
+  const metric = DUEL_METRICS[req.metric] ? req.metric : '';
+  if (!metric) throw new Error('נא לבחור על מה מתחרים');
+  const days = Math.max(1, Math.min(31, Number(req.days) || 7));
+  const title = String(req.title || '').trim().slice(0, 60) || DUEL_METRICS[metric];
+  const uid = me.r[U.id];
+  const mineActive = allRows(duelsSheet(), DUEL_W).filter((r) => r[DU.by] === uid && r[DU.status] === 'active').length;
+  if (mineActive >= 5) throw new Error('אפשר לנהל עד 5 אתגרים פעילים בו זמנית');
+  const friends = friendsOf(uid, rows('Users'));
+  const invite = (Array.isArray(req.invite) ? req.invite : []).filter((id) => friends[id]).slice(0, 9);
+  const start = req.startToday === false ? addDaysStr(todayStr(), 1) : todayStr();
+  const members = [{ userId: uid, status: 'in' }].concat(invite.map((id) => ({ userId: id, status: 'invited' })));
+  const code = Utilities.getUuid().replace(/-/g, '').slice(0, 6).toUpperCase();
+  const row = [Utilities.getUuid().slice(0, 8), uid, title, metric, start, addDaysStr(start, days - 1), JSON.stringify(members), code, 'active', new Date().toISOString(), '[]'];
+  withLock(() => appendRows(duelsSheet(), [row]));
+  const users = rows('Users');
+  invite.forEach((id) => {
+    const u = users.find((r) => r[U.id] === id);
+    if (u) safeMail(u[U.email], me.r[U.name] + ' הזמין/ה אותך לאתגר', me.r[U.name] + ' הזמין/ה אותך לאתגר "' + title + '" במשמעת אישית. אפשר להצטרף בלשונית קהילה ← אתגרים.');
+  });
+  return { duel: duelOut(row, uid, duelCtx(), peopleIndex()) };
+}
+
+function updateDuel(me, id, fn) {
+  return withLock(() => {
+    const sh = duelsSheet();
+    const all = allRows(sh, DUEL_W);
+    const i = all.findIndex((r) => r[DU.id] === id);
+    if (i < 0) throw new Error('האתגר לא נמצא');
+    const members = parseJSON(all[i][DU.members], []) || [];
+    const res = fn(all[i], members);
+    if (res === 'delete') { sh.deleteRow(i + 2); return { ok: true }; }
+    sh.getRange(i + 2, DU.members + 1).setValue(JSON.stringify(members));
+    return { ok: true };
+  });
+}
+
+function respondDuel(me, req) {
+  return updateDuel(me, String(req.id || ''), (r, members) => {
+    const m = members.find((x) => x.userId === me.r[U.id]);
+    if (!m) throw new Error('האתגר לא נמצא');
+    if (r[DU.status] !== 'active') throw new Error('האתגר כבר הסתיים');
+    m.status = req.accept ? 'in' : 'declined';
+  });
+}
+
+function joinDuel(me, req) {
+  const code = String(req.code || '').trim().toUpperCase();
+  const r = allRows(duelsSheet(), DUEL_W).find((x) => x[DU.code] === code && x[DU.status] === 'active');
+  if (!r) throw new Error('קוד האתגר לא תקין או שהאתגר הסתיים');
+  return updateDuel(me, r[DU.id], (row, members) => {
+    const m = members.find((x) => x.userId === me.r[U.id]);
+    if (m) { m.status = 'in'; return; }
+    if (members.length >= 10) throw new Error('האתגר מלא (עד 10 משתתפים)');
+    members.push({ userId: me.r[U.id], status: 'in' });
+  });
+}
+
+function leaveDuel(me, req) {
+  return updateDuel(me, String(req.id || ''), (r, members) => {
+    if (r[DU.by] === me.r[U.id]) return 'delete';
+    const m = members.find((x) => x.userId === me.r[U.id]);
+    if (m) m.status = 'declined';
+  });
+}
+
+function friendsList(me) {
+  const users = rows('Users');
+  const f = friendsOf(me.r[U.id], users);
+  return users.filter((r) => f[r[U.id]]).map((r) => ({ userId: r[U.id], name: r[U.name], photoId: r[U.photo] || null }));
+}
+
+// ------------------------------------------------------------------ usage analytics (aggregated)
+
+const AN = { day: 0, event: 1, count: 2, users: 3 };
+function analyticsSheet() { return lazySheet('Analytics', ['day', 'event', 'count', 'users']); }
+
+/** Count feature use per day: totals and distinct users. No content is recorded. */
+function track(me, events) {
+  if (!events || typeof events !== 'object') return { ok: true };
+  const keys = Object.keys(events).filter((k) => /^[a-z0-9:_\-]{1,40}$/.test(k)).slice(0, 60);
+  if (!keys.length) return { ok: true };
+  const day = todayStr();
+  const uid = me.r[U.id];
+  return withLock(() => {
+    const sh = analyticsSheet();
+    const n = sh.getLastRow();
+    const from = Math.max(2, n - 400);
+    const recent = n >= 2 ? sh.getRange(from, 1, n - from + 1, 4).getValues().map((r) => r.map(cell)) : [];
+    const index = {};
+    recent.forEach((r, i) => { if (String(r[AN.day]) === day) index[r[AN.event]] = from + i; });
+    const appends = [];
+    keys.forEach((k) => {
+      const c = Math.max(1, Math.min(500, Math.round(Number(events[k]) || 1)));
+      const row = index[k];
+      if (row) {
+        const cur = recent[row - from];
+        const users = parseJSON(cur[AN.users], []) || [];
+        if (users.indexOf(uid) < 0) users.push(uid);
+        sh.getRange(row, AN.count + 1, 1, 2).setValues([[Number(cur[AN.count]) + c, JSON.stringify(users)]]);
+      } else appends.push([day, k, c, JSON.stringify([uid])]);
+    });
+    appendRows(sh, appends);
+    return { ok: true };
+  });
+}
+
+function adminAnalytics(days) {
+  days = Math.max(7, Math.min(90, Number(days) || 30));
+  const today = todayStr();
+  const from = addDaysStr(today, -(days - 1));
+  const rowsA = allRows(analyticsSheet(), 4).filter((r) => String(r[AN.day]) >= from);
+  const byDay = {};
+  const byEvent = {};
+  const week = addDaysStr(today, -6);
+  rowsA.forEach((r) => {
+    const d = String(r[AN.day]);
+    const users = parseJSON(r[AN.users], []) || [];
+    const e = String(r[AN.event]);
+    const day = byDay[d] || (byDay[d] = { users: {}, events: 0 });
+    users.forEach((u) => { day.users[u] = true; });
+    day.events += Number(r[AN.count]) || 0;
+    const ev = byEvent[e] || (byEvent[e] = { count: 0, count7: 0, users: {}, users7: {} });
+    ev.count += Number(r[AN.count]) || 0;
+    users.forEach((u) => { ev.users[u] = true; });
+    if (d >= week) { ev.count7 += Number(r[AN.count]) || 0; users.forEach((u) => { ev.users7[u] = true; }); }
+  });
+  const daily = [];
+  for (let d = from; d <= today; d = addDaysStr(d, 1)) daily.push({ day: d, users: byDay[d] ? Object.keys(byDay[d].users).length : 0, events: byDay[d] ? byDay[d].events : 0 });
+  const uniq = (fromDay) => { const s = {}; Object.keys(byDay).forEach((d) => { if (d >= fromDay) Object.assign(s, byDay[d].users); }); return Object.keys(s).length; };
+  const events = Object.keys(byEvent).map((e) => ({ event: e, count: byEvent[e].count, users: Object.keys(byEvent[e].users).length, count7: byEvent[e].count7, users7: Object.keys(byEvent[e].users7).length }))
+    .sort((a, b) => b.count - a.count);
+  return { days: days, daily: daily, dau: daily[daily.length - 1].users, wau: uniq(week), mau: uniq(from), totalUsers: rows('Users').length, events: events };
 }

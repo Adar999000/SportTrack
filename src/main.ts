@@ -2,7 +2,7 @@ import './styles.css';
 import { registerSW } from 'virtual:pwa-register';
 import { IS_DEMO } from './env';
 import { clearDemo, isDemoActive, seedDemoIfEmpty } from './demo';
-import { hasBackend } from './api';
+import { call, hasBackend } from './api';
 import { sundayOf, todayISO } from './dates';
 import { checkReminders } from './reminders';
 import { currentUser, isAdmin, loadSession, onSession, refreshUser } from './session';
@@ -18,7 +18,7 @@ import { APP_VERSION } from './version';
 import { updateSettings } from './store';
 import { renderHistory } from './ui/historyView';
 import { renderProfile, renderProfileForm } from './ui/profileView';
-import { HASH, parseRoute, type Route } from './ui/router';
+import { HASH, navigate, parseRoute, type Route } from './ui/router';
 import { renderSettings } from './ui/settingsView';
 import { renderStats } from './ui/statsView';
 import { renderWeek } from './ui/weekView';
@@ -27,6 +27,7 @@ import { renderShare } from './ui/shareView';
 import { renderTracker } from './ui/trackerView';
 import { renderFeed } from './ui/feedView';
 import { dirtyDocCount, loadDocs, setDocsOwner } from './docs';
+import { initAnalytics, track } from './analytics';
 import { renderLanding } from './ui/landingView';
 import { initInstall } from './install';
 import { applyA11y } from './a11y';
@@ -77,7 +78,7 @@ function isDark(): boolean {
   const th = getSettings().theme;
   return th === 'dark' || (th === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
 }
-const themeBtn = h('button', {
+const themeBtn = h('button', { 'data-track': 'theme:toggle',
   class: 'icon-btn theme-btn', type: 'button',
   onclick: () => updateSettings({ theme: isDark() ? 'light' : 'dark' }),
 });
@@ -185,8 +186,12 @@ function render() {
     case 'share': hasBackend() ? renderShare(main) : renderWeek(main, sundayOf(todayISO())); break;
     case 'tracker': renderTracker(main, route.id, route.sunday); break;
     case 'feed': hasBackend() ? renderFeed(main, route.tab ?? 'posts') : renderWeek(main, sundayOf(todayISO())); break;
+    case 'duel':
+      call('joinDuel', { code: route.code }).then(() => { toast(t('הצטרפת לאתגר! בהצלחה 💪')); track('duel:join-link'); }).catch((e) => toast(e.message)).finally(() => navigate(HASH.duels));
+      break;
   }
   if (key !== lastRoute) {
+    track('screen:' + route.name);
     window.scrollTo(0, 0);
     lastRoute = key;
   }
@@ -249,6 +254,7 @@ async function boot() {
     main,
     nav,
   );
+  initAnalytics();
   await loadStore();
   await loadDocs();
   await loadSession();

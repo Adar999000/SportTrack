@@ -132,8 +132,9 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
   };
   if (now) {
     const RealDate = Date;
-    const fixed = new RealDate(now).getTime();
-    ctx.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [fixed])); } static now() { return fixed; } };
+    // `now` may be a fixed date or a function (a clock the test can move)
+    const at = () => new RealDate(typeof now === 'function' ? now() : now).getTime();
+    ctx.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [at()])); } static now() { return at(); } };
   }
   vm.createContext(ctx);
   vm.runInContext(readFileSync(new URL('../../apps-script/Code.gs', import.meta.url), 'utf8'), ctx);

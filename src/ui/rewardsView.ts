@@ -10,6 +10,7 @@ import { ACCENTS, BG_THEMES, FRAMES } from '../types';
 import { getSettings, updateSettings } from '../store';
 import { burst } from './confetti';
 import { openShareAchievement } from './shareCard';
+import { track } from '../analytics';
 import { ACCESSORIES, MASCOTS, currentOutfit, mascot } from './mascot';
 
 const coin = () => h('span', { class: 'coin', 'aria-hidden': 'true' });
@@ -88,62 +89,109 @@ function pickSheet(title: string, options: { value: string; label: string }[], o
   const close = openSheet(title, body);
 }
 
+type Cat = 'all' | 'useful' | 'mascot' | 'acc' | 'color' | 'bg' | 'frame' | 'effect';
+let shopCat: Cat = 'all';
+let shopOnlyAffordable = false;
+const NEW_ITEMS = new Set(['mascot', 'acc']);
+const POPULAR = new Set(['mascot:tiger', 'mascot:dragon', 'acc:galaxy', 'acc:rainbow', 'frame:fire', 'bg:midnight', 'color:indigo', 'effect:confetti']);
+
+/** Try a color or background for a few seconds before buying. */
+function tryOn(kind: 'color' | 'bg', id: string): void {
+  const root = document.documentElement;
+  const key = kind === 'color' ? 'accent' : 'bg';
+  const before = root.dataset[key];
+  root.dataset[key] = id;
+  track('store:try');
+  toast(t('תצוגה מקדימה ל-6 שניות'));
+  setTimeout(() => { if (root.dataset[key] === id) { if (before === undefined) delete root.dataset[key]; else root.dataset[key] = before; } }, 6000);
+}
+
 function shopCard(r: Rewards, redraw: () => void): HTMLElement {
   const today = todayISO();
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, -i - 1)).filter((d) => !r.frozenDays.includes(d));
   const weeks = Array.from({ length: 5 }, (_, i) => addDays(sundayOf(today), -7 * (i + 1))).filter((s) => !r.frozenWeeks.includes(s));
-  const buy = async (fn: () => Promise<void>) => { try { await fn(); toast(t('נקנה!')); burst(); redraw(); } catch (e: any) { toast(e.message); } };
-  const tile = (title: string, desc: string, cost: number, action: HTMLElement, preview?: HTMLElement, base?: number) =>
-    h('div', { class: 'shop-item' }, preview ?? '', h('strong', null, title), desc ? h('span', { class: 'muted small' }, desc) : '',
-      cost === 0 ? h('span', { class: 'badge' }, t('חינם ברמה שלך'))
-        : h('span', { class: 'price-row' }, price(cost), base && base > cost ? h('s', { class: 'muted small' }, fmt(base)) : ''),
-      action);
+  const buy = async (fn: () => Promise<void>) => { try { await fn(); track('store:buy'); toast(t('נקנה!')); burst(true); redraw(); } catch (e: any) { toast(e.message); } };
   const catalog = r.catalog ?? [];
   const item = (kind: string, id: string) => catalog.find((c) => c.kind === kind && c.id === id);
   const s = getSettings();
-  const cosmetic = (kind: 'color' | 'bg' | 'frame' | 'effect' | 'mascot' | 'acc', id: string, name: string, preview: HTMLElement, using: boolean, use: () => void | Promise<void>) => {
+
+  interface Product { cat: Cat; key: string; name: string; desc?: string; preview: HTMLElement; price: number; base?: number; owned?: boolean; using?: boolean; action: HTMLElement; try?: () => void }
+  const products: Product[] = [];
+  const priceTag = (cost: number, base?: number) => cost === 0 ? h('span', { class: 'tag tag-free' }, t('חינם ברמה שלך'))
+    : h('span', { class: 'price-row' }, price(cost), base && base > cost ? h('s', { class: 'muted small' }, fmt(base)) : '');
+  const lacking = (cost: number) => Math.max(0, cost - r.balance);
+  const buyBtn = (cost: number, fn: () => Promise<void>) => lacking(cost)
+    ? h('button', { class: 'btn btn-buy', type: 'button', disabled: true }, tr`חסרים ${fmt(lacking(cost))}`)
+    : confirmButton(t('קנה'), t('הקש שוב לאישור'), () => buy(fn), 'btn btn-buy');
+
+  // useful items
+  products.push(
+    { cat: 'useful', key: 'freezeDay', name: t('הקפאת יום'), desc: t('יום שפספסת לא ישבור את רצף הצהריים'), price: r.costs.freezeDay, preview: h('span', { class: 'shop-emoji' }, '🧊'),
+      action: lacking(r.costs.freezeDay) ? buyBtn(r.costs.freezeDay, async () => {}) : h('button', { class: 'btn btn-buy', type: 'button', onclick: () =>
+        pickSheet(t('איזה יום להקפיא?'), days.map((d) => ({ value: d, label: formatShort(d) })), (d) => spend('freezeDay', { date: d })) }, t('בחר יום')) },
+    { cat: 'useful', key: 'freezeWeek', name: t('הקפאת שבוע'), desc: t('שבוע חלש לא ישבור את רצף האימונים'), price: r.costs.freezeWeek, preview: h('span', { class: 'shop-emoji' }, '❄️'),
+      action: lacking(r.costs.freezeWeek) ? buyBtn(r.costs.freezeWeek, async () => {}) : h('button', { class: 'btn btn-buy', type: 'button', onclick: () =>
+        pickSheet(t('איזה שבוע להקפיא?'), weeks.map((w) => ({ value: w, label: tr`שבוע ${formatShort(w)}` })), (w) => spend('freezeWeek', { date: w })) }, t('בחר שבוע')) },
+    { cat: 'useful', key: 'chat10', name: t('10 הודעות לבוט'), desc: tr`מעבר למגבלה היומית · יש לך ${r.chatCredits}`, price: r.costs.chat10, preview: h('span', { class: 'shop-emoji' }, aiMark(40)),
+      action: buyBtn(r.costs.chat10, () => spend('chat10')) },
+  );
+  const cosmetic = (cat: Cat, kind: 'color' | 'bg' | 'frame' | 'effect' | 'mascot' | 'acc', id: string, name: string, preview: HTMLElement, using: boolean, use: () => void | Promise<void>, tryFn?: () => void) => {
     const c = item(kind, id);
-    if (!c) return '';
+    if (!c) return;
+    const removable = using && kind !== 'color' && kind !== 'mascot';
     const action = c.owned
-      ? (() => {
-          const removable = using && kind !== 'color' && kind !== 'mascot';
-          return h('button', { class: using ? 'btn btn-primary' : 'btn', type: 'button', disabled: using && !removable, 'aria-pressed': using ? 'true' : undefined,
-            onclick: async () => { try { await use(); toast(removable ? t('הוסר') : t('הופעל')); redraw(); } catch (e: any) { toast(e.message); } } },
-            removable ? t('בשימוש · הסר') : using ? t('בשימוש') : t('הפעל'));
-        })()
-      : confirmButton(t('קנה'), t('הקש שוב לאישור'), () => buy(() => spend('cosmetic', { kind, id })), 'btn');
-    return tile(name, '', c.price, action, preview, c.base);
+      ? h('button', { class: using ? 'btn btn-using' : 'btn btn-use', type: 'button', disabled: using && !removable, 'aria-pressed': using ? 'true' : undefined,
+          onclick: async () => { try { await use(); toast(removable ? t('הוסר') : t('הופעל')); redraw(); } catch (e: any) { toast(e.message); } } },
+          removable ? t('בשימוש · הסר') : using ? '✓ ' + t('בשימוש') : t('הפעל'))
+      : buyBtn(c.price, () => spend('cosmetic', { kind, id }));
+    products.push({ cat, key: `${kind}:${id}`, name, preview, price: c.price, base: c.base, owned: c.owned, using, action, try: c.owned ? undefined : tryFn });
   };
-  const section = (title: string, ...items: (HTMLElement | string)[]) => [h('h3', { class: 'section-title' }, title), h('div', { class: 'shop' }, ...items)];
-  return h('section', { class: 'card' },
-    h('h2', { class: 'card-title' }, t('חנות')),
-    r.perks?.discount ? h('p', { class: 'hint' }, tr`ההנחה שלך לפי הרמה: ${r.perks.discount}%`) : '',
-    ...section(t('שימושי'),
-      tile(t('הקפאת יום'), t('יום שפספסת לא ישבור את רצף הצהריים'), r.costs.freezeDay,
-        h('button', { class: 'btn', type: 'button', disabled: r.balance < r.costs.freezeDay, onclick: () =>
-          pickSheet(t('איזה יום להקפיא?'), days.map((d) => ({ value: d, label: formatShort(d) })), (d) => spend('freezeDay', { date: d })) }, t('בחר יום'))),
-      tile(t('הקפאת שבוע'), t('שבוע חלש לא ישבור את רצף האימונים'), r.costs.freezeWeek,
-        h('button', { class: 'btn', type: 'button', disabled: r.balance < r.costs.freezeWeek, onclick: () =>
-          pickSheet(t('איזה שבוע להקפיא?'), weeks.map((w) => ({ value: w, label: tr`שבוע ${formatShort(w)}` })), (w) => spend('freezeWeek', { date: w })) }, t('בחר שבוע'))),
-      tile(t('10 הודעות לבוט'), tr`מעבר למגבלה היומית · יש לך ${r.chatCredits}`, r.costs.chat10,
-        confirmButton(t('קנה'), t('הקש שוב לאישור'), () => buy(() => spend('chat10')), 'btn'), h('span', { class: 'shop-preview' }, aiMark(28))),
+  MASCOTS.filter((m) => !m.free).forEach((m) => cosmetic('mascot', 'mascot', m.id, t(m.name), mascot(64, '', m.id, currentOutfit()), (s.mascot ?? 'lion') === m.id, () => updateSettings({ mascot: m.id })));
+  ACCESSORIES.forEach((a) => {
+    const on = currentOutfit()[a.slot] === a.id;
+    cosmetic('acc', 'acc', a.id, t(a.name), mascot(64, '', s.mascot ?? 'lion', { ...currentOutfit(), [a.slot]: a.id }), on,
+      () => updateSettings({ mascotOutfit: { ...(s.mascotOutfit ?? {}), [a.slot]: on ? '' : a.id } }));
+  });
+  ACCENTS.filter((a) => a.premium).forEach((a) => cosmetic('color', 'color', a.id, t(a.name), h('span', { class: 'swatch-preview', style: { background: a.swatch } }), s.accent === a.id, () => updateSettings({ accent: a.id }), () => tryOn('color', a.id)));
+  BG_THEMES.forEach((b) => cosmetic('bg', 'bg', b.id, t(b.name), h('span', { class: `bg-preview bgp-${b.id}`, style: { background: b.swatch } }), s.bgTheme === b.id, () => updateSettings({ bgTheme: s.bgTheme === b.id ? '' : b.id }), () => tryOn('bg', b.id)));
+  FRAMES.forEach((f) => cosmetic('frame', 'frame', f.id, t(f.name), avatar(currentUser()?.name ?? '?', currentUser()?.photoId, 52, f.id), r.frame === f.id, () => wearFrame(r.frame === f.id ? '' : f.id)));
+  cosmetic('effect', 'effect', 'confetti', t('קונפטי חגיגי'), h('span', { class: 'shop-emoji' }, '🎉'), !!s.effects, () => updateSettings({ effects: !s.effects }), () => burst(true));
+
+  const CATS: [Cat, string, string][] = [['all', '🛍️', 'הכל'], ['useful', '🧊', 'שימושי'], ['mascot', '🦁', 'דמויות'], ['acc', '✨', 'סטייל לעוזר'], ['color', '🎨', 'צבעים'], ['bg', '🖼️', 'רקעים'], ['frame', '🖼', 'מסגרות'], ['effect', '🎉', 'אפקטים']];
+  const grid = h('div', { class: 'shop' });
+  const tabs = h('div', { class: 'shop-tabs', role: 'group', 'aria-label': t('קטגוריות') });
+  const affordable = h('input', { type: 'checkbox', id: 'shop-afford', checked: shopOnlyAffordable }) as HTMLInputElement;
+  const draw = () => {
+    tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cat === shopCat)));
+    const list = products.filter((p) => (shopCat === 'all' || p.cat === shopCat) && (!shopOnlyAffordable || p.owned || p.price <= r.balance));
+    grid.replaceChildren(...(list.length ? list.map((p) => h('div', { class: 'shop-item' + (p.owned ? ' owned' : '') + (p.using ? ' using' : '') },
+      h('div', { class: 'shop-art' }, p.preview,
+        !p.owned && NEW_ITEMS.has(p.cat) ? h('span', { class: 'ribbon' }, t('חדש')) : !p.owned && POPULAR.has(p.key) ? h('span', { class: 'ribbon hot' }, '🔥 ' + t('פופולרי')) : '',
+        p.owned ? h('span', { class: 'owned-tag' }, '✓ ' + t('שלך')) : ''),
+      h('strong', null, p.name),
+      p.desc ? h('span', { class: 'muted small' }, p.desc) : '',
+      p.owned ? '' : priceTag(p.price, p.base),
+      h('div', { class: 'shop-btns' }, p.action, p.try ? h('button', { class: 'btn btn-try', type: 'button', onclick: p.try }, '👁 ', t('נסה')) : ''),
+    )) : [h('p', { class: 'muted' }, t('אין פריטים כאן כרגע.'))]));
+  };
+  CATS.forEach(([c, ic, name]) => {
+    if (c !== 'all' && !products.some((p) => p.cat === c)) return;
+    const b = h('button', { type: 'button', 'aria-pressed': String(c === shopCat), onclick: () => { shopCat = c; draw(); } }, ic, ' ', t(name));
+    b.dataset.cat = c;
+    tabs.append(b);
+  });
+  affordable.addEventListener('change', () => { shopOnlyAffordable = affordable.checked; draw(); });
+  draw();
+  const ownedCount = products.filter((p) => p.owned).length;
+  return h('section', { class: 'card store' },
+    h('div', { class: 'store-hero' },
+      h('div', null, h('h2', null, '🛍️ ', t('החנות')), h('p', null, t('משדרגים את האפליקציה ואת העוזר עם המטבעות שצברת.'))),
+      h('div', { class: 'store-wallet' }, h('span', { class: 'muted small' }, t('היתרה שלך')), h('b', null, coin(), fmt(r.balance)),
+        r.perks?.discount ? h('span', { class: 'tag tag-sale' }, tr`${r.perks.discount}% הנחה`) : ''),
     ),
-    ...section(t('צבעי אפליקציה'), ...ACCENTS.filter((a) => a.premium).map((a) =>
-      cosmetic('color', a.id, t(a.name), h('span', { class: 'shop-preview swatch-preview', style: { background: a.swatch } }), s.accent === a.id, () => updateSettings({ accent: a.id })))),
-    ...section(t('רקעים'), ...BG_THEMES.map((b) =>
-      cosmetic('bg', b.id, t(b.name), h('span', { class: `shop-preview bg-preview bgp-${b.id}`, style: { background: b.swatch } }), s.bgTheme === b.id, () => updateSettings({ bgTheme: s.bgTheme === b.id ? '' : b.id })))),
-    ...section(t('מסגרות פרופיל'), ...FRAMES.map((f) =>
-      cosmetic('frame', f.id, t(f.name), h('span', { class: 'shop-preview' }, avatar(currentUser()?.name ?? '?', currentUser()?.photoId, 44, f.id)), r.frame === f.id, () => wearFrame(r.frame === f.id ? '' : f.id)))),
-    ...section(t('דמויות לעוזר'), ...MASCOTS.filter((m) => !m.free).map((m) =>
-      cosmetic('mascot', m.id, t(m.name), h('span', { class: 'shop-preview' }, mascot(56, '', m.id, currentOutfit())), (s.mascot ?? 'lion') === m.id, () => updateSettings({ mascot: m.id })))),
-    ...section(t('סטייל לעוזר: הילות ותגים'), ...ACCESSORIES.map((a) => {
-      const on = currentOutfit()[a.slot] === a.id;
-            return cosmetic('acc', a.id, t(a.name),
-        h('span', { class: 'shop-preview' }, mascot(56, '', s.mascot ?? 'lion', { ...currentOutfit(), [a.slot]: a.id })), on,
-        () => updateSettings({ mascotOutfit: { ...(s.mascotOutfit ?? {}), [a.slot]: on ? '' : a.id } }));
-    })),
-    ...section(t('אפקטים'),
-      cosmetic('effect', 'confetti', t('קונפטי חגיגי'), h('span', { class: 'shop-preview', 'aria-hidden': 'true' }, '🎉'), !!s.effects, () => updateSettings({ effects: !s.effects }))),
+    tabs,
+    h('div', { class: 'shop-filter' }, h('label', { for: 'shop-afford' }, affordable, ' ', t('רק מה שאפשר לקנות עכשיו')), h('span', { class: 'muted small' }, tr`${ownedCount} פריטים שלך`)),
+    grid,
     (r.frozenDays.length || r.frozenWeeks.length) ? h('p', { class: 'hint' },
       t('מוקפאים: '), [...r.frozenDays.map(formatShort), ...r.frozenWeeks.map((w) => tr`שבוע ${formatShort(w)}`)].join(', ')) : '',
   );

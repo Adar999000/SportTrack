@@ -15,6 +15,11 @@ import { HASH, navigate } from './router';
 import { mainCfg } from '../trackers';
 import { trackerBar } from './trackerView';
 import { valueCell } from './valueCell';
+import { track } from '../analytics';
+
+const ROW_ICON: Record<string, string> = { breakfast: '🍳', lunch: '🥗', dinner: '🍽️', sport: '🏃', smoked: '🚭' };
+const QUOTES = ['כל יום מלא הוא ניצחון קטן', 'משמעת היא לבחור בין מה שרוצים עכשיו למה שרוצים יותר', 'לא צריך להיות מושלם, רק עקבי', 'האימון הכי טוב הוא זה שקורה',
+  'עוד יום, עוד וי', 'הגוף משיג מה שהראש מאמין', 'קטן ועקבי מנצח גדול ופעם אחת', 'ההרגל של היום הוא התוצאה של מחר', 'אין קיצורי דרך לקו הסיום', 'צעד אחד בכל פעם'];
 
 const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
@@ -31,14 +36,29 @@ const markClass = (m: Mark | null) => (m === 'V' ? 'mark-V' : m === 'X' ? 'mark-
 const smokeText = (s: boolean | null | undefined) => (s === true ? t('כן') : s === false ? t('לא') : '');
 
 function cycleMeal(sunday: string, i: number, key: MealKey) {
+  track('mark:meal');
   editWeek(sunday, (w) => (w.days[i][key] = cycleMark(w.days[i][key])));
 }
 function cycleSmoke(sunday: string, i: number) {
   editWeek(sunday, (w) => (w.days[i].smoked = cycleSmoked(w.days[i].smoked)));
 }
 
-function label(full: string, short: string) {
-  return [h('span', { class: 'lbl-full' }, full), h('span', { class: 'lbl-short', 'aria-hidden': 'true' }, short)];
+function label(full: string, short: string, key?: string) {
+  return [key && ROW_ICON[key] ? h('span', { class: 'row-ico', 'aria-hidden': 'true' }, ROW_ICON[key]) : '',
+    h('span', { class: 'lbl-full' }, full), h('span', { class: 'lbl-short', 'aria-hidden': 'true' }, short)];
+}
+
+/** How much of a day is filled in (meals + sport), 0–4. */
+const dayDone = (d: Day) => (['breakfast', 'lunch', 'dinner'] as const).filter((k) => d[k] || d.text?.[k]).length + (d.sport.status ? 1 : 0);
+
+function ring(done: number, total: number, size = 64): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const r = 26, c = 2 * Math.PI * r;
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('width', String(size)); svg.setAttribute('height', String(size));
+  svg.setAttribute('class', 'ring' + (done >= total ? ' ring-full' : '')); svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = `<circle cx="32" cy="32" r="${r}" class="ring-bg"/><circle cx="32" cy="32" r="${r}" class="ring-fg" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - done / total)}" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle" class="ring-text">${done >= total ? '🏆' : Math.round((done / total) * 100) + '%'}</text>`;
+  return svg;
 }
 
 /** Big buttons for today's tasks. */
@@ -52,8 +72,17 @@ function todayPanel(today: string): HTMLElement {
       h('span', { class: 'today-title' }, title),
       value ? h('span', { class: 'today-val' }, value) : h('span', { class: 'today-empty' }, t('לא סומן')),
     );
+  const done = dayDone(d);
+  const quote = QUOTES[(new Date(today + 'T12:00:00').getDate()) % QUOTES.length];
   return h('section', { class: 'card today', 'aria-label': t('היום') },
-    h('h2', { class: 'card-title' }, tr`היום · יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
+    h('div', { class: 'today-head' },
+      h('div', null,
+        h('h2', { class: 'card-title' }, tr`היום · יום ${t(DAY_NAMES[i])} ${formatShort(today)}`),
+        h('p', { class: 'today-motto' }, done >= 4 ? t('יום מלא! 🔥 אלוף/ה') : done === 3 ? t('עוד משימה אחת ליום מלא 💪') : tr`עוד ${4 - done} משימות ליום מלא`),
+        h('p', { class: 'quote' }, '“', t(quote), '”'),
+      ),
+      h('div', { class: 'today-ring', role: 'img', 'aria-label': tr`${done} מתוך 4 משימות היום` }, ring(done, 4, 72)),
+    ),
     h('div', { class: 'today-grid' },
       mealRows().map((r) =>
         btn(r.short, d[r.key] ?? '', markClass(d[r.key]), () => cycleMeal(sunday, i, r.key), d[r.key] ? MARK_TEXT[d[r.key]!] : t('ריק')),
@@ -84,7 +113,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
 
   const rows: HTMLElement[] = mealRows().map((r) =>
     h('tr', null,
-      h('th', { scope: 'row' }, label(r.full, r.short)),
+      h('th', { scope: 'row' }, label(r.full, r.short, r.key)),
       week.days.map((d, i) => {
         const text = d.text?.[r.key];
         const edit = () => openCellText(sunday, i, r.key, r.full);
@@ -102,7 +131,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
 
   rows.push(
     h('tr', { class: 'sport-row' },
-      h('th', { scope: 'row' }, (() => { const n = rowName('sport', t('פעילות ספורט'), t('ספורט')); return label(n.full, n.short); })()),
+      h('th', { scope: 'row' }, (() => { const n = rowName('sport', t('פעילות ספורט'), t('ספורט')); return label(n.full, n.short, 'sport'); })()),
       week.days.map((d, i) => {
         const txt = sportShort(d.sport);
         const rest = d.sport.status === 'V' && !d.sport.countsAsWorkout;
@@ -121,7 +150,7 @@ function weekTable(sunday: string, today: string): HTMLElement {
   if (settings.showSmoking) {
     rows.push(
       h('tr', null,
-        h('th', { scope: 'row' }, (() => { const n = rowName('smoked', t('מעשן?'), t('מעשן?')); return label(n.full, n.short); })()),
+        h('th', { scope: 'row' }, (() => { const n = rowName('smoked', t('מעשן?'), t('מעשן?')); return label(n.full, n.short, 'smoked'); })()),
         week.days.map((d, i) => {
           const text = d.text?.smoked;
           const edit = () => openCellText(sunday, i, 'smoked', t('מעשן?'));
@@ -150,8 +179,15 @@ function weekTable(sunday: string, today: string): HTMLElement {
     ));
   }
 
+  const foot = h('tfoot', null, h('tr', { class: 'day-sum' },
+    h('th', { scope: 'row' }, h('span', { class: 'lbl-full' }, t('התקדמות')), h('span', { class: 'lbl-short', 'aria-hidden': 'true' }, '📊')),
+    week.days.map((d, i) => {
+      const n = dayDone(d);
+      return h('td', { class: colCls(i) }, h('span', { class: 'day-dots' + (n >= 4 ? ' full' : ''), role: 'img', 'aria-label': tr`${t(DAY_NAMES[i])}: ${n} מתוך 4` },
+        n >= 4 ? '🔥' : h('span', { class: 'dots4', 'aria-hidden': 'true' }, ...[0, 1, 2, 3].map((k) => h('i', { class: k < n ? 'on' : '' })))));
+    })));
   return h('div', { class: 'table-wrap' },
-    h('table', { class: 'week-table' }, h('caption', { class: 'sr-only' }, tr`טבלת משימות לשבוע ${weekRangeLabel(sunday)}`), h('thead', null, head), h('tbody', null, rows)),
+    h('table', { class: 'week-table' }, h('caption', { class: 'sr-only' }, tr`טבלת משימות לשבוע ${weekRangeLabel(sunday)}`), h('thead', null, head), h('tbody', null, rows), foot),
   );
 }
 

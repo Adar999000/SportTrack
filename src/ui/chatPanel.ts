@@ -4,6 +4,7 @@ import { applyActions, type AgentAction } from '../actions';
 import { currentUser } from '../session';
 import { h, toast } from './dom';
 import { mascot } from './mascot';
+import { track } from '../analytics';
 import { lang, t } from '../i18n';
 import { formatShort } from '../dates';
 
@@ -59,6 +60,7 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
     text = text.trim();
     if (!text) return;
     messages.push({ role: 'user', content: text });
+    track('chat:' + scope);
     input.value = '';
     draw();
     const typing = h('div', { class: 'bubble bubble-assistant typing', 'aria-label': t('חושב…') }, h('span', { class: 'bubble-ai' }, mascot(26, 'mascot-think')), h('span', { class: 'dots', 'aria-hidden': 'true' }, h('i'), h('i'), h('i')));

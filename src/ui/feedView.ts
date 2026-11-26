@@ -7,6 +7,8 @@ import { formatShort } from '../dates';
 import { avatar } from './avatar';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
+import { duelsTab } from './duelsView';
+import { track } from '../analytics';
 import { cardPreview, openShareAchievement, shareOutside, visibilitySelect, type Achievement } from './shareCard';
 
 export interface Post {
@@ -42,7 +44,7 @@ function postCard(p: Post, reload: () => void): HTMLElement {
   likeBtn.addEventListener('click', async () => {
     try {
       const r = await call<{ likes: number; liked: boolean }>('likePost', { id: p.id });
-      p.likes = r.likes; p.liked = r.liked;
+      p.likes = r.likes; p.liked = r.liked; if (r.liked) track('post:like');
       likeBtn.replaceChildren(r.liked ? '❤️' : '🤍', ' ', String(r.likes));
       likeBtn.classList.toggle('on', r.liked); likeBtn.setAttribute('aria-pressed', String(r.liked));
       if (r.liked) likeBtn.animate?.([{ transform: 'scale(1)' }, { transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 300 });
@@ -60,7 +62,7 @@ function postCard(p: Post, reload: () => void): HTMLElement {
       return h('form', { class: 'comment-form', onsubmit: async (e: Event) => {
         e.preventDefault();
         if (!input.value.trim()) return;
-        try { const { comment } = await call<{ comment: Post['comments'][0] }>('commentPost', { id: p.id, text: input.value }); p.comments.push(comment); drawComments(); }
+        try { const { comment } = await call<{ comment: Post['comments'][0] }>('commentPost', { id: p.id, text: input.value }); p.comments.push(comment); drawComments(); track('post:comment'); }
         catch (ex: any) { toast(ex.message); }
       } }, input, h('button', { class: 'btn', type: 'submit' }, t('שלח')));
     })(),
@@ -113,7 +115,7 @@ function composer(onPosted: () => void): HTMLElement {
     try {
       const r = await call<{ post: Post }>('createPost', { text: text.value, visibility: vis.value, photo });
       if (r.post.photoId && photo) rememberPhoto(r.post.photoId, photo);
-      text.value = ''; photo = null; thumb.hidden = true; toast(t('פורסם'));
+      text.value = ''; photo = null; thumb.hidden = true; toast(t('פורסם')); track('post:create');
       onPosted();
     } catch (ex: any) { toast(ex.message); }
     (post as HTMLButtonElement).disabled = false;
@@ -187,13 +189,15 @@ function eventsTab(box: HTMLElement): void {
   load();
 }
 
-export function renderFeed(root: HTMLElement, tab: 'posts' | 'events'): void {
+export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels'): void {
   const box = h('div', { class: 'stack' });
   const seg = h('div', { class: 'seg feed-tabs', role: 'group', 'aria-label': t('קהילה') },
     h('a', { href: HASH.feed, 'aria-current': tab === 'posts' ? 'page' : undefined }, '💬 ', t('פיד')),
+    h('a', { href: HASH.duels, 'aria-current': tab === 'duels' ? 'page' : undefined }, '🏆 ', t('אתגרים')),
     h('a', { href: HASH.events, 'aria-current': tab === 'events' ? 'page' : undefined }, '🏁 ', t('תחרויות')));
   root.replaceChildren(seg, box);
   if (tab === 'events') return eventsTab(box);
+  if (tab === 'duels') return duelsTab(box);
 
   let only = '';
   let posts: Post[] = [];

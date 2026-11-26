@@ -49,6 +49,8 @@ for (const f of ['src/ui/tour.ts', 'src/ui/chatPanel.ts', 'src/actions.ts', 'src
 }
 const audit = /AUDIT_LABEL[^=]*=\s*\{([\s\S]*?)\};/.exec(readFileSync('src/ui/adminView.ts', 'utf8'));
 if (audit) for (const m of audit[1].matchAll(/:\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
+const evl = /EVENT_LABEL[^=]*=\s*\{([\s\S]*?)\};/.exec(readFileSync('src/ui/adminView.ts', 'utf8'));
+if (evl) for (const m of evl[1].matchAll(/:\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 const earn = /EARN_RULES[^=]*=\s*\[([\s\S]*?)\];/.exec(readFileSync('src/ui/rewardsView.ts', 'utf8'));
 if (earn) for (const m of earn[1].matchAll(/\['((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 

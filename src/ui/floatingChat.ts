@@ -10,7 +10,7 @@ import { t } from '../i18n';
 /** Floating assistant button on every signed-in screen: AI chat + messages to the admin. */
 export function mountFloatingChat(): { refresh: () => void } {
   const badge = h('span', { class: 'fab-badge', hidden: true });
-  const fab = h('button', { class: 'fab', type: 'button', 'aria-label': t('עוזר AI ופנייה למנהל'), title: t('עוזר AI') }, mascot(50, 'fab-mascot'), h('span', { class: 'fab-ring', 'aria-hidden': 'true' }), badge);
+  const fab = h('button', { class: 'fab', type: 'button', 'data-track': 'fab:open', 'aria-label': t('עוזר AI ופנייה למנהל'), title: t('עוזר AI') }, mascot(50, 'fab-mascot'), h('span', { class: 'fab-ring', 'aria-hidden': 'true' }), badge);
   const panel = h('div', { class: 'fab-panel', role: 'dialog', 'aria-label': t('עוזר AI'), hidden: true });
   document.body.append(fab, panel);
 

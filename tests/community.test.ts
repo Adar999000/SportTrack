@@ -86,3 +86,54 @@ describe('custom trackers, feed and events', () => {
     expect(posts[0].comments).toHaveLength(0);
   });
 });
+
+describe('friend challenges and analytics', () => {
+  it('scores challenges from real data and pays the winner once', () => {
+    let now = new Date('2026-12-01T10:00:00Z'); // a Tuesday
+    const be = createBackend({ now: () => now });
+    const reg = (email: string, name: string, invite?: string) => be.post({ action: 'register', email, password: 'secret12', name, invite });
+    reg('adm@x.com', 'מנהל');
+    const a = reg('a@x.com', 'אלף');
+    const b = reg('b@x.com', 'בית', be.post({ action: 'myInvite', token: a.token }).code);
+    const stranger = reg('s@x.com', 'זר');
+    expect(be.post({ action: 'friends', token: a.token }).friends.map((f: any) => f.name)).toEqual(['בית']);
+    const { duel } = be.post({ action: 'createDuel', token: a.token, metric: 'runs', days: 3, invite: [b.user.userId, stranger.user.userId] });
+    expect(duel.standings.map((s: any) => s.status)).toEqual(['in', 'invited']); // strangers can't be invited by id
+    const day = (label: string) => ({ breakfast: 'V', lunch: 'V', dinner: 'V', sport: { status: 'V', label, countsAsWorkout: true } });
+    const wk = (days: any[]) => ({ sundayDate: '2026-11-29', updatedAt: Date.now(), data: { sundayDate: '2026-11-29', days }, summary: {} });
+    be.post({ action: 'putWeeks', token: a.token, weeks: [wk([null, null, day('ריצה 5 ק"מ'), day('כוח')])] });
+    be.post({ action: 'putWeeks', token: b.token, weeks: [wk([null, null, day('ריצה'), day('ריצה קלה')])] });
+    // b hasn't accepted yet: score 0
+    expect(be.post({ action: 'duels', token: a.token }).duels[0].standings[0]).toMatchObject({ name: 'אלף', score: 1 });
+    expect(be.post({ action: 'respondDuel', token: b.token, id: duel.id, accept: true }).ok).toBe(true);
+    // join by code
+    expect(be.post({ action: 'joinDuel', token: stranger.token, code: 'nope' }).error).toMatch(/לא תקין/);
+    expect(be.post({ action: 'joinDuel', token: stranger.token, code: duel.code }).ok).toBe(true);
+    now = new Date('2026-12-02T10:00:00Z');
+    let d = be.post({ action: 'duels', token: a.token }).duels[0];
+    expect(d.standings.map((s: any) => [s.name, s.score])).toEqual([['בית', 2], ['אלף', 1], ['זר', 0]]);
+    // after the end: settled, winner paid 100 once
+    now = new Date('2026-12-05T10:00:00Z');
+    const before = be.post({ action: 'rewards', token: b.token }).rewards.balance;
+    d = be.post({ action: 'duels', token: a.token }).duels[0];
+    expect(d.status).toBe('done');
+    expect(d.winners).toEqual([b.user.userId]);
+    be.post({ action: 'duels', token: b.token });
+    expect(be.post({ action: 'rewards', token: b.token }).rewards.balance).toBe(before + 100);
+  });
+
+  it('aggregates usage per day and shows it to the admin only', () => {
+    const be = createBackend();
+    const adm = be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'u' });
+    be.post({ action: 'track', token: u.token, events: { 'screen:week': 3, 'mark:meal': 5, 'BAD KEY!': 1 } });
+    be.post({ action: 'track', token: adm.token, events: { 'screen:week': 1 } });
+    be.post({ action: 'track', token: u.token, events: { 'screen:week': 1 } });
+    expect(be.post({ action: 'adminAnalytics', token: u.token }).error).toMatch(/מנהל/);
+    const r = be.post({ action: 'adminAnalytics', token: adm.token, days: 7 });
+    expect(r.dau).toBe(2);
+    expect(r.events.find((e: any) => e.event === 'mark:meal')).toMatchObject({ count: 5, users: 1 });
+    expect(r.events.find((e: any) => e.event === 'screen:week')).toMatchObject({ count: 5, users: 2 });
+    expect(r.events.some((e: any) => e.event === 'BAD KEY!')).toBe(false);
+  });
+});

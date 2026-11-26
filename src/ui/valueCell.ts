@@ -67,6 +67,7 @@ export function editValue(title: string, type: CellType, v: CellVal, unit: strin
 export function valueCell(type: CellType, v: CellVal, label: string, unit: string | undefined, onChange: (v: CellVal) => void): HTMLElement {
   return h('button', {
     class: `cell ${cls(type, v)}`, type: 'button', 'aria-label': `${label}: ${spoken(type, v, unit)}`,
+    'data-track': 'cell:' + type,
     onclick: () => {
       const n = nextValue(type, v);
       if (n !== undefined) onChange(n);

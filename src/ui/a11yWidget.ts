@@ -11,7 +11,7 @@ function wheelchair(size = 26): SVGSVGElement {
 
 /** Accessibility menu: a fixed button on every screen (signed in or not). */
 export function mountA11yWidget(): void {
-  const btn = h('button', { class: 'a11y-btn', type: 'button', 'aria-label': t('תפריט נגישות'), title: t('נגישות'), 'aria-expanded': 'false', 'aria-controls': 'a11y-panel' }, wheelchair());
+  const btn = h('button', { class: 'a11y-btn', type: 'button', 'data-track': 'a11y:open', 'aria-label': t('תפריט נגישות'), title: t('נגישות'), 'aria-expanded': 'false', 'aria-controls': 'a11y-panel' }, wheelchair());
   const panel = h('div', { class: 'a11y-panel', id: 'a11y-panel', role: 'dialog', 'aria-label': t('תפריט נגישות'), hidden: true });
   document.body.append(btn, panel);
 

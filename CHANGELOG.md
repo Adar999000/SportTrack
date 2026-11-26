@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.8.0 (2026-11-26)
+- Friend challenges (Community → Challenges): metric (workouts, runs, healthy meals, full days, coins), 3–30 days, invite friends or share a code/link (`#duel-CODE`). Scores are computed on the server from each member's own data; finished challenges settle once and the winner(s) get 100 coins (ledger `duel:<id>`). Endpoints `duels`, `createDuel`, `respondDuel`, `joinDuel`, `leaveDuel`, `friends`.
+- Admin usage analytics: batched client event counts (`track`), aggregated per day in the `Analytics` sheet (counts + distinct users, no content); admin dashboard with DAU/WAU/MAU, daily active chart, top features and screens (7/30/90 days). Privacy policy updated. Removed with the account.
+- Store redesign: hero with wallet, category tabs, "new"/"popular" ribbons, owned tags, "try" preview for colors/backgrounds/confetti, "only what I can afford" filter, shortfall shown on the button.
+- Table polish: row icons, today column highlight, gradient marks, daily progress row; today panel ring + motivation quote; stats tables with zebra rows, mini bars and colored trends.
+- Needs the updated `apps-script/Code.gs`.
+
 ## 3.7.0 (2026-11-26)
 - Custom trackers: by-day (rows × Sunday–Saturday, saved per week) or free grid (your own rows and columns). Per-row cell types: V/X/-, check, mood emoji, 1–5 stars, number with unit, text. Templates, icon, corner title, reorder/delete. Synced as small documents (`Docs` sheet, `getDocs`/`putDocs`).
 - Main table: rename rows and the corner title, add your own extra rows (stored in `week.extra`; coins and stats unchanged).

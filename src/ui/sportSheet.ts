@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import { t, tr } from '../i18n';
 import { DAY_NAMES, addDays, formatShort } from '../dates';
 import { BUILTIN_SPORT_TYPES, isNonWorkoutLabel, sportFromLabel, sportMark } from '../model';
@@ -5,6 +6,7 @@ import { addCustomSportType, editWeek, getSettings, getWeek } from '../store';
 import { h, openSheet } from './dom';
 
 export function openSportSheet(sunday: string, dayIdx: number): void {
+  track('mark:sport');
   const cell = getWeek(sunday).days[dayIdx].sport;
   let selected: string | null = null;
   let countsTouched = false;
