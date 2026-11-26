@@ -2,7 +2,7 @@ import { t, tr } from '../i18n';
 import { call, type User } from '../api';
 import { daysBetween, formatShort, todayISO } from '../dates';
 import { fileToDataUrl, pickImage } from '../image';
-import { currentUser, endSession, isAdmin, rememberPhoto, setUser } from '../session';
+import { currentUser, endSession, isAdmin, rememberPhoto, replaceToken, setUser } from '../session';
 import { weightPoints, weightSummary, countWorkouts, round1 } from '../stats';
 import { allWeeks } from '../store';
 import { avatar } from './avatar';
@@ -97,13 +97,38 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
   );
 }
 
+function twoFactorSheet() {
+  const u = currentUser()!;
+  const on = !!u.twoFactor;
+  const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
+  const pass = h('input', { id: 'tf-pass', class: 'input', type: 'password', autocomplete: 'current-password' });
+  const body = h('div', { class: 'stack' },
+    h('p', null, on
+      ? t('אימות דו-שלבי פעיל: בכל כניסה נשלח אליך קוד במייל, בנוסף לסיסמה.')
+      : t('בכל כניסה, בנוסף לסיסמה, יישלח אליך קוד חד-פעמי במייל. כך גם מי שיודע את הסיסמה לא ייכנס בלי גישה למייל שלך.')),
+    h('div', { class: 'field' }, h('label', { for: 'tf-pass' }, t('הסיסמה שלך, לאישור')), pass),
+    err,
+    h('button', {
+      class: on ? 'btn btn-danger' : 'btn btn-primary', type: 'button', onclick: async () => {
+        try {
+          const r = await call<{ user: User }>('setTwoFactor', { enabled: !on, password: pass.value });
+          await setUser(r.user);
+          close();
+          toast(on ? t('אימות דו-שלבי כבוי') : t('אימות דו-שלבי הופעל'));
+        } catch (e: any) { err.textContent = e.message; err.hidden = false; }
+      },
+    }, on ? t('כיבוי אימות דו-שלבי') : t('הפעלת אימות דו-שלבי')),
+  );
+  const close = openSheet(t('אימות דו-שלבי'), body);
+}
+
 function changePasswordSheet() {
   const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
   const oldP = h('input', { id: 'pw-old', class: 'input', type: 'password', autocomplete: 'current-password' });
-  const newP = h('input', { id: 'pw-new', class: 'input', type: 'password', autocomplete: 'new-password', minlength: 6 });
+  const newP = h('input', { id: 'pw-new', class: 'input', type: 'password', autocomplete: 'new-password', minlength: 8 });
   const body = h('div', { class: 'stack' },
     h('div', { class: 'field' }, h('label', { for: 'pw-old' }, t('סיסמה נוכחית')), oldP),
-    h('div', { class: 'field' }, h('label', { for: 'pw-new' }, t('סיסמה חדשה (6 תווים לפחות)')), newP),
+    h('div', { class: 'field' }, h('label', { for: 'pw-new' }, t('סיסמה חדשה (8 תווים לפחות)')), newP),
     err,
     h('button', {
       class: 'btn btn-primary', type: 'button', onclick: async () => {
@@ -175,7 +200,12 @@ export function renderProfile(root: HTMLElement): void {
       h('button', { class: 'btn ai-btn', onclick: () => navigate(HASH.chat) }, aiBadge(), ' ', t('שאל את העוזר על הנתונים שלך')),
       isAdmin() && h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.admin) }, t('לוח מנהל')),
       h('button', { class: 'btn', onclick: () => navigate(HASH.settings) }, t('הגדרות, ייבוא וייצוא')),
+      h('h3', { class: 'section-title' }, t('אבטחה')),
+      h('button', { class: 'btn', onclick: twoFactorSheet }, (currentUser()?.twoFactor ? '🔒 ' + t('אימות דו-שלבי: פעיל') : t('אימות דו-שלבי: כבוי'))),
       h('button', { class: 'btn', onclick: changePasswordSheet }, t('שינוי סיסמה')),
+      confirmButton(t('התנתקות מכל המכשירים'), t('הקש שוב: כל המכשירים האחרים ינותקו'), async () => {
+        try { const r = await call<{ token: string }>('logoutAll'); await replaceToken(r.token); toast(t('כל המכשירים האחרים נותקו')); } catch (e: any) { toast(e.message); }
+      }, 'btn'),
       confirmButton(t('התנתקות'), t('הקש שוב להתנתקות'), () => endSession(), 'btn btn-danger'),
     ),
   );

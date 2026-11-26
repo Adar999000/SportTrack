@@ -14,8 +14,12 @@
 const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const DEFAULT_MODEL = 'gpt-4o-mini';
-const TOKEN_DAYS = 120;
-const HASH_ROUNDS = 1000;
+const TOKEN_DAYS = 60;
+const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
+const HASH_ROUNDS_V2 = 5000;
+const MIN_PASSWORD = 8;
+const LOGIN_MAX_FAILS = 5;
+const LOCK_MINUTES = 15;
 
 const U = { id: 0, email: 1, name: 2, role: 3, hash: 4, salt: 5, created: 6, seen: 7, photo: 8, profile: 9, extra: 10 };
 const W = { user: 0, sunday: 1, weight: 2, workouts: 3, meals: 4, photo: 5, updated: 6, data: 7 };
@@ -42,6 +46,8 @@ function route(req) {
   const a = req.action;
   if (a === 'register') return register(req);
   if (a === 'login') return login(req);
+  if (a === 'login2fa') return login2fa(req);
+  if (a === 'publicContact') return publicContact(req);
   if (a === 'status') return { ok: true, hasUsers: sheet('Users').getLastRow() > 1 };
   if (a === 'requestReset') return requestReset(req);
   if (a === 'confirmReset') return confirmReset(req);
@@ -52,6 +58,9 @@ function route(req) {
     case 'me': return { user: publicUser(me) };
     case 'updateProfile': return updateProfile(me, req);
     case 'changePassword': return changePassword(me, req);
+    case 'logoutAll': return logoutAll(me);
+    case 'setTwoFactor': return setTwoFactor(me, req);
+    case 'auditLog': requireAdmin(me); return { entries: auditLog() };
     case 'getWeeks': return { weeks: weeksOf(me.r[U.id], Number(req.since) || 0) };
     case 'putWeeks': return putWeeks(me, req.weeks || []);
     case 'setWeekPhoto': return setWeekPhoto(me, req);
@@ -69,7 +78,7 @@ function route(req) {
     case 'adminReply': requireAdmin(me); return { message: adminReply(me, String(req.userId || ''), String(req.text || '')) };
     // admin
     case 'listUsers': requireAdmin(me); return { users: listUsers() };
-    case 'userSummary': requireAdmin(me); return { summary: userSummary(String(req.userId || '')) };
+    case 'userSummary': requireAdmin(me); return { summary: userSummary(String(req.userId || ''), me.r[U.id]) };
     case 'createInvite': requireAdmin(me); return createInvite(me);
     case 'listInvites': requireAdmin(me); return { invites: listInvites() };
     case 'setRole': requireAdmin(me); return setRole(me, req);
@@ -116,11 +125,12 @@ function props() {
   return PropertiesService.getScriptProperties();
 }
 
+/** Session signing key. V2 replaced the first key (rotated); created automatically. */
 function secret() {
-  let s = props().getProperty('TOKEN_SECRET');
+  let s = props().getProperty('TOKEN_SECRET_V2');
   if (!s) {
-    s = Utilities.getUuid() + Utilities.getUuid();
-    props().setProperty('TOKEN_SECRET', s);
+    s = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid();
+    props().setProperty('TOKEN_SECRET_V2', s);
   }
   return s;
 }
@@ -129,29 +139,89 @@ function b64url(bytes) {
   return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
 }
 
-function hashPassword(password, salt) {
+function hashPassword(password, salt, rounds) {
   let h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + ':' + password, Utilities.Charset.UTF_8);
-  for (let i = 0; i < HASH_ROUNDS; i++) {
-    h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, h.concat(Utilities.newBlob(salt).getBytes()));
+  const saltBytes = Utilities.newBlob(salt).getBytes();
+  for (let i = 0; i < (rounds || HASH_ROUNDS); i++) {
+    h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, h.concat(saltBytes));
   }
   return b64url(h);
 }
 
-function sign(userId) {
+/** Constant-time string comparison. */
+function safeEqual(a, b) {
+  a = String(a); b = String(b);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+}
+
+/** 'v2' (current), 'legacy' (correct but old format) or '' (wrong). */
+function checkPassword(r, password) {
+  const stored = String(r[U.hash] || '');
+  if (stored.indexOf('v2$') === 0) return safeEqual(stored, 'v2$' + hashPassword(password, r[U.salt], HASH_ROUNDS_V2)) ? 'v2' : '';
+  return safeEqual(stored, hashPassword(password, r[U.salt], HASH_ROUNDS)) ? 'legacy' : '';
+}
+
+function passwordProblem(p) {
+  p = String(p || '');
+  if (p.length < MIN_PASSWORD) return 'הסיסמה צריכה להיות לפחות ' + MIN_PASSWORD + ' תווים';
+  if (/^(.)\1+$/.test(p) || /^(12345678|123456789|1234567890|password|qwertyui|11111111)$/i.test(p)) return 'הסיסמה קלה מדי לניחוש. בחרו סיסמה אחרת.';
+  return '';
+}
+
+/** Store a new password and (optionally) sign out every other session. */
+function setPassword(u, password, revokeSessions) {
+  const salt = Utilities.getUuid();
+  sheet('Users').getRange(u.row, U.hash + 1, 1, 2).setValues([['v2$' + hashPassword(password, salt, HASH_ROUNDS_V2), salt]]);
+  u.r[U.hash] = 'v2$' + hashPassword(password, salt, HASH_ROUNDS_V2);
+  u.r[U.salt] = salt;
+  if (revokeSessions) setExtra(u, { tokenVersion: (Number(extraOf(u.r).tokenVersion) || 0) + 1 });
+}
+
+function sign(userRow) {
   const exp = Date.now() + TOKEN_DAYS * 864e5;
-  const payload = userId + '.' + exp;
+  const ver = Number(extraOf(userRow).tokenVersion) || 0;
+  const payload = userRow[U.id] + '.' + exp + '.' + ver;
   return payload + '.' + b64url(Utilities.computeHmacSha256Signature(payload, secret()));
 }
 
 function auth(token) {
   const parts = String(token || '').split('.');
-  if (parts.length !== 3) throw new Error('AUTH: נדרשת התחברות');
-  const payload = parts[0] + '.' + parts[1];
+  if (parts.length !== 4) throw new Error('AUTH: נדרשת התחברות');
+  const payload = parts[0] + '.' + parts[1] + '.' + parts[2];
   const expected = b64url(Utilities.computeHmacSha256Signature(payload, secret()));
-  if (expected !== parts[2] || Number(parts[1]) < Date.now()) throw new Error('AUTH: נדרשת התחברות מחדש');
+  if (!safeEqual(expected, parts[3]) || Number(parts[1]) < Date.now()) throw new Error('AUTH: נדרשת התחברות מחדש');
   const u = findUser((r) => r[U.id] === parts[0]);
   if (!u) throw new Error('AUTH: המשתמש לא נמצא');
+  if ((Number(extraOf(u.r).tokenVersion) || 0) !== Number(parts[2])) throw new Error('AUTH: נדרשת התחברות מחדש');
   return u;
+}
+
+// ------------------------------------------------------------------ audit log
+
+function auditSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sh = ss.getSheetByName('Audit');
+  if (!sh) {
+    sh = ss.insertSheet('Audit');
+    sh.getRange(1, 1, 1, 4).setValues([['at', 'userId', 'event', 'detail']]);
+  }
+  return sh;
+}
+
+/** Security-relevant events (never passwords or codes). */
+function audit(userId, event, detail) {
+  try { appendRows(auditSheet(), [[new Date().toISOString(), userId || '', event, String(detail || '').slice(0, 200)]]); } catch (e) { /* logging must never break a request */ }
+}
+
+function auditLog() {
+  const sh = auditSheet();
+  const n = sh.getLastRow();
+  if (n < 2) return [];
+  const from = Math.max(2, n - 199);
+  return sh.getRange(from, 1, n - from + 1, 4).getValues().map((r) => r.map(cell))
+    .map((r) => ({ at: r[0], userId: r[1], event: r[2], detail: r[3] })).reverse();
 }
 
 function findUser(pred) {
@@ -169,6 +239,7 @@ function publicUser(u) {
     userId: u.r[U.id], email: u.r[U.email], name: u.r[U.name], role: u.r[U.role],
     createdAt: u.r[U.created], lastSeen: u.r[U.seen], photoId: u.r[U.photo] || null,
     profile: parseJSON(u.r[U.profile], {}),
+    twoFactor: twoFactorOn(u.r),
   };
 }
 
@@ -206,9 +277,15 @@ function register(req) {
   const email = normEmail(req.email);
   const name = String(req.name || '').trim();
   const password = String(req.password || '');
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('כתובת אימייל לא תקינה');
-  if (password.length < 6) throw new Error('הסיסמה צריכה להיות לפחות 6 תווים');
-  if (!name) throw new Error('נא למלא שם');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 120) throw new Error('כתובת אימייל לא תקינה');
+  const pwErr = passwordProblem(password);
+  if (pwErr) throw new Error(pwErr);
+  if (!name || name.length > 60) throw new Error('נא למלא שם (עד 60 תווים)');
+  const cacheR = CacheService.getScriptCache();
+  const hourKey = 'reg-' + new Date().toISOString().slice(0, 13);
+  const regs = Number(cacheR.get(hourKey)) || 0;
+  if (regs >= 30) throw new Error('יותר מדי הרשמות בשעה האחרונה. נסו שוב מאוחר יותר.');
+  cacheR.put(hourKey, String(regs + 1), 3700);
 
   return withLock(() => {
     const first = sheet('Users').getLastRow() < 2;
@@ -232,30 +309,118 @@ function register(req) {
     const id = Utilities.getUuid().slice(0, 8);
     const salt = Utilities.getUuid();
     const now = new Date().toISOString();
-    appendRows(sheet('Users'), [[id, email, name, first ? 'admin' : 'user', hashPassword(password, salt), salt, now, now, '', '{}',
+    appendRows(sheet('Users'), [[id, email, name, first ? 'admin' : 'user', 'v2$' + hashPassword(password, salt, HASH_ROUNDS_V2), salt, now, now, '', '{}',
       JSON.stringify(invitedBy ? { invitedBy: invitedBy } : {})]]);
     if (inviteRow) sheet('Invites').getRange(inviteRow, 3, 1, 2).setValues([[email, now]]);
     const u = findUser((r) => r[U.id] === id);
-    return { token: sign(id), user: publicUser(u) };
+    audit(id, 'register', invitedBy ? 'invited' : '');
+    return { token: sign(u.r), user: publicUser(u) };
   });
+}
+
+function twoFactorOn(r) {
+  const x = extraOf(r);
+  return x.twoFactor === true || (r[U.role] === 'admin' && x.twoFactor !== false);
 }
 
 function login(req) {
   const email = normEmail(req.email);
+  const cache = CacheService.getScriptCache();
+  const failKey = 'fail-' + email;
+  const fails = Number(cache.get(failKey)) || 0;
+  if (fails >= LOGIN_MAX_FAILS) {
+    audit('', 'login_locked', email);
+    throw new Error('יותר מדי ניסיונות כניסה. נסו שוב בעוד ' + LOCK_MINUTES + ' דקות, או אפסו סיסמה.');
+  }
   const u = findUser((r) => r[U.email] === email);
-  if (!u || hashPassword(String(req.password || ''), u.r[U.salt]) !== u.r[U.hash]) {
+  const ok = u ? checkPassword(u.r, String(req.password || '')) : '';
+  if (!ok) {
+    cache.put(failKey, String(fails + 1), LOCK_MINUTES * 60);
+    audit(u ? u.r[U.id] : '', 'login_fail', u ? '' : 'unknown email');
     Utilities.sleep(800);
     throw new Error('אימייל או סיסמה שגויים');
   }
-  return { token: sign(u.r[U.id]), user: publicUser(u) };
+  cache.remove(failKey);
+  if (ok === 'legacy') setPassword(u, String(req.password), false); // upgrade the hash format
+  if (twoFactorOn(u.r)) {
+    const code = (Utilities.getUuid().replace(/\D/g, '') + String(Math.random()).slice(2)).slice(0, 6);
+    const challenge = Utilities.getUuid();
+    const salt = Utilities.getUuid();
+    cache.put('2fa-' + challenge, JSON.stringify({ uid: u.r[U.id], h: hashPassword(code, salt), salt: salt, tries: 0 }), 600);
+    MailApp.sendEmail({
+      to: email, name: 'משמעת אישית', subject: 'קוד כניסה · משמעת אישית',
+      body: 'קוד הכניסה שלך: ' + code + '\n\nהקוד בתוקף ל-10 דקות. אם לא ניסית להיכנס, מומלץ להחליף סיסמה.',
+    });
+    audit(u.r[U.id], '2fa_sent', '');
+    return { needCode: true, challenge: challenge, email: email.replace(/^(.).*(@.*)$/, '$1***$2') };
+  }
+  audit(u.r[U.id], 'login_ok', '');
+  return { token: sign(u.r), user: publicUser(u) };
+}
+
+/** Second step of sign-in: the emailed code. */
+function login2fa(req) {
+  const cache = CacheService.getScriptCache();
+  const key = '2fa-' + String(req.challenge || '');
+  const rec = parseJSON(cache.get(key), null);
+  if (!rec) throw new Error('הקוד פג תוקף. התחברו שוב.');
+  if (!safeEqual(hashPassword(String(req.code || '').trim(), rec.salt), rec.h)) {
+    rec.tries++;
+    if (rec.tries >= 5) cache.remove(key);
+    else cache.put(key, JSON.stringify(rec), 600);
+    audit(rec.uid, '2fa_fail', '');
+    throw new Error('הקוד שגוי');
+  }
+  cache.remove(key);
+  const u = findUser((r) => r[U.id] === rec.uid);
+  if (!u) throw new Error('המשתמש לא נמצא');
+  audit(u.r[U.id], 'login_ok', '2fa');
+  return { token: sign(u.r), user: publicUser(u) };
+}
+
+function setTwoFactor(me, req) {
+  if (!checkPassword(me.r, String(req.password || ''))) throw new Error('הסיסמה שגויה');
+  setExtra(me, { twoFactor: !!req.enabled });
+  audit(me.r[U.id], req.enabled ? '2fa_on' : '2fa_off', '');
+  return { user: publicUser(me) };
+}
+
+function logoutAll(me) {
+  setExtra(me, { tokenVersion: (Number(extraOf(me.r).tokenVersion) || 0) + 1 });
+  audit(me.r[U.id], 'logout_all', '');
+  return { token: sign(me.r) };
+}
+
+/** Contact form for visitors who aren't signed in (e.g. accessibility requests). */
+function publicContact(req) {
+  const name = String(req.name || '').trim().slice(0, 60);
+  const email = normEmail(req.email).slice(0, 120);
+  const text = String(req.text || '').trim().slice(0, 2000);
+  const topic = String(req.topic || 'פנייה').trim().slice(0, 60);
+  if (!name || !text) throw new Error('נא למלא שם ותוכן הפנייה');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('כתובת אימייל לא תקינה');
+  const cache = CacheService.getScriptCache();
+  const day = new Date().toISOString().slice(0, 10);
+  const all = Number(cache.get('pc-' + day)) || 0;
+  const mine = Number(cache.get('pc-' + day + email)) || 0;
+  if (all >= 30 || mine >= 3) throw new Error('נשלחו יותר מדי פניות היום. נסו שוב מחר.');
+  cache.put('pc-' + day, String(all + 1), 6 * 3600);
+  cache.put('pc-' + day + email, String(mine + 1), 6 * 3600);
+  appendRows(messagesSheet(), [[Utilities.getUuid().slice(0, 8), 'guest:' + email, new Date().toISOString(), 'user', topic + ' · ' + name, text, 'new']]);
+  rows('Users').filter((r) => r[U.role] === 'admin').forEach((a) => {
+    safeMail(a[U.email], 'פנייה מהאתר (' + topic + '): ' + name, 'מאת: ' + name + ' <' + email + '>\n\n' + text);
+  });
+  audit('', 'public_contact', topic);
+  return { ok: true };
 }
 
 function changePassword(me, req) {
-  if (hashPassword(String(req.oldPassword || ''), me.r[U.salt]) !== me.r[U.hash]) throw new Error('הסיסמה הנוכחית שגויה');
-  if (String(req.newPassword || '').length < 6) throw new Error('הסיסמה צריכה להיות לפחות 6 תווים');
-  const salt = Utilities.getUuid();
-  sheet('Users').getRange(me.row, U.hash + 1, 1, 2).setValues([[hashPassword(req.newPassword, salt), salt]]);
-  return { ok: true };
+  if (!checkPassword(me.r, String(req.oldPassword || ''))) throw new Error('הסיסמה הנוכחית שגויה');
+  const pwErr = passwordProblem(req.newPassword);
+  if (pwErr) throw new Error(pwErr);
+  setPassword(me, String(req.newPassword), true); // signs out other devices
+  audit(me.r[U.id], 'password_change', '');
+  return { ok: true, token: sign(me.r) };
 }
 
 // ------------------------------------------------------------------ password reset by email
@@ -276,6 +441,7 @@ function requestReset(req) {
   const code = digits.slice(0, 6);
   const salt = Utilities.getUuid();
   cache.put(key, JSON.stringify({ h: hashPassword(code, salt), salt: salt, sent: Date.now(), tries: 0 }), RESET_MINUTES * 60);
+  audit(u.r[U.id], 'reset_request', '');
   MailApp.sendEmail({
     to: email,
     subject: 'קוד לאיפוס סיסמה · משמעת אישית',
@@ -296,8 +462,9 @@ function confirmReset(req) {
   const key = 'reset-' + email;
   const rec = parseJSON(cache.get(key), null);
   if (!rec) throw new Error('הקוד לא תקין או שפג תוקפו. אפשר לבקש קוד חדש.');
-  if (String(req.newPassword || '').length < 6) throw new Error('הסיסמה צריכה להיות לפחות 6 תווים');
-  if (hashPassword(String(req.code || '').trim(), rec.salt) !== rec.h) {
+  const pwErr = passwordProblem(req.newPassword);
+  if (pwErr) throw new Error(pwErr);
+  if (!safeEqual(hashPassword(String(req.code || '').trim(), rec.salt), rec.h)) {
     rec.tries++;
     if (rec.tries >= RESET_MAX_TRIES) cache.remove(key);
     else cache.put(key, JSON.stringify(rec), RESET_MINUTES * 60);
@@ -306,9 +473,9 @@ function confirmReset(req) {
   cache.remove(key);
   const u = findUser((r) => r[U.email] === email);
   if (!u) throw new Error('המשתמש לא נמצא');
-  const salt = Utilities.getUuid();
-  sheet('Users').getRange(u.row, U.hash + 1, 1, 2).setValues([[hashPassword(String(req.newPassword), salt), salt]]);
-  return { token: sign(u.r[U.id]), user: publicUser(u) };
+  setPassword(u, String(req.newPassword), true);
+  audit(u.r[U.id], 'reset_done', '');
+  return { token: sign(u.r), user: publicUser(u) };
 }
 
 function escapeHtml(s) {
@@ -330,9 +497,12 @@ function savePhoto(dataUrl, name, oldId) {
 
 function updateProfile(me, req) {
   const sh = sheet('Users');
-  if (typeof req.name === 'string' && req.name.trim()) sh.getRange(me.row, U.name + 1).setValue(req.name.trim());
+  if (typeof req.name === 'string' && req.name.trim()) sh.getRange(me.row, U.name + 1).setValue(req.name.trim().slice(0, 60));
   if (req.profile && typeof req.profile === 'object') {
-    const merged = Object.assign(parseJSON(me.r[U.profile], {}), req.profile);
+    const allowed = ['birthDate', 'heightCm', 'goalWeight', 'goal', 'completed'];
+    const clean = {};
+    allowed.forEach((k) => { if (req.profile[k] !== undefined) clean[k] = typeof req.profile[k] === 'string' ? req.profile[k].slice(0, 300) : req.profile[k]; });
+    const merged = Object.assign(parseJSON(me.r[U.profile], {}), clean);
     sh.getRange(me.row, U.profile + 1).setValue(JSON.stringify(merged));
   }
   if (req.photo !== undefined) {
@@ -380,6 +550,7 @@ function putWeeks(me, weeks) {
     let accepted = 0;
     weeks.forEach((w) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(w.sundayDate || '')) return;
+      if (JSON.stringify(w.data || null).length > 20000) return; // oversized week: ignore
       const s = w.summary || {};
       const row = [
         me.r[U.id], w.sundayDate,
@@ -445,9 +616,10 @@ function listUsers() {
 }
 
 /** Monthly aggregates for one user (what an admin may see): no daily entries, notes or absolute weight. */
-function userSummary(userId) {
+function userSummary(userId, viewer) {
   const u = findUser((r) => r[U.id] === userId);
   if (!u) throw new Error('המשתמש לא נמצא');
+  if (viewer) audit(viewer, 'admin_view', userId);
   const weeks = rows('Weeks').filter((w) => w[W.user] === userId)
     .sort((a, b) => String(a[W.sunday]).localeCompare(String(b[W.sunday])));
   const by = {};
@@ -542,6 +714,7 @@ function setRole(me, req) {
   const u = findUser((r) => r[U.id] === req.userId);
   if (!u) throw new Error('המשתמש לא נמצא');
   sheet('Users').getRange(u.row, U.role + 1).setValue(req.role === 'admin' ? 'admin' : 'user');
+  audit(me.r[U.id], 'role_change', req.userId + ' -> ' + req.role);
   return { ok: true };
 }
 

@@ -47,6 +47,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
     Invites: new Sheet('Invites', ['code', 'createdAt', 'usedBy', 'usedAt', 'createdBy', 'multi'], 200),
     Ledger: new Sheet('Ledger', ['userId', 'at', 'amount', 'ref', 'label']),
     Messages: new Sheet('Messages', ['id', 'userId', 'at', 'from', 'subject', 'text', 'status']),
+    Audit: new Sheet('Audit', ['at', 'userId', 'event', 'detail'], 5000),
   };
   const files = new Map();
   const properties = new Map();

@@ -43,9 +43,11 @@ for (const m of gs.matchAll(/add\([^,]+, \d+, '\w+', '((?:[^'\\]|\\.)*)'/g)) key
 for (const m of gs.matchAll(/\[\d+, '((?:[^'\\]|\\.)*)'\]/g)) keys.add(unq(m[1]));
 for (const f of ['src/types.ts', 'src/rewards.ts']) for (const m of readFileSync(f, 'utf8').matchAll(/name: '((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 // files whose Hebrew literals are all shown through t(...) at runtime
-for (const f of ['src/ui/tour.ts', 'src/ui/chatPanel.ts', 'src/actions.ts']) {
+for (const f of ['src/ui/tour.ts', 'src/ui/chatPanel.ts', 'src/actions.ts', 'src/ui/legalPages.ts']) {
   for (const m of readFileSync(f, 'utf8').matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) if (HEB.test(m[1])) keys.add(unq(m[1]));
 }
+const audit = /AUDIT_LABEL[^=]*=\s*\{([\s\S]*?)\};/.exec(readFileSync('src/ui/adminView.ts', 'utf8'));
+if (audit) for (const m of audit[1].matchAll(/:\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 const earn = /EARN_RULES[^=]*=\s*\[([\s\S]*?)\];/.exec(readFileSync('src/ui/rewardsView.ts', 'utf8'));
 if (earn) for (const m of earn[1].matchAll(/\['((?:[^'\\]|\\.)*)'/g)) keys.add(unq(m[1]));
 

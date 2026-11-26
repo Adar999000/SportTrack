@@ -26,6 +26,9 @@ import { renderRewards } from './ui/rewardsView';
 import { renderShare } from './ui/shareView';
 import { renderLanding } from './ui/landingView';
 import { initInstall } from './install';
+import { applyA11y } from './a11y';
+import { mountA11yWidget } from './ui/a11yWidget';
+import { renderAccessibility, renderPrivacy } from './ui/legalPages';
 import { mountFloatingChat } from './ui/floatingChat';
 import { maybeStartTour } from './ui/tour';
 import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
@@ -113,6 +116,12 @@ function render() {
   const route = parseRoute(location.hash);
 
   const key = location.hash;
+  if (route.name === 'accessibility' || route.name === 'privacy') {
+    nav.hidden = !currentUser();
+    document.body.classList.remove('is-landing');
+    if (key !== lastRoute) { route.name === 'accessibility' ? renderAccessibility(main) : renderPrivacy(main); window.scrollTo(0, 0); lastRoute = key; }
+    return;
+  }
   if (hasBackend() && !currentUser()) {
     nav.hidden = true;
     const landing = route.name !== 'join' && route.name !== 'login' && route.name !== 'signup';
@@ -209,6 +218,7 @@ async function onLogin() {
 
 async function boot() {
   applyDocumentLang();
+  applyA11y();
   initInstall();
   const app = document.getElementById('app')!;
   const demoBar = h('div', { class: 'demo-bar', hidden: true },
@@ -216,6 +226,7 @@ async function boot() {
     h('button', { class: 'link-btn', type: 'button', onclick: () => clearDemo() }, t('נקה')),
   );
   app.replaceChildren(
+    h('a', { class: 'skip-link', href: '#main', onclick: (e: Event) => { e.preventDefault(); main.setAttribute('tabindex', '-1'); main.focus(); } }, t('דלג לתוכן הראשי')),
     h('header', { class: 'topbar' },
       h('h1', null, logo(26), h('span', null, t('משמעת אישית'))),
       h('div', { class: 'topbar-end' }, syncBadge, coinChip, themeBtn),
@@ -227,6 +238,7 @@ async function boot() {
   await loadStore();
   await loadSession();
   floating = mountFloatingChat();
+  mountA11yWidget();
   if (IS_DEMO) {
     await seedDemoIfEmpty();
     const sync = () => (demoBar.hidden = !isDemoActive());

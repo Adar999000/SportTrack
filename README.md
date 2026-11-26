@@ -54,6 +54,23 @@ The service worker only runs over **HTTPS** (or `localhost`). Deploy `dist/` to 
 - **סטטיסטיקה (Stats):** weight chart (weeks with no weigh-in are gaps, not interpolated) with a dashed trend line per quarter. Also min/max/current/total change, streaks, a monthly table, a quarterly "phases" table, and plain factual warnings.
 - **הגדרות (Settings):** smoking row on/off, theme, custom sport types, reminders, JSON/CSV export, JSON backup import, and Word import.
 
+## Security
+
+Layered, mostly on the server (`apps-script/Code.gs`):
+1. **Passwords:** salted, 5,000-round SHA-256 (v2), constant-time comparison, minimum 8 characters, common passwords refused.
+2. **Brute force:** 5 failed sign-ins lock the email for 15 minutes; password-reset codes allow 5 tries and one email a minute.
+3. **Two-step sign-in** by emailed code: always on for admins unless they turn it off, optional for users.
+4. **Sessions:** HMAC-signed tokens with expiry and a per-user version, so a password change or "sign out of all devices" revokes the others.
+5. **Authorization:** users read only their own data; admins get aggregates only (`userSummary`), never raw weeks, notes or weekly photos; assistant actions are validated server-side and never run on other users' data.
+6. **Abuse limits:** sign-ups per hour, messages per day, assistant messages per user/day, payload sizes.
+7. **Audit log** (`Audit` tab) for security events, never passwords or codes.
+8. **Browser:** Content-Security-Policy, strict referrer policy, no `innerHTML` with user data.
+9. **Storage:** the spreadsheet and photos folder are private to the owner's Drive. The OpenAI key lives only in script properties.
+
+## Accessibility
+
+Built to Israeli Standard 5568 / WCAG 2.0 AA: keyboard navigation, visible focus, a skip link, labels, announced errors, reduced motion, and an accessibility menu. `#accessibility` holds the accessibility statement and a contact form. Automated checks use axe-core, but have the site reviewed by an accessibility expert too: automated tools don't catch everything.
+
 ## Coins, levels and challenges
 
 Rewards are calculated on the server (`rewardsFor` in `apps-script/Code.gs`) from each user's own data, so a modified client can't award itself coins. Spending is recorded in the `Ledger` tab. The rules are listed in [CHANGELOG.md](CHANGELOG.md) under 2.0.0 and in the app under *How do I earn coins?* Rewards count from the day the feature went live, or from signup for newer users. Earlier history gives a one-time bonus capped at 500.

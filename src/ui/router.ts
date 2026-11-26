@@ -11,7 +11,9 @@ export type Route =
   | { name: 'share' }
   | { name: 'join'; code: string }
   | { name: 'login' }
-  | { name: 'signup' };
+  | { name: 'signup' }
+  | { name: 'accessibility' }
+  | { name: 'privacy' };
 
 /** Hashes are plain names: #week-2026-11-22, #history, #stats, #prefs, #profile, #admin, #chat … */
 export const HASH = {
@@ -42,6 +44,8 @@ export function parseRoute(hash: string): Route {
   if (h === 'admin') return { name: 'admin' };
   if (h === 'rewards') return { name: 'rewards' };
   if (h === 'login') return { name: 'login' };
+  if (h === 'accessibility') return { name: 'accessibility' };
+  if (h === 'privacy') return { name: 'privacy' };
   if (h === 'signup') return { name: 'signup' };
   if (h === 'share') return { name: 'share' };
   const j = /^join-([A-Za-z0-9]{4,12})$/.exec(h);

@@ -15,7 +15,7 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
 
   beforeEach(() => {
     be = createBackend();
-    admin = be.post({ action: 'register', email: 'Me@Example.com', password: 'secret1', name: 'אדר' });
+    admin = be.post({ action: 'register', email: 'Me@Example.com', password: 'secret12', name: 'אדר' });
   });
 
   it('makes the first user an admin without an invite', () => {
@@ -25,30 +25,36 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
   });
 
   it('lets anyone sign up; an invite code is optional but must be valid', () => {
-    expect(be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב' }).user.role).toBe('user');
-    expect(be.post({ action: 'register', email: 'c@x.com', password: 'secret1', name: 'ג', invite: 'NOPE99' }).error).toMatch(/קוד ההזמנה לא תקין/);
+    expect(be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'ב' }).user.role).toBe('user');
+    expect(be.post({ action: 'register', email: 'c@x.com', password: 'secret12', name: 'ג', invite: 'NOPE99' }).error).toMatch(/קוד ההזמנה לא תקין/);
     // an admin-created code works once
     const { code } = be.post({ action: 'createInvite', token: admin.token });
-    expect(be.post({ action: 'register', email: 'd@x.com', password: 'secret1', name: 'ד', invite: code.toLowerCase() }).user).toBeTruthy();
-    expect(be.post({ action: 'register', email: 'e@x.com', password: 'secret1', name: 'ה', invite: code }).error).toMatch(/לא תקין/);
+    expect(be.post({ action: 'register', email: 'd@x.com', password: 'secret12', name: 'ד', invite: code.toLowerCase() }).user).toBeTruthy();
+    expect(be.post({ action: 'register', email: 'e@x.com', password: 'secret12', name: 'ה', invite: code }).error).toMatch(/לא תקין/);
     // a personal code works for many sign-ups
     const mine = be.post({ action: 'myInvite', token: admin.token });
     for (const e of ['f@x.com', 'g@x.com', 'h@x.com']) {
-      expect(be.post({ action: 'register', email: e, password: 'secret1', name: 'x', invite: mine.code }).user).toBeTruthy();
+      expect(be.post({ action: 'register', email: e, password: 'secret12', name: 'x', invite: mine.code }).user).toBeTruthy();
     }
     expect(be.post({ action: 'myInvite', token: admin.token })).toMatchObject({ code: mine.code, used: 4 }); // includes the admin-panel code
   });
 
-  it('logs in with the right password only', () => {
-    expect(be.post({ action: 'login', email: 'me@example.com', password: 'secret1' }).token).toBeTruthy();
-    expect(be.post({ action: 'login', email: 'me@example.com', password: 'nope!!' }).error).toMatch(/שגויים/);
-    expect(be.sheets.Users.data[1][4]).not.toContain('secret1');
+  it('logs in with the right password only (admins get a second step by email)', () => {
+    const first = be.post({ action: 'login', email: 'me@example.com', password: 'secret12' });
+    expect(first.needCode).toBe(true);
+    const code = /(\d{6})/.exec(be.mails.at(-1).body)![1];
+    expect(be.post({ action: 'login2fa', challenge: first.challenge, code: '000000' }).error).toMatch(/שגוי/);
+    expect(be.post({ action: 'login2fa', challenge: first.challenge, code }).token).toBeTruthy();
+    expect(be.post({ action: 'login', email: 'me@example.com', password: 'nope!!!!' }).error).toMatch(/שגויים/);
+    expect(be.sheets.Users.data[1][4]).not.toContain('secret12');
+    expect(be.sheets.Users.data[1][4]).toMatch(/^v2\$/);
   });
 
   it('rejects bad or tampered tokens', () => {
     expect(be.post({ action: 'me', token: 'x.y.z' }).error).toMatch(/^AUTH:/);
-    const [id, exp, sig] = admin.token.split('.');
-    expect(be.post({ action: 'me', token: `${id}.${Number(exp) + 1}.${sig}` }).error).toMatch(/^AUTH:/);
+    const [id, exp, ver, sig] = admin.token.split('.');
+    expect(be.post({ action: 'me', token: `${id}.${Number(exp) + 1}.${ver}.${sig}` }).error).toMatch(/^AUTH:/);
+    expect(be.post({ action: 'me', token: `${id}.${exp}.${Number(ver) + 1}.${sig}` }).error).toMatch(/^AUTH:/);
     expect(be.post({ action: 'me', token: admin.token }).user.name).toBe('אדר');
   });
 
@@ -74,7 +80,7 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
 
   it('keeps users apart; the admin sees statistics only', () => {
     const { code } = be.post({ action: 'createInvite', token: admin.token });
-    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב', invite: code });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'ב', invite: code });
     be.post({ action: 'updateProfile', token: b.token, profile: { birthDate: '1990-01-01', heightCm: 170, goal: 'סוד' } });
     be.post({ action: 'putWeeks', token: b.token, weeks: [
       { ...week('2026-11-15', 72), data: { sundayDate: '2026-11-15', startWeight: 72, note: 'הערה פרטית', days: [] } },
@@ -97,7 +103,7 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
   it('admin assistant gets aggregates, never notes or profile details', () => {
     be.properties.set('OPENAI_API_KEY', 'sk');
     const { code } = be.post({ action: 'createInvite', token: admin.token });
-    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב', invite: code });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'ב', invite: code });
     be.post({ action: 'updateProfile', token: b.token, profile: { goal: 'סוד אישי', heightCm: 170 } });
     be.post({ action: 'putWeeks', token: b.token, weeks: [{ ...week('2026-11-22', 70), data: { sundayDate: '2026-11-22', startWeight: 70, note: 'הערה פרטית', days: [] } }] });
     be.post({ action: 'chat', token: admin.token, scope: 'all', messages: [{ role: 'user', content: 'סכם' }] });
@@ -127,7 +133,7 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     expect(be.post({ action: 'getWeeks', token: admin.token }).weeks[0].photoId).toBe(wk.photoId);
 
     const { code } = be.post({ action: 'createInvite', token: admin.token });
-    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret1', name: 'ב', invite: code });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'ב', invite: code });
     expect(be.post({ action: 'getPhoto', token: b.token, photoId: wk.photoId }).error).toMatch(/גישה/);
     // others may see profile pictures (leaderboard), not weekly photos — admins included
     expect(be.post({ action: 'getPhoto', token: b.token, photoId: res.user.photoId }).dataUrl).toBe(img);
@@ -184,8 +190,8 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     expect(be.post({ action: 'confirmReset', email: 'me@example.com', code: '000000', newPassword: 'newpass1' }).error).toMatch(/הקוד/);
     const ok = be.post({ action: 'confirmReset', email: 'me@example.com', code, newPassword: 'newpass1' });
     expect(ok.token).toBeTruthy();
-    expect(be.post({ action: 'login', email: 'me@example.com', password: 'newpass1' }).token).toBeTruthy();
-    expect(be.post({ action: 'login', email: 'me@example.com', password: 'secret1' }).error).toBeTruthy();
+    expect(be.post({ action: 'login', email: 'me@example.com', password: 'newpass1' }).needCode).toBe(true); // admin: second step
+    expect(be.post({ action: 'login', email: 'me@example.com', password: 'secret12' }).error).toBeTruthy();
     // the code works only once
     expect(be.post({ action: 'confirmReset', email: 'me@example.com', code, newPassword: 'other12' }).error).toMatch(/הקוד/);
   });
@@ -195,5 +201,67 @@ describe('Apps Script backend (apps-script/Code.gs)', () => {
     const code = /(\d{6})/.exec(be.mails[0].body)![1];
     for (let i = 0; i < 5; i++) be.post({ action: 'confirmReset', email: 'me@example.com', code: '111111', newPassword: 'newpass1' });
     expect(be.post({ action: 'confirmReset', email: 'me@example.com', code, newPassword: 'newpass1' }).error).toMatch(/הקוד/);
+  });
+
+  it('locks sign-in for 15 minutes after 5 wrong passwords', () => {
+    const { code } = be.post({ action: 'createInvite', token: admin.token });
+    be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'ב', invite: code });
+    for (let i = 0; i < 5; i++) be.post({ action: 'login', email: 'b@x.com', password: 'wrongpass' });
+    expect(be.post({ action: 'login', email: 'b@x.com', password: 'secret12' }).error).toMatch(/יותר מדי ניסיונות/);
+    expect(be.sheets.Audit.data.filter((r: any[]) => r[2] === 'login_fail')).toHaveLength(5);
+  });
+
+  it('rejects weak passwords', () => {
+    expect(be.post({ action: 'register', email: 'w@x.com', password: 'short', name: 'w' }).error).toMatch(/8/);
+    expect(be.post({ action: 'register', email: 'w@x.com', password: '12345678', name: 'w' }).error).toMatch(/קלה מדי/);
+  });
+
+  it('changing the password signs out other devices; "log out everywhere" too', () => {
+    const { code } = be.post({ action: 'createInvite', token: admin.token });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'ב', invite: code });
+    const other = be.post({ action: 'login', email: 'b@x.com', password: 'secret12' }).token;
+    const r = be.post({ action: 'changePassword', token: b.token, oldPassword: 'secret12', newPassword: 'newpass99' });
+    expect(be.post({ action: 'me', token: other }).error).toMatch(/^AUTH:/);
+    expect(be.post({ action: 'me', token: r.token }).user.name).toBe('ב');
+    const r2 = be.post({ action: 'logoutAll', token: r.token });
+    expect(be.post({ action: 'me', token: r.token }).error).toMatch(/^AUTH:/);
+    expect(be.post({ action: 'me', token: r2.token }).user).toBeTruthy();
+  });
+
+  it('upgrades old password hashes on sign-in', () => {
+    // simulate a legacy (1000-round) hash
+    const { code } = be.post({ action: 'createInvite', token: admin.token });
+    be.post({ action: 'register', email: 'old@x.com', password: 'oldpass12', name: 'o', invite: code });
+    const row = be.sheets.Users.data.find((r: any[]) => r[1] === 'old@x.com');
+    const { createHash } = require('node:crypto');
+    let h = createHash('sha256').update(Buffer.from(row[5] + ':oldpass12')).digest();
+    for (let i = 0; i < 1000; i++) h = createHash('sha256').update(Buffer.concat([h, Buffer.from(row[5])])).digest();
+    row[4] = h.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    expect(be.post({ action: 'login', email: 'old@x.com', password: 'oldpass12' }).token).toBeTruthy();
+    expect(row[4]).toMatch(/^v2\$/);
+  });
+
+  it('users can turn on two-step sign-in (password required to change it)', () => {
+    const { code } = be.post({ action: 'createInvite', token: admin.token });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'ב', invite: code });
+    expect(be.post({ action: 'setTwoFactor', token: b.token, enabled: true, password: 'nope' }).error).toMatch(/שגויה/);
+    expect(be.post({ action: 'setTwoFactor', token: b.token, enabled: true, password: 'secret12' }).user.twoFactor).toBe(true);
+    expect(be.post({ action: 'login', email: 'b@x.com', password: 'secret12' }).needCode).toBe(true);
+  });
+
+  it('visitors can send a contact message (rate-limited) that reaches the admin', () => {
+    expect(be.post({ action: 'publicContact', name: 'דנה', email: 'd@x.com', topic: 'נגישות', text: 'הכפתור לא נקרא בקורא מסך' }).ok).toBe(true);
+    expect(be.mails.at(-1).subject).toMatch(/נגישות/);
+    be.post({ action: 'publicContact', name: 'דנה', email: 'd@x.com', text: '2' });
+    be.post({ action: 'publicContact', name: 'דנה', email: 'd@x.com', text: '3' });
+    expect(be.post({ action: 'publicContact', name: 'דנה', email: 'd@x.com', text: '4' }).error).toMatch(/יותר מדי/);
+    expect(be.post({ action: 'adminInbox', token: admin.token }).threads.length).toBeGreaterThan(0);
+  });
+
+  it('admins can read the audit log; users cannot', () => {
+    be.post({ action: 'login', email: 'me@example.com', password: 'bad-pass-1' });
+    const entries = be.post({ action: 'auditLog', token: admin.token }).entries;
+    expect(entries.some((e: any) => e.event === 'login_fail')).toBe(true);
+    expect(JSON.stringify(entries)).not.toMatch(/bad-pass-1/);
   });
 });

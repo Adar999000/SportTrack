@@ -21,7 +21,7 @@ function backdate(be: any) {
 
 function setup(now = NOW) {
   const be = createBackend({ now });
-  const admin = be.post({ action: 'register', email: 'a@x.com', password: 'secret1', name: 'אדר' });
+  const admin = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אדר' });
   be.properties.set('REWARDS_START', '2026-12-06');
   backdate(be);
   return { be, t: admin.token, admin };
@@ -77,7 +77,7 @@ describe('rewards', () => {
     const inv = be.post({ action: 'myInvite', token: t });
     expect(inv.code).toMatch(/^[A-Z0-9]{6}$/);
     expect(be.post({ action: 'myInvite', token: t }).code).toBe(inv.code); // permanent personal code
-    const friend = be.post({ action: 'register', email: 'f@x.com', password: 'secret1', name: 'נועה', invite: inv.code });
+    const friend = be.post({ action: 'register', email: 'f@x.com', password: 'secret12', name: 'נועה', invite: inv.code });
     backdate(be);
     let r = be.post({ action: 'rewards', token: t }).rewards;
     expect(r.items.filter((x: any) => x.kind === 'referral').map((x: any) => x.amount)).toEqual([50]);
@@ -91,7 +91,7 @@ describe('rewards', () => {
   it('pays the sender for at most 5 friends, but the code keeps working', () => {
     const { be, t } = setup();
     const { code } = be.post({ action: 'myInvite', token: t });
-    for (let i = 0; i < 7; i++) be.post({ action: 'register', email: `f${i}@x.com`, password: 'secret1', name: 'F', invite: code });
+    for (let i = 0; i < 7; i++) be.post({ action: 'register', email: `f${i}@x.com`, password: 'secret12', name: 'F', invite: code });
     backdate(be);
     const r = be.post({ action: 'rewards', token: t }).rewards;
     expect(r.items.filter((x: any) => x.kind === 'referral')).toHaveLength(5);
@@ -123,7 +123,7 @@ describe('rewards', () => {
   it('levels come from lifetime coins, and the leaderboard ranks by period', () => {
     const { be, t } = setup();
     const { code } = be.post({ action: 'createInvite', token: t });
-    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret1', name: 'נועה', invite: code });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'נועה', invite: code });
     backdate(be);
     be.post({ action: 'putWeeks', token: u.token, weeks: [wk('2026-12-06', [full(true), full(true), full(true), full(true), day(), day(), day()])] });
     const leaders = be.post({ action: 'leaderboard', token: t, period: 'week' }).leaders;

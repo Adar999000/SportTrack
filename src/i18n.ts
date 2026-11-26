@@ -46,6 +46,9 @@ export function tServer(msg: string): string {
   if (EN[msg]) return EN[msg];
   const m = /^הגעת למגבלת ההודעות היומית לבוט \((\d+)\)/.exec(msg);
   if (m) return `You reached the assistant's daily limit (${m[1]}). Try again tomorrow or buy messages with coins.`;
+  if (msg.startsWith('יותר מדי ניסיונות כניסה')) return 'Too many sign-in attempts. Try again in 15 minutes, or reset your password.';
+  if (msg.startsWith('הסיסמה צריכה להיות לפחות')) return 'The password must be at least 8 characters';
+  if (msg.startsWith('הסיסמה קלה מדי')) return 'That password is too easy to guess. Choose another one.';
   if (msg.startsWith('שגיאה מ-OpenAI')) return 'OpenAI error: ' + msg.split(':').slice(1).join(':').trim();
   return msg;
 }

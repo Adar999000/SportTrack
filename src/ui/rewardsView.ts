@@ -36,7 +36,7 @@ function levelCard(r: Rewards): HTMLElement {
         h('div', { class: 'muted small' }, tr`עוד ${fmt(toNext)} מטבעות לרמה הבאה`),
       ),
     ),
-    h('div', { class: 'bar', role: 'progressbar', 'aria-valuenow': pct(r.lifetime - r.level.from, r.level.to - r.level.from), 'aria-valuemin': 0, 'aria-valuemax': 100 },
+    h('div', { class: 'bar', role: 'progressbar', 'aria-label': t('התקדמות לרמה הבאה'), 'aria-valuenow': pct(r.lifetime - r.level.from, r.level.to - r.level.from), 'aria-valuemin': 0, 'aria-valuemax': 100 },
       h('span', { style: { width: pct(r.lifetime - r.level.from, r.level.to - r.level.from) + '%' } })),
     h('div', { class: 'tiles' },
       h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, t('יתרה')), h('div', { class: 'balance' }, coin(), fmt(r.balance))),
@@ -59,7 +59,7 @@ function challengesCard(r: Rewards): HTMLElement {
           h('span', null, h('span', { class: 'badge' }, t(label[c.period])), ' ', t(c.title)),
           price(c.reward),
         ),
-        h('div', { class: 'bar' }, h('span', { style: { width: pct(c.progress, c.target) + '%' } })),
+        h('div', { class: 'bar', role: 'progressbar', 'aria-label': t(c.title), 'aria-valuenow': pct(c.progress, c.target), 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { style: { width: pct(c.progress, c.target) + '%' } })),
         h('div', { class: 'muted small' }, done ? t('הושלם')
           : `${c.progress}${c.unit ?? ''} / ${c.target}${c.unit ?? ''}` + (needMore ? ' · ' + tr`נספר אחרי ${c.minCells} ארוחות מסומנות (עכשיו ${c.cells ?? 0})` : '')),
       );

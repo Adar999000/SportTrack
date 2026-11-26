@@ -53,6 +53,27 @@ function inboxCard(): HTMLElement {
   return h('section', { class: 'card inbox-card' }, h('h2', { class: 'card-title' }, t('פניות ממשתמשים')), body);
 }
 
+const AUDIT_LABEL: Record<string, string> = {
+  login_ok: 'כניסה', login_fail: 'כניסה נכשלה', login_locked: 'נחסם אחרי ניסיונות', '2fa_sent': 'נשלח קוד כניסה', '2fa_fail': 'קוד כניסה שגוי',
+  '2fa_on': 'הופעל אימות דו-שלבי', '2fa_off': 'כובה אימות דו-שלבי', password_change: 'שינוי סיסמה', reset_request: 'בקשת איפוס סיסמה',
+  reset_done: 'איפוס סיסמה', logout_all: 'ניתוק כל המכשירים', register: 'הרשמה', admin_view: 'צפייה של מנהל', role_change: 'שינוי הרשאה', public_contact: 'פנייה מהאתר',
+};
+
+function auditCard(names: Record<string, string>): HTMLElement {
+  const body = h('div', { class: 'earn-list' });
+  const det = h('details', null, h('summary', null, t('יומן אבטחה (200 האירועים האחרונים)')), body);
+  det.addEventListener('toggle', () => {
+    if (!det.open || body.childElementCount) return;
+    body.append(h('p', { class: 'muted' }, t('טוען…')));
+    call<{ entries: { at: string; userId: string; event: string; detail: string }[] }>('auditLog').then(({ entries }) => {
+      body.replaceChildren(...entries.map((e) => h('div', { class: 'earn-row' },
+        h('span', null, t(AUDIT_LABEL[e.event] ?? e.event), e.userId ? ` · ${names[e.userId] ?? e.userId}` : '', e.detail && e.event !== 'admin_view' ? h('span', { class: 'muted small' }, ` (${e.detail})`) : ''),
+        h('span', { class: 'muted small', dir: 'ltr' }, String(e.at).replace('T', ' ').slice(0, 16)))));
+    }).catch((err) => body.replaceChildren(h('p', { class: 'form-error' }, err.message)));
+  });
+  return h('section', { class: 'card' }, det);
+}
+
 export function renderAdmin(root: HTMLElement): void {
   const list = h('div', { class: 'stack' }, h('p', { class: 'muted' }, t('טוען משתמשים…')));
   const invites = h('div', { class: 'stack' });
@@ -111,6 +132,7 @@ export function renderAdmin(root: HTMLElement): void {
       h('p', { class: 'hint' }, t('בעמודה השמאלית: שינוי משקל מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים. מוצגים רק נתונים סטטיסטיים.')),
       list,
     ),
+    auditCard(Object.fromEntries((usersCache ?? []).map((u) => [u.userId, u.name]))),
     h('section', { class: 'card stack' },
       h('h2', { class: 'card-title' }, t('קודי הזמנה')),
       h('p', { class: 'hint' }, t('כל קוד מאפשר הרשמה אחת. הקש על קוד כדי להעתיק אותו ולשלוח למי שתרצה.')),

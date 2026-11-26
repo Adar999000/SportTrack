@@ -34,6 +34,14 @@ export async function setUser(user: User): Promise<void> {
   emit();
 }
 
+/** Swap the stored token (after a password change or "log out everywhere"). */
+export async function replaceToken(token: string): Promise<void> {
+  if (!session) return;
+  session = { ...session, token };
+  setToken(token);
+  await kvSet('session', session).catch(() => {});
+}
+
 export async function endSession(): Promise<void> {
   session = null;
   setToken(null);

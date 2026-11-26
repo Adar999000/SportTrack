@@ -1,6 +1,20 @@
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json';
+import { loadEnv, type Plugin } from 'vite';
+
+/** Fill the CSP's connect-src with the backend's origin (Apps Script also redirects to googleusercontent). */
+function cspConnect(mode: string): Plugin {
+  return {
+    name: 'csp-connect-src',
+    transformIndexHtml(html) {
+      const api = loadEnv(mode, process.cwd(), 'VITE_').VITE_API_URL ?? process.env.VITE_API_URL;
+      const origins = new Set<string>(['https://script.google.com', 'https://script.googleusercontent.com', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com']);
+      if (api) origins.add(new URL(api).origin);
+      return html.replace('__API_ORIGINS__', [...origins].join(' '));
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => ({
   base: './',
@@ -9,6 +23,7 @@ export default defineConfig(({ mode }) => ({
     ? { outDir: 'dist-artifact', assetsInlineLimit: 100_000_000, rollupOptions: { output: { inlineDynamicImports: true } } }
     : {},
   plugins: [
+    cspConnect(mode),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',

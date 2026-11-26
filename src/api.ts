@@ -18,6 +18,7 @@ export interface User {
   lastSeen: string;
   photoId: string | null;
   profile: UserProfile;
+  twoFactor?: boolean;
 }
 
 export interface AdminUserRow extends Omit<User, 'profile'> {

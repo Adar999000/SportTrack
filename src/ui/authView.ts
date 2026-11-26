@@ -5,6 +5,30 @@ import { h } from './dom';
 
 type Mode = 'login' | 'register';
 
+/** Second step of sign-in: the code that was emailed. */
+function renderCodeStep(root: HTMLElement, challenge: string, maskedEmail: string): void {
+  const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
+  const code = h('input', { id: 'login-code', class: 'input code-input', type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, dir: 'ltr', 'aria-describedby': 'code-hint' });
+  const form = h('form', { class: 'stack', novalidate: true },
+    h('p', { id: 'code-hint' }, t('שלחנו קוד בן 6 ספרות אל {e}. הוא בתוקף ל-10 דקות.', { e: maskedEmail })),
+    h('div', { class: 'field' }, h('label', { for: 'login-code' }, t('קוד כניסה')), code),
+    err,
+    h('button', { class: 'btn btn-primary', type: 'submit' }, t('כניסה')),
+  );
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.hidden = true;
+    try {
+      const res = await call<{ token: string; user: User }>('login2fa', { challenge, code: code.value.trim() });
+      await startSession(res);
+    } catch (ex: any) { err.textContent = ex.message; err.hidden = false; }
+  });
+  root.replaceChildren(h('section', { class: 'card auth-card' },
+    h('h2', { class: 'card-title' }, t('אימות דו-שלבי')), form,
+    h('p', { class: 'center' }, h('button', { class: 'link-btn', type: 'button', onclick: () => renderAuth(root, 'login') }, t('חזרה לכניסה')))));
+  code.focus();
+}
+
 /** Forgotten password: email a code, then set a new password with it. */
 function renderReset(root: HTMLElement, presetEmail = ''): void {
   const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
@@ -14,7 +38,7 @@ function renderReset(root: HTMLElement, presetEmail = ''): void {
   const pass = h('input', { id: 'reset-pass', class: 'input', type: 'password', autocomplete: 'new-password', minlength: 6 });
   const step2 = h('div', { class: 'stack', hidden: true },
     h('div', { class: 'field' }, h('label', { for: 'reset-code' }, t('הקוד מהמייל')), code),
-    h('div', { class: 'field' }, h('label', { for: 'reset-pass' }, t('סיסמה חדשה (6 תווים לפחות)')), pass),
+    h('div', { class: 'field' }, h('label', { for: 'reset-pass' }, t('סיסמה חדשה (8 תווים לפחות)')), pass),
   );
   const btn = h('button', { class: 'btn btn-primary', type: 'submit' }, t('שלח קוד'));
   const fail = (m: string) => { err.textContent = m; err.hidden = false; };
@@ -66,7 +90,7 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode =
   const form = h('form', { class: 'stack', novalidate: true },
     mode === 'register' && field('reg-name', t('שם'), { type: 'text', autocomplete: 'name', required: true }),
     field('auth-email', t('אימייל'), { type: 'email', autocomplete: 'email', inputmode: 'email', dir: 'ltr', required: true }),
-    field('auth-pass', t('סיסמה'), { type: 'password', autocomplete: mode === 'login' ? 'current-password' : 'new-password', minlength: 6, required: true }),
+    field('auth-pass', mode === 'login' ? t('סיסמה') : t('סיסמה (8 תווים לפחות)'), { type: 'password', autocomplete: mode === 'login' ? 'current-password' : 'new-password', minlength: mode === 'login' ? 1 : 8, required: true }),
     mode === 'register' && h('div', { id: 'invite-wrap' }, field('reg-invite', t('קוד הזמנה (לא חובה)'), { type: 'text', autocapitalize: 'characters', dir: 'ltr', value: inviteCode, placeholder: t('אם קיבלתם מחבר') }), h('small', { class: 'hint' }, t('עם קוד הזמנה תקבלו 50 מטבעות, וגם החבר שהזמין.'))),
     mode === 'register' && h('p', { class: 'hint' }, t('הנתונים שלך נשמרים בגיליון בגוגל דרייב של מנהל האפליקציה. באפליקציה המנהל רואה רק סיכומים סטטיסטיים (אימונים, ארוחות, שינוי משקל ופעילות), לא הערות, תמונות שבועיות או פרטים אישיים.')),
     err,
@@ -94,13 +118,14 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode =
     btn.disabled = true;
     btn.textContent = t('רגע…');
     try {
-      const res = await call<{ token: string; user: User }>(mode, {
+      const res = await call<{ token?: string; user?: User; needCode?: boolean; challenge?: string; email?: string }>(mode, {
         email: val('auth-email'),
         password: (form.querySelector('#auth-pass') as HTMLInputElement).value,
         name: val('reg-name'),
         invite: val('reg-invite'),
       });
-      await startSession(res);
+      if (res.needCode && res.challenge) return renderCodeStep(root, res.challenge, res.email ?? '');
+      await startSession(res as { token: string; user: User });
     } catch (ex: any) {
       err.textContent = ex.message;
       err.hidden = false;

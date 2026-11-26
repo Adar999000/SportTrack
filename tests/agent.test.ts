@@ -16,7 +16,7 @@ describe('assistant actions and messages to the admin', () => {
           ] }
         : { content: 'סימנתי צהריים V ומשקל 99.5.' },
     });
-    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret1', name: 'א' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'א' });
     be.properties.set('OPENAI_API_KEY', 'sk');
     const r = be.post({ action: 'chat', token: a.token, messages: [{ role: 'user', content: 'תסמן צהריים היום ומשקל 99.5' }] });
     expect(r.reply).toBe('סימנתי צהריים V ומשקל 99.5.');
@@ -31,7 +31,7 @@ describe('assistant actions and messages to the admin', () => {
 
   it('the admin assistant cannot change data in views of other users', () => {
     const be = createBackend({ now: NOW, openaiReply: (p: any) => ({ content: (p.tools || []).map((t: any) => t.function.name).join(',') }) });
-    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret1', name: 'א' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'א' });
     be.properties.set('OPENAI_API_KEY', 'sk');
     expect(be.post({ action: 'chat', token: a.token, scope: 'all', messages: [] }).reply).toBe('open_page');
     expect(be.post({ action: 'chat', token: a.token, messages: [] }).reply).toContain('mark_meal');
@@ -44,8 +44,8 @@ describe('assistant actions and messages to the admin', () => {
         ? { content: '', tool_calls: [{ id: 'x', type: 'function', function: { name: 'contact_admin', arguments: JSON.stringify({ subject: 'תקלה', message: 'הגרף לא נטען' }) } }] }
         : { content: 'שלחתי למנהל.' },
     });
-    const admin = be.post({ action: 'register', email: 'admin@x.com', password: 'secret1', name: 'מנהל' });
-    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret1', name: 'נועה' });
+    const admin = be.post({ action: 'register', email: 'admin@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'נועה' });
     be.properties.set('OPENAI_API_KEY', 'sk');
     be.post({ action: 'contactAdmin', token: u.token, subject: 'שאלה', text: 'איך מקפיאים יום?' });
     be.post({ action: 'chat', token: u.token, messages: [{ role: 'user', content: 'תדווח למנהל שהגרף לא נטען' }] });
