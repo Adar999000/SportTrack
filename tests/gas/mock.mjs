@@ -40,11 +40,12 @@ class Sheet {
   }
 }
 
-export function createBackend({ openaiReply = 'תשובה לדוגמה' } = {}) {
+export function createBackend({ openaiReply = 'תשובה לדוגמה', now } = {}) {
   const sheets = {
-    Users: new Sheet('Users', ['userId', 'email', 'name', 'role', 'passHash', 'salt', 'createdAt', 'lastSeen', 'photoId', 'profile']),
+    Users: new Sheet('Users', ['userId', 'email', 'name', 'role', 'passHash', 'salt', 'createdAt', 'lastSeen', 'photoId', 'profile', 'extra']),
     Weeks: new Sheet('Weeks', ['userId', 'sundayDate', 'startWeight', 'workouts', 'mealsPct', 'photoId', 'updatedAt', 'data']),
-    Invites: new Sheet('Invites', ['code', 'createdAt', 'usedBy', 'usedAt'], 200),
+    Invites: new Sheet('Invites', ['code', 'createdAt', 'usedBy', 'usedAt', 'createdBy'], 200),
+    Ledger: new Sheet('Ledger', ['userId', 'at', 'amount', 'ref', 'label']),
   };
   const files = new Map();
   const properties = new Map();
@@ -54,7 +55,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה' } = {}) 
 
   const ctx = {
     console,
-    SpreadsheetApp: { openById: () => ({ getSheetByName: (n) => sheets[n] }) },
+    SpreadsheetApp: { openById: () => ({ getSheetByName: (n) => sheets[n] ?? null, insertSheet: (n) => (sheets[n] = new Sheet(n, [])) }) },
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (k) => properties.get(k) ?? null,
@@ -107,6 +108,11 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה' } = {}) 
     },
     Logger: { log() {} },
   };
+  if (now) {
+    const RealDate = Date;
+    const fixed = new RealDate(now).getTime();
+    ctx.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [fixed])); } static now() { return fixed; } };
+  }
   vm.createContext(ctx);
   vm.runInContext(readFileSync(new URL('../../apps-script/Code.gs', import.meta.url), 'utf8'), ctx);
 

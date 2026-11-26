@@ -1,0 +1,77 @@
+/** Coins, levels and challenges — computed on the server, cached here for offline display. */
+import { call, hasBackend } from './api';
+import { kvGet, kvSet } from './db';
+import { currentUser } from './session';
+import { t } from './i18n';
+
+/** "משמעת אישית ★2" → translated base name + suffix. */
+export function levelLabel(name: string): string {
+  const [base, star] = name.split(' ★');
+  return t(base) + (star ? ' ★' + star : '');
+}
+
+export interface RewardItem { date: string; amount: number; kind: string; label: string }
+export interface Challenge { id: string; period: 'week' | 'month' | 'year'; title: string; progress: number; target: number; reward: number; unit?: string; cells?: number; minCells?: number }
+export interface Rewards {
+  start: string;
+  balance: number;
+  lifetime: number;
+  week: number;
+  month: number;
+  level: { n: number; name: string; from: number; to: number };
+  challenges: Challenge[];
+  badges: Record<string, number>;
+  items: RewardItem[];
+  frozenDays: string[];
+  frozenWeeks: string[];
+  unlockedColors: string[];
+  chatCredits: number;
+  costs: { freezeDay: number; freezeWeek: number; chat10: number; color: number };
+  hasGoal: boolean;
+}
+export interface Leader { userId: string; name: string; photoId: string | null; level: number; levelName: string; week: number; month: number; lifetime: number }
+
+let current: Rewards | null = null;
+const listeners = new Set<() => void>();
+export const getRewards = () => current;
+export const onRewards = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
+const key = () => 'rewards:' + (currentUser()?.userId ?? '');
+
+function set(r: Rewards | null) {
+  current = r;
+  if (r) kvSet(key(), r).catch(() => {});
+  listeners.forEach((l) => l());
+}
+
+export async function loadCachedRewards(): Promise<void> {
+  if (!currentUser()) return set(null);
+  current = (await kvGet<Rewards>(key()).catch(() => undefined)) ?? null;
+  listeners.forEach((l) => l());
+}
+
+let inflight: Promise<void> | null = null;
+export function refreshRewards(): Promise<void> {
+  if (!hasBackend() || !currentUser()) return Promise.resolve();
+  inflight ??= call<{ rewards: Rewards }>('rewards')
+    .then((r) => set(r.rewards))
+    .catch(() => {})
+    .finally(() => (inflight = null));
+  return inflight;
+}
+
+export async function spend(item: 'freezeDay' | 'freezeWeek' | 'chat10' | 'color', extra: Record<string, string> = {}): Promise<void> {
+  const r = await call<{ rewards: Rewards }>('spend', { item, ...extra });
+  set(r.rewards);
+}
+
+export const leaderboard = (period: 'week' | 'month' | 'all') => call<{ leaders: Leader[] }>('leaderboard', { period }).then((r) => r.leaders);
+export const myInvite = () => call<{ code: string | null; used: number; left: number | null }>('myInvite');
+
+export const BADGES: Record<string, { name: string; icon: string }> = {
+  week3: { name: 'שבוע ספורטיבי', icon: '🏃' },
+  month12: { name: 'חודש של אימונים', icon: '🏋️' },
+  month80: { name: 'חודש של ארוחות בריאות', icon: '🥗' },
+  year150: { name: 'שנה של אימונים', icon: '🏆' },
+  goal: { name: 'הגעה ליעד', icon: '🎯' },
+  friend: { name: 'הביא חבר', icon: '🤝' },
+};

@@ -17,7 +17,7 @@ const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 120;
 const HASH_ROUNDS = 1000;
 
-const U = { id: 0, email: 1, name: 2, role: 3, hash: 4, salt: 5, created: 6, seen: 7, photo: 8, profile: 9 };
+const U = { id: 0, email: 1, name: 2, role: 3, hash: 4, salt: 5, created: 6, seen: 7, photo: 8, profile: 9, extra: 10 };
 const W = { user: 0, sunday: 1, weight: 2, workouts: 3, meals: 4, photo: 5, updated: 6, data: 7 };
 
 // ------------------------------------------------------------------ entry points
@@ -57,9 +57,13 @@ function route(req) {
     case 'setWeekPhoto': return setWeekPhoto(me, req);
     case 'getPhoto': return getPhoto(me, req.photoId);
     case 'chat': return chat(me, req);
+    case 'rewards': return { rewards: rewardsFor(targetRow(me, req.userId)) };
+    case 'spend': return spend(me, req);
+    case 'leaderboard': return { leaders: leaderboard(String(req.period || 'week')) };
+    case 'myInvite': return myInvite(me);
     // admin
     case 'listUsers': requireAdmin(me); return { users: listUsers() };
-    case 'createInvite': requireAdmin(me); return createInvite();
+    case 'createInvite': requireAdmin(me); return createInvite(me);
     case 'listInvites': requireAdmin(me); return { invites: listInvites() };
     case 'setRole': requireAdmin(me); return setRole(me, req);
     default: throw new Error('פעולה לא מוכרת');
@@ -203,18 +207,20 @@ function register(req) {
     const first = sheet('Users').getLastRow() < 2;
     if (findUser((r) => r[U.email] === email)) throw new Error('כבר קיים משתמש עם האימייל הזה');
     let inviteRow = null;
+    let invitedBy = '';
     if (!first) {
       const code = String(req.invite || '').trim().toUpperCase();
       const inv = rows('Invites');
       for (let i = 0; i < inv.length; i++) {
-        if (String(inv[i][0]).toUpperCase() === code && !inv[i][2]) { inviteRow = i + 2; break; }
+        if (String(inv[i][0]).toUpperCase() === code && !inv[i][2]) { inviteRow = i + 2; invitedBy = String(inv[i][4] || ''); break; }
       }
       if (!inviteRow) throw new Error('קוד הזמנה לא תקין או שכבר נוצל');
     }
     const id = Utilities.getUuid().slice(0, 8);
     const salt = Utilities.getUuid();
     const now = new Date().toISOString();
-    appendRows(sheet('Users'), [[id, email, name, first ? 'admin' : 'user', hashPassword(password, salt), salt, now, now, '', '{}']]);
+    appendRows(sheet('Users'), [[id, email, name, first ? 'admin' : 'user', hashPassword(password, salt), salt, now, now, '', '{}',
+      JSON.stringify(invitedBy ? { invitedBy: invitedBy } : {})]]);
     if (inviteRow) sheet('Invites').getRange(inviteRow, 3, 1, 2).setValues([[email, now]]);
     const u = findUser((r) => r[U.id] === id);
     return { token: sign(id), user: publicUser(u) };
@@ -418,6 +424,10 @@ function listUsers() {
       currentWeight: weighed.length ? weighed[weighed.length - 1][W.weight] : null,
       recentWorkouts: mine.slice(-4).reduce((s, w) => s + (Number(w[W.workouts]) || 0), 0),
       recentMealsPct: avg(mine.slice(-4).map((w) => w[W.meals]).filter((x) => x !== '')),
+      ...(function () {
+        try { const rw = rewardsFor(r); return { level: rw.level.n, levelName: rw.level.name, coins: rw.balance, lifetime: rw.lifetime }; }
+        catch (e) { return {}; }
+      })(),
     };
   });
 }
@@ -426,12 +436,32 @@ function avg(xs) {
   return xs.length ? Math.round(xs.reduce((a, b) => a + Number(b), 0) / xs.length) : null;
 }
 
-function createInvite() {
+function newInviteCode(createdBy) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  appendRows(sheet('Invites'), [[code, new Date().toISOString(), '', '']]);
-  return { code: code };
+  appendRows(sheet('Invites'), [[code, new Date().toISOString(), '', '', createdBy || '']]);
+  return code;
+}
+
+function createInvite(me) {
+  return { code: newInviteCode(me ? me.r[U.id] : '') };
+}
+
+const INVITES_PER_USER = 5;
+
+/** A personal invite code for sharing: reuses an unused one, up to 5 successful invites (admins: unlimited). */
+function myInvite(me) {
+  return withLock(() => {
+    const mine = rows('Invites').filter((r) => String(r[4] || '') === me.r[U.id]);
+    const used = mine.filter((r) => r[2]).length;
+    const open = mine.filter((r) => !r[2]);
+    const isAdmin = me.r[U.role] === 'admin';
+    const left = isAdmin ? null : Math.max(0, INVITES_PER_USER - used);
+    if (open.length) return { code: String(open[0][0]), used: used, left: left };
+    if (!isAdmin && used >= INVITES_PER_USER) return { code: null, used: used, left: 0 };
+    return { code: newInviteCode(me.r[U.id]), used: used, left: left };
+  });
 }
 
 function listInvites() {
@@ -444,6 +474,323 @@ function setRole(me, req) {
   if (!u) throw new Error('המשתמש לא נמצא');
   sheet('Users').getRange(u.row, U.role + 1).setValue(req.role === 'admin' ? 'admin' : 'user');
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ rewards: coins, levels, challenges
+
+const LEVELS = [
+  [0, 'מתחיל'], [100, 'מתמיד'], [300, 'ממושמע'], [600, 'לוחם'], [1000, 'אלוף השכונה'],
+  [1600, 'מכונה'], [2500, 'ברזל'], [3600, 'פלדה'], [5000, 'אגדה'], [7000, 'משמעת אישית'],
+];
+const COSTS = { freezeDay: 50, freezeWeek: 100, chat10: 30, color: 150 };
+const PREMIUM_COLORS = ['gold', 'teal', 'crimson'];
+const WELCOME_CAP = 500;
+
+function extraOf(r) { return parseJSON(r[U.extra], {}) || {}; }
+
+function setExtra(u, patch) {
+  const merged = Object.assign(extraOf(u.r), patch);
+  sheet('Users').getRange(u.row, U.extra + 1).setValue(JSON.stringify(merged));
+  u.r[U.extra] = JSON.stringify(merged);
+}
+
+function ledgerSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sh = ss.getSheetByName('Ledger');
+  if (!sh) {
+    sh = ss.insertSheet('Ledger');
+    sh.getRange(1, 1, 1, 5).setValues([['userId', 'at', 'amount', 'ref', 'label']]);
+  }
+  return sh;
+}
+
+function ledgerRows() {
+  const sh = ledgerSheet();
+  const n = sh.getLastRow();
+  return n < 2 ? [] : sh.getRange(2, 1, n - 1, 5).getValues().map((r) => r.map(cell));
+}
+
+function rewardsStart() {
+  let s = props().getProperty('REWARDS_START');
+  if (!s) {
+    s = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+    props().setProperty('REWARDS_START', s);
+  }
+  return s;
+}
+
+function todayStr() { return Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd'); }
+
+function addDaysStr(iso, n) {
+  const p = iso.split('-').map(Number);
+  const d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n));
+  return d.toISOString().slice(0, 10);
+}
+
+function dowStr(iso) {
+  const p = iso.split('-').map(Number);
+  return new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+}
+
+function sundayStr(iso) { return addDaysStr(iso, -dowStr(iso)); }
+
+function levelFor(lifetime) {
+  let i = 0;
+  while (i + 1 < LEVELS.length && lifetime >= LEVELS[i + 1][0]) i++;
+  if (i === LEVELS.length - 1) {
+    const extra = Math.floor((lifetime - LEVELS[i][0]) / 2500);
+    const base = LEVELS[i][0] + extra * 2500;
+    return { n: i + 1 + extra, name: LEVELS[i][1] + (extra ? ' ★' + extra : ''), from: base, to: base + 2500 };
+  }
+  return { n: i + 1, name: LEVELS[i][1], from: LEVELS[i][0], to: LEVELS[i + 1][0] };
+}
+
+function isWorkout(day) { return !!(day && day.sport && day.sport.status === 'V' && day.sport.countsAsWorkout); }
+
+function isFullDay(day) {
+  if (!day) return false;
+  const t = day.text || {};
+  const meal = (k) => !!(day[k] || t[k]);
+  return meal('breakfast') && meal('lunch') && meal('dinner') && !!(day.sport && day.sport.status);
+}
+
+/** Everything about one user's coins, computed from their data (so the client can't fake it). */
+function rewardsFor(userRow, cache) {
+  const uid = userRow[U.id];
+  const today = todayStr();
+  const created = String(userRow[U.created] || '').slice(0, 10);
+  const startGlobal = rewardsStart();
+  const start = created > startGlobal ? created : startGlobal;
+  const extra = extraOf(userRow);
+  const all = (cache && cache.weeks) || rows('Weeks');
+  const users = (cache && cache.users) || rows('Users');
+  const ledger = ((cache && cache.ledger) || ledgerRows()).filter((r) => r[0] === uid);
+
+  const frozenDays = {}, frozenWeeks = {}, unlocked = {};
+  ledger.forEach((r) => {
+    const ref = String(r[3]);
+    if (ref.indexOf('freezeDay:') === 0) frozenDays[ref.slice(10)] = true;
+    if (ref.indexOf('freezeWeek:') === 0) frozenWeeks[ref.slice(11)] = true;
+    if (ref.indexOf('color:') === 0) unlocked[ref.slice(6)] = true;
+  });
+
+  const weeks = all.filter((r) => r[W.user] === uid)
+    .map((r) => ({ sunday: String(r[W.sunday]), data: parseJSON(r[W.data], null) }))
+    .filter((w) => w.data && Array.isArray(w.data.days))
+    .sort((a, b) => a.sunday.localeCompare(b.sunday));
+  const dayMap = {};
+  weeks.forEach((w) => w.data.days.forEach((d, i) => { dayMap[addDaysStr(w.sunday, i)] = d; }));
+  const weekMap = {};
+  weeks.forEach((w) => { weekMap[w.sunday] = w; });
+
+  const items = [];
+  const badges = {};
+  const add = (date, amount, kind, label) => items.push({ date: date, amount: amount, kind: kind, label: label });
+
+  // daily coins
+  Object.keys(dayMap).sort().forEach((date) => {
+    if (date < start || date > today) return;
+    const d = dayMap[date];
+    if (isFullDay(d)) add(date, 5, 'day', 'יום מלא בטבלה');
+    if (isWorkout(d)) add(date, 10, 'workout', 'אימון');
+  });
+
+  // weekly weigh-in + weekly challenge + 4-week workout streak
+  const firstSunday = weeks.length ? weeks[0].sunday : null;
+  let wkRun = 0;
+  if (firstSunday) {
+    for (let s = firstSunday; s <= sundayStr(today); s = addDaysStr(s, 7)) {
+      const w = weekMap[s];
+      const sat = addDaysStr(s, 6);
+      const when = sat < today ? sat : today;
+      let n = 0;
+      if (w) w.data.days.forEach((d, i) => { if (addDaysStr(s, i) <= today && isWorkout(d)) n++; });
+      const counted = s >= sundayStr(start);
+      if (w && typeof w.data.startWeight === 'number' && counted) add(s, 5, 'weigh', 'שקילה שבועית');
+      if (n >= 3 && counted) { add(when, 30, 'challenge', 'אתגר שבועי: 3 אימונים'); badges.week3 = (badges.week3 || 0) + 1; }
+      if (n >= 3 || frozenWeeks[s]) {
+        wkRun++;
+        if (wkRun % 4 === 0 && when >= start) add(when, 50, 'streak', 'רצף 4 שבועות עם 3+ אימונים');
+      } else if (s !== sundayStr(today)) wkRun = 0;
+    }
+  }
+
+  // 7-day lunch streaks (frozen days are neutral, like "-")
+  if (firstSunday) {
+    let run = 0;
+    for (let d = firstSunday; d <= today; d = addDaysStr(d, 1)) {
+      const day = dayMap[d];
+      const m = day ? day.lunch : null;
+      if (m === 'V') {
+        run++;
+        if (run % 7 === 0 && d >= start) add(d, 20, 'streak', '7 ימים רצופים עם צהריים V');
+      } else if (m === '-' || frozenDays[d] || (d === today && !m)) continue;
+      else run = 0;
+    }
+  }
+
+  // monthly and yearly challenges (only days since the start count)
+  const byMonth = {}, byYear = {};
+  Object.keys(dayMap).forEach((date) => {
+    if (date < start || date > today) return;
+    const d = dayMap[date];
+    const mk = date.slice(0, 7), yk = date.slice(0, 4);
+    byMonth[mk] = byMonth[mk] || { wo: 0, v: 0, x: 0 };
+    byYear[yk] = byYear[yk] || { wo: 0 };
+    if (isWorkout(d)) { byMonth[mk].wo++; byYear[yk].wo++; }
+    ['breakfast', 'lunch', 'dinner'].forEach((k) => { if (d[k] === 'V') byMonth[mk].v++; else if (d[k] === 'X') byMonth[mk].x++; });
+  });
+  Object.keys(byMonth).sort().forEach((mk) => {
+    const m = byMonth[mk];
+    const end = addDaysStr(mk + '-01', 40).slice(0, 7) + '-01';
+    const when = addDaysStr(end, -1) < today ? addDaysStr(end, -1) : today;
+    if (m.wo >= 12) { add(when, 100, 'challenge', 'אתגר חודשי: 12 אימונים'); badges.month12 = (badges.month12 || 0) + 1; }
+    if (m.v + m.x >= 40 && m.v / (m.v + m.x) >= 0.8) { add(when, 100, 'challenge', 'אתגר חודשי: 80% ארוחות בריאות'); badges.month80 = (badges.month80 || 0) + 1; }
+  });
+  Object.keys(byYear).sort().forEach((yk) => {
+    if (byYear[yk].wo >= 150) {
+      add(yk + '-12-31' < today ? yk + '-12-31' : today, 500, 'challenge', 'אתגר שנתי: 150 אימונים');
+      badges.year150 = (badges.year150 || 0) + 1;
+    }
+  });
+
+  // weight: each kg toward the goal (at most one per week), reaching it, then keeping it
+  const profile = parseJSON(userRow[U.profile], {}) || {};
+  const goal = Number(profile.goalWeight) || 0;
+  const weighIns = weeks.filter((w) => typeof w.data.startWeight === 'number').map((w) => ({ d: w.sunday, w: w.data.startWeight }));
+  if (goal && weighIns.length) {
+    const before = weighIns.filter((x) => x.d < sundayStr(start));
+    const baseline = before.length ? before[before.length - 1] : weighIns[0];
+    const dir = goal < baseline.w ? -1 : 1;
+    let milestones = 0, reached = (dir < 0 ? baseline.w <= goal : baseline.w >= goal);
+    weighIns.forEach((x) => {
+      if (x.d < sundayStr(start) || x === baseline) return;
+      const prog = dir < 0 ? baseline.w - x.w : x.w - baseline.w;
+      if (Math.floor(prog) > milestones && !reached) { milestones++; add(x.d, 20, 'weight', 'ק"ג בדרך ליעד'); }
+      if (!reached && (dir < 0 ? x.w <= goal : x.w >= goal)) { reached = true; add(x.d, 200, 'weight', 'הגעת למשקל היעד'); badges.goal = 1; }
+      else if (reached && Math.abs(x.w - goal) <= 1) add(x.d, 10, 'weight', 'שמירה על המשקל');
+    });
+  }
+
+  // referrals
+  users.forEach((r) => {
+    if (extraOf(r).invitedBy !== uid) return;
+    add(String(r[U.created]).slice(0, 10), 50, 'referral', 'חבר הצטרף: ' + r[U.name]);
+    const theirs = all.filter((w) => w[W.user] === r[U.id]);
+    for (let i = 0; i < theirs.length; i++) {
+      const data = parseJSON(theirs[i][W.data], null);
+      if (data && data.days && data.days.filter(isFullDay).length >= 5) {
+        add(addDaysStr(String(theirs[i][W.sunday]), 6), 50, 'referral', 'חבר השלים שבוע ראשון: ' + r[U.name]);
+        badges.friend = (badges.friend || 0) + 1;
+        break;
+      }
+    }
+  });
+
+  // one-time opening bonus for history before the start
+  let hist = 0;
+  Object.keys(dayMap).forEach((date) => {
+    if (date >= start) return;
+    if (isWorkout(dayMap[date])) hist += 1;
+    if (isFullDay(dayMap[date])) hist += 0.5;
+  });
+  hist += weighIns.filter((x) => x.d < sundayStr(start)).length * 2;
+  hist = Math.min(WELCOME_CAP, Math.round(hist));
+  if (hist > 0) add(start, hist, 'bonus', 'בונוס פתיחה על ההיסטוריה');
+
+  // spending
+  ledger.forEach((r) => add(String(r[1]).slice(0, 10), Number(r[2]) || 0, 'spend', String(r[4] || r[3])));
+
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  const balance = items.reduce((s, x) => s + x.amount, 0);
+  const lifetime = items.filter((x) => x.amount > 0).reduce((s, x) => s + x.amount, 0);
+  const weekStart = sundayStr(today), monthStart = today.slice(0, 8) + '01';
+  const earnedSince = (d0) => items.filter((x) => x.amount > 0 && x.date >= d0).reduce((s, x) => s + x.amount, 0);
+
+  // current challenge progress
+  const cw = weekMap[weekStart];
+  let weekWo = 0;
+  if (cw) cw.data.days.forEach((d, i) => { if (addDaysStr(weekStart, i) <= today && isWorkout(d)) weekWo++; });
+  const cm = byMonth[today.slice(0, 7)] || { wo: 0, v: 0, x: 0 };
+  const cy = byYear[today.slice(0, 4)] || { wo: 0 };
+  const mealsPct = cm.v + cm.x ? Math.round((cm.v / (cm.v + cm.x)) * 100) : 0;
+
+  return {
+    start: start,
+    balance: balance,
+    lifetime: lifetime,
+    week: earnedSince(weekStart),
+    month: earnedSince(monthStart),
+    level: levelFor(lifetime),
+    challenges: [
+      { id: 'week3', period: 'week', title: '3 אימונים השבוע', progress: weekWo, target: 3, reward: 30 },
+      { id: 'month12', period: 'month', title: '12 אימונים החודש', progress: cm.wo, target: 12, reward: 100 },
+      { id: 'month80', period: 'month', title: '80% ארוחות בריאות החודש', progress: mealsPct, target: 80, reward: 100, unit: '%', cells: cm.v + cm.x, minCells: 40 },
+      { id: 'year150', period: 'year', title: '150 אימונים השנה', progress: cy.wo, target: 150, reward: 500 },
+    ],
+    badges: badges,
+    items: items.slice(-60).reverse(),
+    frozenDays: Object.keys(frozenDays).sort(),
+    frozenWeeks: Object.keys(frozenWeeks).sort(),
+    unlockedColors: Object.keys(unlocked),
+    chatCredits: Number(extra.chatCredits) || 0,
+    costs: COSTS,
+    hasGoal: !!goal,
+  };
+}
+
+function targetRow(me, userId) {
+  if (!userId || userId === me.r[U.id]) return me.r;
+  requireAdmin(me);
+  const u = findUser((r) => r[U.id] === userId);
+  if (!u) throw new Error('המשתמש לא נמצא');
+  return u.r;
+}
+
+function spend(me, req) {
+  return withLock(() => {
+    const rw = rewardsFor(me.r);
+    const today = todayStr();
+    let cost = 0, ref = '', label = '';
+    if (req.item === 'freezeDay') {
+      const d = String(req.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d > today || d < addDaysStr(today, -14)) throw new Error('אפשר להקפיא רק יום מ-14 הימים האחרונים');
+      if (rw.frozenDays.indexOf(d) >= 0) throw new Error('היום הזה כבר מוקפא');
+      cost = COSTS.freezeDay; ref = 'freezeDay:' + d; label = 'הקפאת יום: ' + d;
+    } else if (req.item === 'freezeWeek') {
+      const s = String(req.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || dowStr(s) !== 0 || s > today || s < addDaysStr(sundayStr(today), -35)) throw new Error('אפשר להקפיא רק שבוע מ-5 השבועות האחרונים');
+      if (rw.frozenWeeks.indexOf(s) >= 0) throw new Error('השבוע הזה כבר מוקפא');
+      cost = COSTS.freezeWeek; ref = 'freezeWeek:' + s; label = 'הקפאת שבוע: ' + s;
+    } else if (req.item === 'chat10') {
+      cost = COSTS.chat10; ref = 'chat10'; label = '10 הודעות לבוט';
+    } else if (req.item === 'color') {
+      const c = String(req.color || '');
+      if (PREMIUM_COLORS.indexOf(c) < 0) throw new Error('צבע לא מוכר');
+      if (rw.unlockedColors.indexOf(c) >= 0) throw new Error('הצבע כבר פתוח');
+      cost = COSTS.color; ref = 'color:' + c; label = 'צבע: ' + c;
+    } else throw new Error('פריט לא מוכר');
+    if (rw.balance < cost) throw new Error('אין מספיק מטבעות');
+    appendRows(ledgerSheet(), [[me.r[U.id], new Date().toISOString(), -cost, ref, label]]);
+    if (req.item === 'chat10') setExtra(me, { chatCredits: (Number(extraOf(me.r).chatCredits) || 0) + 10 });
+    return { rewards: rewardsFor(me.r) };
+  });
+}
+
+function leaderboard(period) {
+  const cache = CacheService.getScriptCache();
+  const key = 'lb-v1';
+  let list = parseJSON(cache.get(key), null);
+  if (!list) {
+    const ctx = { weeks: rows('Weeks'), users: rows('Users'), ledger: ledgerRows() };
+    list = ctx.users.map((r) => {
+      const rw = rewardsFor(r, ctx);
+      return { userId: r[U.id], name: r[U.name], photoId: r[U.photo] || null, level: rw.level.n, levelName: rw.level.name, week: rw.week, month: rw.month, lifetime: rw.lifetime };
+    });
+    cache.put(key, JSON.stringify(list), 300);
+  }
+  const k = period === 'month' ? 'month' : period === 'all' ? 'lifetime' : 'week';
+  return list.slice().sort((a, b) => b[k] - a[k]);
 }
 
 // ------------------------------------------------------------------ AI chat
@@ -505,9 +852,15 @@ function userContext(userRow, weeks, detailWeeks) {
     facts = 'משקל: התחלה ' + wts[0].w + ' (' + wts[0].d + '), נוכחי ' + wts[wts.length - 1].w + ' (' + wts[wts.length - 1].d +
       '), מינימום ' + min.w + ' (' + min.d + '), מקסימום ' + max.w + ' (' + max.d + ')';
   }
+  let rewardsLine = '';
+  try {
+    const rw = rewardsFor(userRow);
+    rewardsLine = 'רמה ' + rw.level.n + ' (' + rw.level.name + '), ' + rw.balance + ' מטבעות, ' + rw.lifetime + ' נצברו בסך הכל';
+  } catch (e) { /* rewards are optional context */ }
   return [
     '### ' + userRow[U.name],
     'פרופיל: ' + JSON.stringify(p),
+    rewardsLine,
     mine.length + ' שבועות במעקב. ' + facts,
     older.length ? 'סיכום חודשי (לפני השבועות האחרונים):\n' + monthLines(older).join('\n') : '',
     'שבועות אחרונים בפירוט:\n' + (recent.map(weekLine).join('\n') || 'אין נתונים'),
@@ -525,7 +878,11 @@ function chat(me, req) {
   const gk = 'chat-all-' + day;
   const used = Number(cache.get(ck)) || 0;
   const usedAll = Number(cache.get(gk)) || 0;
-  if (used >= limit) throw new Error('הגעת למגבלת ההודעות היומית לבוט (' + limit + '). אפשר לחזור מחר.');
+  let useCredit = false;
+  if (used >= limit) {
+    if ((Number(extraOf(me.r).chatCredits) || 0) > 0) useCredit = true;
+    else throw new Error('הגעת למגבלת ההודעות היומית לבוט (' + limit + '). אפשר לחזור מחר או לקנות הודעות במטבעות.');
+  }
   if (usedAll >= globalLimit) throw new Error('הבוט הגיע למגבלה היומית הכללית. אפשר לחזור מחר.');
 
   const weeks = rows('Weeks');
@@ -565,6 +922,7 @@ function chat(me, req) {
   if (res.getResponseCode() !== 200) {
     throw new Error('שגיאה מ-OpenAI: ' + ((body.error && body.error.message) || res.getResponseCode()));
   }
+  if (useCredit) setExtra(me, { chatCredits: (Number(extraOf(me.r).chatCredits) || 0) - 1 });
   cache.put(ck, String(used + 1), 6 * 3600);
   cache.put(gk, String(usedAll + 1), 6 * 3600);
   return { reply: body.choices[0].message.content };

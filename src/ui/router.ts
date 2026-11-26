@@ -6,7 +6,10 @@ export type Route =
   | { name: 'profile'; edit?: boolean }
   | { name: 'admin' }
   | { name: 'adminUser'; userId: string }
-  | { name: 'chat'; scope: 'me' | 'all' | 'user'; userId?: string };
+  | { name: 'chat'; scope: 'me' | 'all' | 'user'; userId?: string }
+  | { name: 'rewards' }
+  | { name: 'share' }
+  | { name: 'join'; code: string };
 
 /** Hashes are plain names: #week-2026-11-22, #history, #stats, #prefs, #profile, #admin, #chat … */
 export const HASH = {
@@ -21,6 +24,8 @@ export const HASH = {
   chat: '#chat',
   chatAll: '#chat-all',
   chatUser: (id: string) => `#chat-member-${id}`,
+  rewards: '#rewards',
+  share: '#share',
 };
 
 export function parseRoute(hash: string): Route {
@@ -31,6 +36,10 @@ export function parseRoute(hash: string): Route {
   if (h === 'profile') return { name: 'profile' };
   if (h === 'profile-edit') return { name: 'profile', edit: true };
   if (h === 'admin') return { name: 'admin' };
+  if (h === 'rewards') return { name: 'rewards' };
+  if (h === 'share') return { name: 'share' };
+  const j = /^join-([A-Za-z0-9]{4,12})$/.exec(h);
+  if (j) return { name: 'join', code: j[1].toUpperCase() };
   if (h === 'chat') return { name: 'chat', scope: 'me' };
   if (h === 'chat-all') return { name: 'chat', scope: 'all' };
   let m = /^chat-member-([\w-]+)$/.exec(h);

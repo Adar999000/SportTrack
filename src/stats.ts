@@ -240,14 +240,14 @@ export interface Streak {
  * X, empty or a missing week breaks the streak. Today being still empty
  * does not break the current streak.
  */
-export function lunchStreak(weeks: Week[], today: string): Streak {
+export function lunchStreak(weeks: Week[], today: string, frozen: Set<string> = new Set()): Streak {
   if (!weeks.length) return { current: 0, best: 0 };
   const map = new Map(datedDays(weeks, today).map((d) => [d.date, d.day.lunch]));
   let run = 0, best = 0;
   for (let d = weeks[0].sundayDate; d <= today; d = addDays(d, 1)) {
     const m = map.get(d) ?? null;
     if (m === 'V') run++;
-    else if (m === '-') continue;
+    else if (m === '-' || frozen.has(d)) continue;
     else if (d === today && m === null) continue;
     else run = 0;
     best = Math.max(best, run);
@@ -259,7 +259,7 @@ export function lunchStreak(weeks: Week[], today: string): Streak {
  * Consecutive weeks with at least `min` workouts. A missing week breaks it;
  * the current week (still in progress) only extends, never breaks.
  */
-export function workoutWeekStreak(weeks: Week[], today: string, min = 3): Streak {
+export function workoutWeekStreak(weeks: Week[], today: string, min = 3, frozen: Set<string> = new Set()): Streak {
   if (!weeks.length) return { current: 0, best: 0 };
   const byDate = new Map(weeks.map((w) => [w.sundayDate, w]));
   const thisSunday = sundayOf(today);
@@ -267,7 +267,7 @@ export function workoutWeekStreak(weeks: Week[], today: string, min = 3): Streak
   for (let s = weeks[0].sundayDate; s <= thisSunday; s = addDays(s, 7)) {
     const w = byDate.get(s);
     const n = w ? workoutsInWeek(w) : 0;
-    if (n >= min) run++;
+    if (n >= min || frozen.has(s)) run++;
     else if (s !== thisSunday) run = 0;
     best = Math.max(best, run);
   }

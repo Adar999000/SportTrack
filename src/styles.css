@@ -386,7 +386,69 @@ button { cursor: pointer; }
 :root[data-theme="dark"][data-accent="rose"] { --accent: #ee93b9; --today: #36202b; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-accent="slate"] { --accent: #aab5c3; --today: #24282d; } }
 :root[data-theme="dark"][data-accent="slate"] { --accent: #aab5c3; --today: #24282d; }
+:root[data-accent="gold"] { --accent: #8a6508; --brand: #8a6508; --today: #f7efd9; }
+:root[data-accent="teal"] { --accent: #0e6b74; --brand: #0e6b74; --today: #e0f1f2; }
+:root[data-accent="crimson"] { --accent: #a3222f; --brand: #a3222f; --today: #f9e3e5; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-accent="gold"] { --accent: #e3bb4f; --today: #332a14; } }
+:root[data-theme="dark"][data-accent="gold"] { --accent: #e3bb4f; --today: #332a14; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-accent="teal"] { --accent: #5ec7cf; --today: #17302f; } }
+:root[data-theme="dark"][data-accent="teal"] { --accent: #5ec7cf; --today: #17302f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-accent="crimson"] { --accent: #f08c94; --today: #3a1d20; } }
+:root[data-theme="dark"][data-accent="crimson"] { --accent: #f08c94; --today: #3a1d20; }
 .setting-col { flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; padding: 10px 0; }
 .swatches { display: flex; flex-wrap: wrap; gap: 12px; }
 .swatch { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line); padding: 0; }
 .swatch[aria-checked="true"] { box-shadow: 0 0 0 3px var(--text); }
+
+/* ---------- rewards & sharing ---------- */
+.coin-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--text); text-decoration: none;
+  font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.coin { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #f6d36b, #c9971c); box-shadow: inset 0 0 0 2px #b08313; flex: none; }
+.level-card { display: grid; gap: 10px; }
+.level-top { display: flex; align-items: center; gap: 14px; }
+.level-num {
+  width: 64px; height: 64px; border-radius: 18px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--accent-ink); font-weight: 800; line-height: 1;
+}
+.level-num b { font-size: 1.6rem; }
+.level-num small { font-size: 0.65rem; font-weight: 600; opacity: 0.85; }
+.level-name { font-size: 1.25rem; font-weight: 700; margin: 0; }
+.bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.balance { display: flex; align-items: center; gap: 8px; font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.balance .coin { width: 26px; height: 26px; }
+.challenge { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.challenge:last-child { border-bottom: none; }
+.challenge-head { display: flex; justify-content: space-between; gap: 8px; font-size: 0.92rem; }
+.challenge.done .bar > span { background: var(--v-ink); }
+.shop { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.shop-item { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); text-align: start; }
+.shop-item strong { font-size: 0.95rem; }
+.price { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.price .coin { width: 14px; height: 14px; }
+.badges { display: flex; flex-wrap: wrap; gap: 10px; }
+.badge-tile { width: 92px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 0.75rem; }
+.badge-tile span:first-child { font-size: 1.8rem; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--today); }
+.badge-tile.locked { opacity: 0.4; filter: grayscale(1); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: none; background: transparent; padding: 8px 12px; min-height: 40px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.leader { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.leader:last-child { border-bottom: none; }
+.leader .rank { width: 24px; text-align: center; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.leader .who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.leader.me { background: var(--today); border-radius: 10px; padding-inline: 6px; }
+.earn-list { display: grid; gap: 2px; font-size: 0.88rem; }
+.earn-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.earn-row .plus { color: var(--v-ink); font-weight: 700; }
+.earn-row .minus { color: var(--x-ink); font-weight: 700; }
+.invite-link { display: flex; gap: 8px; align-items: stretch; }
+.invite-link input { direction: ltr; font-size: 0.85rem; }
+.share-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.share-btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-decoration: none; font-weight: 600; }
+.share-btn .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.swatch.locked { position: relative; opacity: 0.55; }
+.swatch.locked::after { content: "🔒"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }

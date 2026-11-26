@@ -1,3 +1,6 @@
+import { getRewards } from '../rewards';
+import { hasBackend } from '../api';
+import { HASH, navigate } from './router';
 import { parseDocx } from '../docx';
 import { todayISO } from '../dates';
 import { download, parseBackup, toBackup, toCSV } from '../io';
@@ -76,12 +79,19 @@ export function renderSettings(root: HTMLElement): void {
       h('div', { class: 'setting setting-col' },
         h('span', { id: 'accent-label' }, t('צבע האפליקציה')),
         h('div', { class: 'swatches', role: 'radiogroup', 'aria-labelledby': 'accent-label' },
-          ACCENTS.map((a) => h('button', {
-            class: 'swatch', type: 'button', role: 'radio',
-            'aria-checked': String((st.accent ?? 'green') === a.id), 'aria-label': t(a.name), title: t(a.name),
-            style: { background: a.swatch },
-            onclick: () => updateSettings({ accent: a.id }),
-          }))),
+          ACCENTS.filter((a) => !a.premium || hasBackend()).map((a) => {
+            const locked = !!a.premium && !(getRewards()?.unlockedColors ?? []).includes(a.id);
+            return h('button', {
+              class: 'swatch' + (locked ? ' locked' : ''), type: 'button', role: 'radio',
+              'aria-checked': String((st.accent ?? 'green') === a.id),
+              'aria-label': locked ? tr`${t(a.name)} (נפתח במטבעות)` : t(a.name), title: locked ? tr`${t(a.name)} (נפתח במטבעות)` : t(a.name),
+              style: { background: a.swatch },
+              onclick: () => {
+                if (locked) { toast(t('את הצבע הזה פותחים במטבעות בחנות')); navigate(HASH.rewards); return; }
+                updateSettings({ accent: a.id });
+              },
+            });
+          })),
       ),
       h('div', { class: 'setting' }, h('label', { for: 'lang-select' }, t('שפה / Language')), langSel),
     ),

@@ -22,6 +22,9 @@ import { HASH, parseRoute, type Route } from './ui/router';
 import { renderSettings } from './ui/settingsView';
 import { renderStats } from './ui/statsView';
 import { renderWeek } from './ui/weekView';
+import { renderRewards } from './ui/rewardsView';
+import { renderShare } from './ui/shareView';
+import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
 
@@ -38,7 +41,7 @@ function tabs(): Tab[] {
     { names: ['week'], hash: HASH.week(), label: t('שבוע'), icon: 'week' },
     { names: ['history'], hash: HASH.history, label: t('היסטוריה'), icon: 'history' },
     { names: ['chat'], hash: HASH.chat, label: t('עוזר'), icon: 'chat' },
-    { names: ['profile', 'stats', 'settings'], hash: HASH.profile, label: t('פרופיל'), icon: 'profile' },
+    { names: ['profile', 'stats', 'settings', 'rewards', 'share'], hash: HASH.profile, label: t('פרופיל'), icon: 'profile' },
   ];
   if (isAdmin()) list.push({ names: ['admin', 'adminUser'], hash: HASH.admin, label: t('ניהול'), icon: 'admin' });
   return list;
@@ -47,6 +50,14 @@ function tabs(): Tab[] {
 const main = h('main', { id: 'main', class: 'content' });
 const nav = h('nav', { class: 'tabbar', 'aria-label': t('ניווט ראשי') });
 const syncBadge = h('span', { class: 'sync-badge', 'aria-live': 'polite' });
+const coinChip = h('a', { class: 'coin-chip', href: HASH.rewards, hidden: true });
+function drawCoinChip() {
+  const r = getRewards();
+  coinChip.hidden = !(hasBackend() && currentUser() && r);
+  if (!r) return;
+  coinChip.replaceChildren(h('span', { class: 'coin', 'aria-hidden': 'true' }), r.balance.toLocaleString('en-US'), h('span', { class: 'muted' }, ' · ' + t('רמה') + ' ' + r.level.n));
+  coinChip.setAttribute('aria-label', t('{c} מטבעות, רמה {n}', { c: r.balance, n: r.level.n }));
+}
 
 function isDark(): boolean {
   const th = getSettings().theme;
@@ -97,9 +108,11 @@ function render() {
 
   if (hasBackend() && !currentUser()) {
     nav.hidden = true;
-    if (!main.querySelector('.auth-card')) renderAuth(main);
+    if (route.name === 'join') { if (!main.querySelector('#reg-invite')) renderAuth(main, 'register', route.code); }
+    else if (!main.querySelector('.auth-card')) renderAuth(main);
     return;
   }
+  if (route.name === 'join') { location.hash = HASH.share; return; }
   if (hasBackend() && !currentUser()!.profile?.completed) {
     nav.hidden = true;
     if (!main.querySelector('form')) renderProfileForm(main, true);
@@ -107,7 +120,7 @@ function render() {
   }
   // Keep in-progress forms (chat, profile edit) from being wiped by background updates.
   const key = location.hash;
-  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin')) return;
+  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share')) return;
 
   nav.hidden = false;
   nav.replaceChildren(
@@ -136,6 +149,8 @@ function render() {
       if (!hasBackend()) renderWeek(main, sundayOf(todayISO()));
       else renderChat(main, route.scope, route.userId);
       break;
+    case 'rewards': hasBackend() ? renderRewards(main) : renderWeek(main, sundayOf(todayISO())); break;
+    case 'share': hasBackend() ? renderShare(main) : renderWeek(main, sundayOf(todayISO())); break;
   }
   if (key !== lastRoute) {
     window.scrollTo(0, 0);
@@ -173,8 +188,10 @@ async function adoptLocalData(): Promise<void> {
 }
 
 async function onLogin() {
+  await loadCachedRewards();
   await adoptLocalData();
   await syncNow();
+  refreshRewards();
 }
 
 async function boot() {
@@ -187,7 +204,7 @@ async function boot() {
   app.replaceChildren(
     h('header', { class: 'topbar' },
       h('h1', null, logo(26), h('span', null, t('משמעת אישית'))),
-      h('div', { class: 'topbar-end' }, syncBadge, themeBtn),
+      h('div', { class: 'topbar-end' }, syncBadge, coinChip, themeBtn),
     ),
     demoBar,
     main,
@@ -212,7 +229,11 @@ async function boot() {
     render();
     if (dirtyCount()) scheduleSync();
   });
-  onSync(drawSyncBadge);
+  onSync(() => {
+    drawSyncBadge();
+    if (getSyncState().state === 'idle' && currentUser()) refreshRewards();
+  });
+  onRewards(drawCoinChip);
   let wasLoggedIn = !!currentUser();
   onSession(() => {
     const now = !!currentUser();

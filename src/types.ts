@@ -39,15 +39,18 @@ export const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner'];
 
 export type Theme = 'auto' | 'light' | 'dark';
 export type Lang = 'he' | 'en';
-export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate';
+export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate' | 'gold' | 'teal' | 'crimson';
 
-export const ACCENTS: { id: Accent; name: string; swatch: string }[] = [
+export const ACCENTS: { id: Accent; name: string; swatch: string; premium?: boolean }[] = [
   { id: 'green', name: 'ירוק', swatch: '#2f6f5e' },
   { id: 'blue', name: 'כחול', swatch: '#2a5fa8' },
   { id: 'purple', name: 'סגול', swatch: '#6a4aa5' },
   { id: 'orange', name: 'כתום', swatch: '#a94f17' },
   { id: 'rose', name: 'ורוד', swatch: '#a8366a' },
   { id: 'slate', name: 'אפור', swatch: '#4a5563' },
+  { id: 'gold', name: 'זהב', swatch: '#8a6508', premium: true },
+  { id: 'teal', name: 'טורקיז', swatch: '#0e6b74', premium: true },
+  { id: 'crimson', name: 'אדום', swatch: '#a3222f', premium: true },
 ];
 
 export interface Settings {

@@ -56,6 +56,7 @@ export function renderAdmin(root: HTMLElement): void {
         h('span', { class: 'user-main' },
           h('strong', null, u.name, u.role === 'admin' ? t(' · מנהל') : ''),
           h('span', { class: 'muted small' }, tr`נכנס ${relDays(u.lastSeen)} · ${u.weeks} שבועות`),
+          u.level ? h('span', { class: 'muted small' }, tr`רמה ${u.level} · ${(u.coins ?? 0).toLocaleString('en-US')} מטבעות`) : '',
         ),
         h('span', { class: 'user-nums' },
           h('span', null, u.currentWeight != null ? tr`${Number(u.currentWeight).toFixed(1)} ק"ג` : '—'),

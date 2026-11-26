@@ -58,7 +58,7 @@ function renderReset(root: HTMLElement, presetEmail = ''): void {
   (presetEmail ? email : email).focus();
 }
 
-export function renderAuth(root: HTMLElement, mode: Mode = 'login'): void {
+export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode = ''): void {
   const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
   const field = (id: string, label: string, attrs: Record<string, any>) =>
     h('div', { class: 'field' }, h('label', { for: id }, label), h('input', { id, class: 'input', ...attrs }));
@@ -67,7 +67,7 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login'): void {
     mode === 'register' && field('reg-name', t('שם'), { type: 'text', autocomplete: 'name', required: true }),
     field('auth-email', t('אימייל'), { type: 'email', autocomplete: 'email', inputmode: 'email', dir: 'ltr', required: true }),
     field('auth-pass', t('סיסמה'), { type: 'password', autocomplete: mode === 'login' ? 'current-password' : 'new-password', minlength: 6, required: true }),
-    mode === 'register' && h('div', { id: 'invite-wrap' }, field('reg-invite', t('קוד הזמנה'), { type: 'text', autocapitalize: 'characters', dir: 'ltr' })),
+    mode === 'register' && h('div', { id: 'invite-wrap' }, field('reg-invite', t('קוד הזמנה'), { type: 'text', autocapitalize: 'characters', dir: 'ltr', value: inviteCode })),
     mode === 'register' && h('p', { class: 'hint' }, t('הנתונים שלך נשמרים בגיליון של מנהל האפליקציה, והוא יכול לראות אותם.')),
     err,
     h('button', { class: 'btn btn-primary', type: 'submit' }, mode === 'login' ? t('כניסה') : t('הרשמה')),
@@ -112,10 +112,11 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login'): void {
   root.replaceChildren(
     h('section', { class: 'card auth-card' },
       h('h2', { class: 'card-title' }, mode === 'login' ? t('כניסה לחשבון') : t('הרשמה')),
+      mode === 'register' && inviteCode && h('p', { class: 'hint' }, t('הוזמנת על ידי חבר. קוד ההזמנה כבר מולא.')),
       form,
       h('p', { class: 'center' },
         mode === 'login' ? t('אין לך חשבון? ') : t('כבר רשום? '),
-        h('button', { class: 'link-btn', type: 'button', onclick: () => renderAuth(root, mode === 'login' ? 'register' : 'login') },
+        h('button', { class: 'link-btn', type: 'button', onclick: () => renderAuth(root, mode === 'login' ? 'register' : 'login', inviteCode) },
           mode === 'login' ? t('הרשמה עם קוד הזמנה') : t('כניסה')),
       ),
     ),

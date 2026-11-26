@@ -45,7 +45,7 @@ export function tServer(msg: string): string {
   if (lang === 'he') return msg;
   if (EN[msg]) return EN[msg];
   const m = /^הגעת למגבלת ההודעות היומית לבוט \((\d+)\)/.exec(msg);
-  if (m) return `You reached the assistant's daily limit (${m[1]}). Try again tomorrow.`;
+  if (m) return `You reached the assistant's daily limit (${m[1]}). Try again tomorrow or buy messages with coins.`;
   if (msg.startsWith('שגיאה מ-OpenAI')) return 'OpenAI error: ' + msg.split(':').slice(1).join(':').trim();
   return msg;
 }

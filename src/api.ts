@@ -27,6 +27,10 @@ export interface AdminUserRow extends User {
   currentWeight: number | null;
   recentWorkouts: number;
   recentMealsPct: number | null;
+  level?: number;
+  levelName?: string;
+  coins?: number;
+  lifetime?: number;
 }
 
 export class AuthError extends Error {}

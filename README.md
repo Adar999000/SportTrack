@@ -54,6 +54,10 @@ The service worker only runs over **HTTPS** (or `localhost`). Deploy `dist/` to 
 - **סטטיסטיקה (Stats):** weight chart (weeks with no weigh-in are gaps, not interpolated) with a dashed trend line per quarter. Also min/max/current/total change, streaks, a monthly table, a quarterly "phases" table, and plain factual warnings.
 - **הגדרות (Settings):** smoking row on/off, theme, custom sport types, reminders, JSON/CSV export, JSON backup import, and Word import.
 
+## Coins, levels and challenges
+
+Rewards are calculated on the server (`rewardsFor` in `apps-script/Code.gs`) from each user's own data, so a modified client can't award itself coins. Spending is recorded in the `Ledger` tab. The rules are listed in [CHANGELOG.md](CHANGELOG.md) under 2.0.0 and in the app under *How do I earn coins?* Rewards count from the day the feature went live, or from signup for newer users. Earlier history gives a one-time bonus capped at 500.
+
 ## Stats definitions
 
 | Metric | Definition |

@@ -15,14 +15,14 @@ function tile(label: string, value: string, sub?: string) {
 }
 
 /** Stats sections for a list of weeks (the current user's by default). */
-export function statsSections(weeks: Week[] = allWeeks()): (Node | string)[] {
+export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: string[]; weeks?: string[] } = {}): (Node | string)[] {
   const today = todayISO();
   if (!weeks.length) return [h('section', { class: 'card' }, h('p', { class: 'muted' }, t('אין עדיין נתונים להצגה.')))];
   const pts = weightPoints(weeks);
   const ws = weightSummary(pts);
   const warn = warnings(weeks, today);
-  const lunch = lunchStreak(weeks, today);
-  const wk = workoutWeekStreak(weeks, today, 3);
+  const lunch = lunchStreak(weeks, today, new Set(frozen.days ?? []));
+  const wk = workoutWeekStreak(weeks, today, 3, new Set(frozen.weeks ?? []));
   const months = monthlyStats(weeks, today).reverse();
   const quarters = quarterTrends(pts).reverse();
   const showSmoke = getSettings().showSmoking;

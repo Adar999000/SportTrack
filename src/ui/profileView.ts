@@ -9,6 +9,7 @@ import { avatar } from './avatar';
 import { confirmButton, fmtKg, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { statsSections } from './statsView';
+import { getRewards, levelLabel } from '../rewards';
 
 function age(birth?: string): number | null {
   if (!birth) return null;
@@ -154,7 +155,21 @@ export function renderProfile(root: HTMLElement): void {
       ),
       p.goal && h('p', { class: 'goal' }, h('span', { class: 'muted' }, t('המטרה שלי: ')), p.goal),
     ),
-    ...statsSections(weeks),
+    (() => {
+      const r = getRewards();
+      return h('section', { class: 'card stack' },
+        r ? h('div', { class: 'level-top' },
+          h('div', { class: 'level-num' }, h('small', null, t('רמה')), h('b', null, String(r.level.n))),
+          h('div', null, h('p', { class: 'level-name' }, levelLabel(r.level.name)),
+            h('div', { class: 'balance small-balance' }, h('span', { class: 'coin', 'aria-hidden': 'true' }), r.balance.toLocaleString('en-US'))),
+        ) : '',
+        h('div', { class: 'row-btns two' },
+          h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.rewards) }, t('מטבעות ואתגרים')),
+          h('button', { class: 'btn', onclick: () => navigate(HASH.share) }, t('הזמנת חברים')),
+        ),
+      );
+    })(),
+    ...statsSections(weeks, { days: getRewards()?.frozenDays, weeks: getRewards()?.frozenWeeks }),
     h('section', { class: 'card stack' },
       h('button', { class: 'btn', onclick: () => navigate(HASH.chat) }, t('שאל את העוזר על הנתונים שלך')),
       isAdmin() && h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.admin) }, t('לוח מנהל')),
