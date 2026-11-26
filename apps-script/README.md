@@ -45,7 +45,7 @@ VITE_API_URL=http://localhost:8787 npm run dev
 ## Automatic updates (from v3.9)
 After a one-time setup the server updates itself: every hour (and from Admin → Server → "Update now")
 it downloads `Code.gs` and `appsscript.json` from this branch on GitHub, saves them into the project,
-creates a version and points the **existing** deployment at it, so the URL never changes.
+creates a version and points every web-app deployment at it, so no URL ever changes.
 
 One-time setup:
 1. Turn on **Google Apps Script API** at https://script.google.com/home/usersettings

@@ -1287,4 +1287,5 @@ export const EN: Record<string, string> = {
   "הפרופיל של {0}": "Profile of {0}",
   "תמונת הפרופיל שלך מופיעה בכותרת למעלה במקום הלוגו. הקשה עליה פותחת את \"אני\"": "Your profile picture now appears in the top bar instead of the logo. Tap it to open \"Me\"",
   "תמונת הפרופיל עברה לצד הרמה והמטבעות, והלוגו חזר ליד שם האפליקציה": "The profile picture moved next to your level and coins, and the logo is back beside the app name",
+  "העדכון האוטומטי של השרת מעדכן כל כתובת שרת שנוצרה, לא רק אחת": "Automatic server updates now cover every server address you created, not just one",
 };

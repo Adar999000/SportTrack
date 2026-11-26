@@ -15,10 +15,9 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '3.9.0';
+const SERVER_VERSION = '4.0.3';
 /** Self-update: the server pulls its own code from GitHub and redeploys the same web-app URL. */
 const UPDATE_SOURCE = 'https://raw.githubusercontent.com/Adar999000/SportTrack/claude/personal-discipline-pwa-13qhdk/apps-script/';
-const DEPLOYMENT_ID = 'AKfycbwPkm18f395SR3y5PYu6DpoV5g-VXJ7mihJaQaafo4YYL2qT6C3lTa5Ink7iMT6kdpu';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -2187,11 +2186,6 @@ function selfUpdate(force) {
   // sanity checks, so a broken file never replaces a working server
   if (src.length < 20000 || src.indexOf('function doPost') < 0 || src.indexOf('function selfUpdate') < 0) return { updated: false, error: 'הקובץ שהורד לא נראה תקין, העדכון בוטל' };
   const hash = hexDigest(src);
-  if (!force && props().getProperty('CODE_HASH') === hash) return { updated: false, upToDate: true };
-  const man = get('appsscript.json');
-  if (man.getResponseCode() !== 200) return { updated: false, error: 'חסר appsscript.json' };
-  const manifest = man.getContentText();
-  JSON.parse(manifest);
   const api = 'https://script.googleapis.com/v1/projects/' + ScriptApp.getScriptId();
   const call = (method, path, body) => {
     const r = UrlFetchApp.fetch(api + path, {
@@ -2208,18 +2202,39 @@ function selfUpdate(force) {
     }
     return out;
   };
+  // every web-app deployment (any URL the owner created), not the editor's HEAD test deployment
+  const webDeployments = () => (call('get', '/deployments').deployments || []).filter((d) =>
+    d.deploymentConfig && d.deploymentConfig.versionNumber &&
+    (d.entryPoints || []).some((e) => e.entryPointType === 'WEB_APP'));
+  const point = (deps, versionNumber) => deps.forEach((d) => call('put', '/deployments/' + d.deploymentId, { deploymentConfig: {
+    scriptId: ScriptApp.getScriptId(), versionNumber: versionNumber, manifestFileName: 'appsscript', description: 'auto-update',
+  } }));
+
+  if (!force && props().getProperty('CODE_HASH') === hash) {
+    // code unchanged: still bring any deployment that lags behind up to the newest version
+    const latest = Number(props().getProperty('CODE_VERSION')) || 0;
+    if (!latest) return { updated: false, upToDate: true };
+    const lagging = webDeployments().filter((d) => d.deploymentConfig.versionNumber < latest);
+    if (!lagging.length) return { updated: false, upToDate: true };
+    point(lagging, latest);
+    return { updated: true, version: latest, deployments: lagging.length };
+  }
+  const man = get('appsscript.json');
+  if (man.getResponseCode() !== 200) return { updated: false, error: 'חסר appsscript.json' };
+  const manifest = man.getContentText();
+  JSON.parse(manifest);
   call('put', '/content', { files: [
     { name: 'Code', type: 'SERVER_JS', source: src },
     { name: 'appsscript', type: 'JSON', source: manifest },
   ] });
   const ver = call('post', '/versions', { description: 'auto ' + new Date().toISOString().slice(0, 16) });
-  call('put', '/deployments/' + DEPLOYMENT_ID, { deploymentConfig: {
-    scriptId: ScriptApp.getScriptId(), versionNumber: ver.versionNumber, manifestFileName: 'appsscript', description: 'auto-update',
-  } });
+  const deps = webDeployments();
+  point(deps, ver.versionNumber);
   props().setProperty('CODE_HASH', hash);
+  props().setProperty('CODE_VERSION', String(ver.versionNumber));
   props().setProperty('LAST_UPDATE', new Date().toISOString());
   audit('', 'server_updated', 'v' + ver.versionNumber);
-  return { updated: true, version: ver.versionNumber };
+  return { updated: true, version: ver.versionNumber, deployments: deps.length };
 }
 
 /** Hourly trigger. */

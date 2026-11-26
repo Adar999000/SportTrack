@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.0.3 (2026-11-26)
+- App points at the new deployment URL.
+- Self-update moves every web-app deployment to the new version (not one hard-coded ID), and on later runs catches up any deployment that lags behind.
+
 ## 4.0.2 (2026-11-26)
 - Top bar: the profile picture sits next to the level/coins chip; the app logo is back beside the name.
 

@@ -147,13 +147,17 @@ describe('server self-update', () => {
     const r = be.post({ action: 'serverUpdate', token: adm.token });
     expect(r).toMatchObject({ updated: true, version: 7 });
     const api = be.fetches.filter((f: any) => f.url.startsWith('https://script.googleapis.com/'));
+    // every web-app deployment (both URLs) moves to the new version; HEAD is left alone
     expect(api.map((f: any) => `${f.opts.method} ${f.url.split('/projects/script-123')[1]}`)).toEqual([
-      'put /content', 'post /versions', 'put /deployments/AKfycbwPkm18f395SR3y5PYu6DpoV5g-VXJ7mihJaQaafo4YYL2qT6C3lTa5Ink7iMT6kdpu']);
+      'put /content', 'post /versions', 'get /deployments', 'put /deployments/old-url', 'put /deployments/new-url']);
     const files = JSON.parse(api[0].opts.payload).files;
     expect(files.map((f: any) => f.name)).toEqual(['Code', 'appsscript']);
-    expect(JSON.parse(api[2].opts.payload).deploymentConfig.versionNumber).toBe(7);
-    // same code again: nothing to do
-    expect(be.post({ action: 'serverUpdate', token: adm.token })).toMatchObject({ updated: false, upToDate: true });
+    expect(JSON.parse(api[3].opts.payload).deploymentConfig.versionNumber).toBe(7);
+    expect(r.deployments).toBe(2);
+    // same code again: only deployments behind version 7 are moved (the mock lists old-url at 3)
+    const again = be.post({ action: 'serverUpdate', token: adm.token });
+    expect(again).toMatchObject({ updated: true, version: 7, deployments: 1 });
+    expect(be.fetches.at(-1).url).toMatch(/deployments\/old-url$/);
     expect(be.post({ action: 'status' }).serverVersion).toBeTruthy();
   });
 });
