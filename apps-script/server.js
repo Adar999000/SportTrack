@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.2.0';
+const SERVER_VERSION = '5.3.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -41,7 +41,9 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function doGet() {
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.state && (p.code || p.error)) return stravaCallback(p);
   return ContentService.createTextOutput(JSON.stringify({ ok: true, app: 'mishmaat-ishit' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -106,6 +108,10 @@ function route(req) {
     case 'track': return track(me, req.events);
     case 'adminAnalytics': requireAdmin(me); return adminAnalytics(req.days);
     case 'serverUpdate': requireAdmin(me); return Object.assign(selfUpdate(), { serverVersion: SERVER_VERSION });
+    case 'stravaStatus': return stravaStatus(me);
+    case 'stravaAuthUrl': return { url: stravaAuthUrl(me) };
+    case 'stravaImport': return { activities: stravaImport(me, Number(req.after) || 0) };
+    case 'stravaDisconnect': setExtra(me, { strava: null }); return { ok: true };
     case 'contactAdmin': return { message: createMessage(me, String(req.subject || ''), String(req.text || '')) };
     case 'myMessages': return myMessages(me);
     case 'unreadCount': return { unread: messageRows().filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length };
@@ -2209,4 +2215,82 @@ function autoUpdate() {
 function ensureUpdateTrigger() {
   const exists = ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === 'autoUpdate');
   if (!exists) ScriptApp.newTrigger('autoUpdate').timeBased().everyHours(1).create();
+}
+
+// ------------------------------------------------------------------ Strava (smart watches: Garmin, Apple Watch, Polar, Coros…)
+// Setup (admin, once): create an API app at https://www.strava.com/settings/api
+// with "Authorization Callback Domain" = script.google.com, then add Script properties
+// STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET.
+
+const APP_URL = 'https://adar999000.github.io/SportTrack/';
+const stravaConfigured = () => !!(props().getProperty('STRAVA_CLIENT_ID') && props().getProperty('STRAVA_CLIENT_SECRET'));
+
+function stravaStatus(me) {
+  const st = extraOf(me.r).strava;
+  return { configured: stravaConfigured(), connected: !!(st && st.refresh), athlete: st && st.name || '' };
+}
+
+/** Signed, short-lived state so the callback knows which user connected. */
+function stravaState(uid) {
+  const payload = uid + '.' + (Date.now() + 15 * 60000);
+  return payload + '.' + b64url(Utilities.computeHmacSha256Signature('strava.' + payload, secret()));
+}
+
+function stravaAuthUrl(me) {
+  if (!stravaConfigured()) throw new Error('החיבור ל-Strava עוד לא הוגדר על ידי מנהל האפליקציה');
+  const redirect = ScriptApp.getService().getUrl();
+  return 'https://www.strava.com/oauth/authorize?client_id=' + encodeURIComponent(props().getProperty('STRAVA_CLIENT_ID')) +
+    '&response_type=code&approval_prompt=auto&scope=read,activity:read_all&redirect_uri=' + encodeURIComponent(redirect) +
+    '&state=' + encodeURIComponent(stravaState(me.r[U.id]));
+}
+
+function stravaPage(title, text) {
+  const html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body dir="rtl" style="font-family:system-ui,sans-serif;background:#f3f2ec;color:#121410;display:grid;place-items:center;min-height:90vh;margin:0">' +
+    '<div style="background:#fff;padding:28px;border-radius:14px;max-width:340px;text-align:center;border-top:6px solid #c6f432"><h1 style="margin:0 0 8px">' + escapeHtml(title) + '</h1><p>' + escapeHtml(text) + '</p>' +
+    '<a href="' + APP_URL + '#workout" target="_top" style="display:inline-block;margin-top:8px;background:#14160f;color:#c6f432;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800">חזרה לאפליקציה</a></div></body>';
+  return HtmlService.createHtmlOutput(html).setTitle('משמעת אישית');
+}
+
+function stravaCallback(p) {
+  const parts = String(p.state).split('.');
+  const payload = parts[0] + '.' + parts[1];
+  const ok = parts.length === 3 && safeEqual(b64url(Utilities.computeHmacSha256Signature('strava.' + payload, secret())), parts[2]) && Number(parts[1]) > Date.now();
+  if (!ok) return stravaPage('החיבור נכשל', 'הקישור פג תוקף. נסו שוב מתוך האפליקציה.');
+  if (p.error) return stravaPage('החיבור בוטל', 'לא אישרתם גישה ל-Strava.');
+  const u = findUser((r) => r[U.id] === parts[0]);
+  if (!u) return stravaPage('החיבור נכשל', 'המשתמש לא נמצא.');
+  const r = UrlFetchApp.fetch('https://www.strava.com/oauth/token', { method: 'post', muteHttpExceptions: true, payload: {
+    client_id: props().getProperty('STRAVA_CLIENT_ID'), client_secret: props().getProperty('STRAVA_CLIENT_SECRET'), code: String(p.code), grant_type: 'authorization_code' } });
+  const out = parseJSON(r.getContentText(), {}) || {};
+  if (r.getResponseCode() !== 200 || !out.refresh_token) return stravaPage('החיבור נכשל', 'Strava לא אישר את החיבור. נסו שוב.');
+  setExtra(u, { strava: { access: out.access_token, refresh: out.refresh_token, expires: out.expires_at, name: ((out.athlete && out.athlete.firstname) || '') + ' ' + ((out.athlete && out.athlete.lastname) || '') } });
+  audit(u.r[U.id], 'strava_connected', '');
+  return stravaPage('Strava חובר! ⌚', 'האימונים מהשעון יופיעו באפליקציה תחת "אימונים מתועדים".');
+}
+
+function stravaToken(me) {
+  const st = extraOf(me.r).strava;
+  if (!st || !st.refresh) throw new Error('Strava לא מחובר');
+  if (Number(st.expires) * 1000 > Date.now() + 60000) return st.access;
+  const r = UrlFetchApp.fetch('https://www.strava.com/oauth/token', { method: 'post', muteHttpExceptions: true, payload: {
+    client_id: props().getProperty('STRAVA_CLIENT_ID'), client_secret: props().getProperty('STRAVA_CLIENT_SECRET'), grant_type: 'refresh_token', refresh_token: st.refresh } });
+  const out = parseJSON(r.getContentText(), {}) || {};
+  if (r.getResponseCode() !== 200 || !out.access_token) throw new Error('החיבור ל-Strava פג. צריך להתחבר מחדש');
+  setExtra(me, { strava: Object.assign({}, st, { access: out.access_token, refresh: out.refresh_token || st.refresh, expires: out.expires_at }) });
+  return out.access_token;
+}
+
+const STRAVA_TYPES = { Run: 'run', TrailRun: 'run', VirtualRun: 'run', Walk: 'walk', Hike: 'hike', Ride: 'bike', VirtualRide: 'bike', EBikeRide: 'bike', GravelRide: 'bike', MountainBikeRide: 'bike' };
+
+/** Recent activities (runs, walks, hikes, rides) with their route polylines. */
+function stravaImport(me, after) {
+  const token = stravaToken(me);
+  const r = UrlFetchApp.fetch('https://www.strava.com/api/v3/athlete/activities?per_page=50' + (after ? '&after=' + Math.floor(after / 1000) : ''), {
+    muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + token } });
+  if (r.getResponseCode() !== 200) throw new Error('לא הצלחתי להביא אימונים מ-Strava (' + r.getResponseCode() + ')');
+  const list = parseJSON(r.getContentText(), []) || [];
+  return list.filter((a) => STRAVA_TYPES[a.sport_type || a.type]).map((a) => ({
+    id: 's' + a.id, type: STRAVA_TYPES[a.sport_type || a.type], name: String(a.name || '').slice(0, 80), start: Date.parse(a.start_date),
+    durationS: Number(a.moving_time) || 0, distanceM: Math.round(Number(a.distance) || 0), polyline: (a.map && a.map.summary_polyline) || '',
+  }));
 }

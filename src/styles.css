@@ -1460,3 +1460,69 @@ h1, h2, h3, .card-title, .level-name, .week-title h2, .store-hero h2, .duel-hero
 .skin-preview .sp-b { left: 8px; bottom: 8px; width: 30px; height: 22px; }
 .skin-preview .sp-c { right: 8px; bottom: 8px; width: 30px; height: 22px; }
 
+
+/* ===== v5.3 native feel: translucent bars, chat as a bottom sheet ===== */
+html { overscroll-behavior-y: none; }
+.topbar { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px); z-index: 20; transition: box-shadow .2s; }
+body.scrolled .topbar { box-shadow: 0 1px 0 var(--line); }
+.tabbar { background: color-mix(in srgb, var(--surface) 86%, transparent); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px); z-index: 25; }
+@media (max-width: 640px) {
+  .fab-panel {
+    inset: auto 8px var(--vv-bottom, 0) 8px; top: auto; width: auto;
+    height: var(--vv-h, 78dvh); border-radius: 20px 20px 0 0; border: 1px solid var(--line); border-bottom: none;
+    padding: 6px 12px 10px; z-index: 110; box-shadow: 0 -18px 40px -16px rgb(0 0 0 / .45);
+  }
+  .fab-panel::before { content: ""; display: block !important; position: static; width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 2px auto 8px; filter: none; opacity: 1; animation: none; }
+  .fab-panel:not([hidden]) { animation: sheet-up .32s cubic-bezier(.2, .9, .3, 1.05); }
+  body.fab-open::after { content: ""; position: fixed; inset: 0; z-index: 105; background: rgb(0 0 0 / .35); animation: cel-fade .2s ease-out; }
+  body.fab-open .tabbar, body.fab-open nav.tabbar { visibility: visible; }
+}
+@keyframes sheet-up { from { transform: translateY(60%); opacity: .4; } to { transform: none; opacity: 1; } }
+
+/* day header opens the day; locked days and weeks */
+.day-btn { all: unset; display: flex; flex-direction: column; align-items: center; width: 100%; padding: 4px 0; cursor: pointer; border-radius: 8px; }
+.day-btn:focus-visible { outline: 2px solid var(--accent); }
+.day-btn:active { transform: scale(.95); }
+.week-table td.locked-col .cell { opacity: .6; border-style: solid; }
+.week-table th.is-locked:not(.is-today) { color: var(--muted); }
+.today-grid.is-locked .today-btn { opacity: .65; }
+.day-sheet .today-grid { margin-bottom: 4px; }
+
+/* voice dictation */
+.chat-form { display: flex; gap: 8px; align-items: flex-end; }
+.chat-form .chat-input { flex: 1; }
+.mic-wrap { display: contents; }
+.mic-btn { position: relative; min-width: 48px; padding: 0 12px; }
+.mic-btn .mic-dot { display: none; }
+.mic-btn.recording { background: #d6304a; color: #fff; border-color: #d6304a; }
+.mic-btn.recording .mic-label { opacity: 0; }
+.mic-btn.recording .mic-dot { display: block; position: absolute; inset: 0; margin: auto; width: 14px; height: 14px; border-radius: 50%; background: #fff; animation: mic-pulse 1s ease-in-out infinite; }
+@keyframes mic-pulse { 50% { transform: scale(1.5); opacity: .6; } }
+.chat-input.dictating { box-shadow: 0 0 0 2px #d6304a; }
+@media (prefers-reduced-motion: reduce) { .mic-btn.recording .mic-dot { animation: none; } }
+
+/* ===== workouts (GPS) ===== */
+.start-wo { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; min-height: 46px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 800; text-decoration: none; }
+.start-wo:active { transform: scale(.98); }
+.wo-map { height: 260px; border-radius: 12px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); z-index: 0; }
+.wo-recorder .wo-map { height: 240px; }
+.wo-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.wo-stat { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; }
+.wo-stat b { font-size: 1.3rem; font-weight: 900; font-variant-numeric: tabular-nums; direction: ltr; text-align: right; }
+.wo-stat.big b { font-size: 2.2rem; letter-spacing: -0.03em; }
+.wo-stat span { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+.wo-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.wo-controls > * { flex: 1; min-height: 52px; font-size: 1.05rem; }
+.wo-go { font-size: 1.2rem !important; }
+.wo-list { display: grid; gap: 6px; margin-top: 6px; }
+.wo-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 10px; text-decoration: none; color: inherit; border: 1px solid var(--line); }
+.wo-item:hover { border-color: var(--text); }
+.wo-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wo-pace { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+.wo-thumb { width: 54px; height: 54px; flex: none; background: var(--surface-2); border-radius: 8px; }
+.wo-thumb path { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.wo-splits { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; }
+.wo-split { background: var(--surface-2); border-radius: 8px; padding: 6px 8px; display: flex; justify-content: space-between; font-size: 0.85rem; }
+.leaflet-container { font: inherit; }
+.wo-head-btns { display: flex; gap: 6px; }
+.strava-btn { background: #fc4c02 !important; color: #fff !important; border-color: #fc4c02 !important; }

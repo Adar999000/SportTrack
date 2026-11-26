@@ -118,6 +118,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now, lo
       getProjectTriggers: () => triggers.map((h) => ({ getHandlerFunction: () => h })),
       newTrigger: (h) => { const b = { timeBased: () => b, everyDays: () => b, everyHours: () => b, atHour: () => b, create: () => triggers.push(h) }; return b; },
       getScriptId: () => 'script-123',
+      getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }),
       getOAuthToken: () => 'oauth-token',
     },
     UrlFetchApp: {
@@ -127,6 +128,15 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now, lo
         if (url.startsWith('https://raw.githubusercontent.com/')) {
           if (githubDown) return { getResponseCode: () => 503, getContentText: () => '' };
           return { getResponseCode: () => 200, getContentText: () => serverFile() };
+        }
+        if (url.startsWith('https://www.strava.com/oauth/token')) {
+          return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ access_token: 'acc', refresh_token: 'ref', expires_at: Math.floor(Date.now() / 1000) + 3600, athlete: { firstname: 'דנה', lastname: 'כ' } }) };
+        }
+        if (url.startsWith('https://www.strava.com/api/v3/athlete/activities')) {
+          return { getResponseCode: () => 200, getContentText: () => JSON.stringify([
+            { id: 11, name: 'ריצת בוקר', sport_type: 'Run', start_date: '2026-11-20T05:00:00Z', moving_time: 1800, distance: 5012.3, map: { summary_polyline: '_p~iF~ps|U_ulLnnqC' } },
+            { id: 12, name: 'יוגה', sport_type: 'Yoga', start_date: '2026-11-21T05:00:00Z', moving_time: 1200, distance: 0, map: {} },
+          ]) };
         }
         if (url.startsWith('https://script.googleapis.com/')) {
           const web = (id, v) => ({ deploymentId: id, deploymentConfig: { versionNumber: v }, entryPoints: [{ entryPointType: 'WEB_APP' }] });
@@ -145,6 +155,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now, lo
         };
       },
     },
+    HtmlService: { createHtmlOutput: (html) => ({ html, setTitle() { return this; } }) },
     ContentService: {
       MimeType: { JSON: 'json' },
       createTextOutput: (text) => ({ text, setMimeType() { return this; } }),
@@ -162,9 +173,10 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now, lo
 
   const post = (body) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(body) } }).text);
   const run = (fn) => ctx[fn]();
+  const get = (parameter) => ctx.doGet({ parameter });
   const setServerSource = (src) => { serverSource = src; };
   const setGithubDown = (v) => { githubDown = v; };
   /** A new request: Apps Script runs the files fresh each time (the loader keeps nothing in memory). */
   const newRequest = () => vm.runInContext('loadedServer = null;', ctx);
-  return { post, sheets, files, properties, fetches, mails, backups, triggers, run, cache, textFiles, setServerSource, setGithubDown, newRequest };
+  return { post, get, sheets, files, properties, fetches, mails, backups, triggers, run, cache, textFiles, setServerSource, setGithubDown, newRequest };
 }

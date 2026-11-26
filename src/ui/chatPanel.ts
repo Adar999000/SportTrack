@@ -28,6 +28,49 @@ function guestId(): string {
 }
 
 /** The assistant conversation (used as a page and in the floating widget). */
+/**
+ * Talk instead of typing: live speech-to-text into the input (Web Speech API).
+ * The words appear while you speak; you can edit them before sending. Hidden where unsupported.
+ */
+function micButton(input: HTMLTextAreaElement): HTMLElement | null {
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  if (!SR) return null;
+  let rec: any = null;
+  let base = '';
+  const btn = h('button', { class: 'btn mic-btn', type: 'button', 'aria-label': t('הקלטה קולית'), 'aria-pressed': 'false', title: t('דברו, והטקסט יופיע כאן') },
+    h('span', { class: 'mic-dot', 'aria-hidden': 'true' }), h('span', { class: 'mic-label' }, '🎙')) as HTMLButtonElement;
+  const status = h('span', { class: 'sr-only', 'aria-live': 'polite' });
+  const stop = () => { try { rec?.stop(); } catch { /* ignore */ } };
+  const setOn = (on: boolean) => {
+    btn.classList.toggle('recording', on);
+    btn.setAttribute('aria-pressed', String(on));
+    input.classList.toggle('dictating', on);
+    input.placeholder = on ? t('מקשיב… דברו עכשיו') : t('כתוב שאלה או בקשה…');
+    status.textContent = on ? t('ההקלטה התחילה') : t('ההקלטה נעצרה');
+  };
+  btn.addEventListener('click', () => {
+    if (rec) { stop(); return; }
+    rec = new SR();
+    rec.lang = lang === 'en' ? 'en-US' : 'he-IL';
+    rec.interimResults = true;
+    rec.continuous = true;
+    base = input.value ? input.value.trimEnd() + ' ' : '';
+    rec.onresult = (e: any) => {
+      let finalText = '', interim = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
+      }
+      input.value = base + finalText + interim;
+      input.dispatchEvent(new Event('input'));
+    };
+    rec.onerror = (e: any) => { if (e.error === 'not-allowed') toast(t('צריך לאשר גישה למיקרופון')); else if (e.error !== 'aborted' && e.error !== 'no-speech') toast(t('ההקלטה נכשלה, אפשר לנסות שוב')); };
+    rec.onend = () => { rec = null; setOn(false); input.focus(); };
+    try { rec.start(); setOn(true); navigator.vibrate?.(10); } catch { rec = null; }
+  });
+  return h('span', { class: 'mic-wrap' }, btn, status);
+}
+
 export function chatPanel(scope: Scope, userId?: string): HTMLElement {
   const key = scope === 'guest' ? 'chat:guest' : `chat:${currentUser()?.userId}:${scope}:${userId ?? ''}`;
   let messages: Msg[] = [];
@@ -93,7 +136,8 @@ export function chatPanel(scope: Scope, userId?: string): HTMLElement {
     draw();
   }
 
-  const form = h('form', { class: 'chat-form' }, input, send);
+  const mic = micButton(input as HTMLTextAreaElement);
+  const form = h('form', { class: 'chat-form' }, input, mic ?? '', send);
   form.addEventListener('submit', (e) => { e.preventDefault(); ask(input.value); });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(input.value); }

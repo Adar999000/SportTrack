@@ -170,3 +170,27 @@ describe('server loader (Code.gs runs server.js from GitHub)', () => {
     expect(be.post({ action: 'serverUpdate', token: adm.token }).error).toMatch(/Code\.gs/);
   });
 });
+
+describe('Strava (smart watches)', () => {
+  it('connects through OAuth and imports runs with routes', () => {
+    const be = createBackend();
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
+    expect(be.post({ action: 'stravaStatus', token: u.token })).toMatchObject({ configured: false, connected: false });
+    expect(be.post({ action: 'stravaAuthUrl', token: u.token }).error).toMatch(/הוגדר/);
+    be.properties.set('STRAVA_CLIENT_ID', '123'); be.properties.set('STRAVA_CLIENT_SECRET', 'sec');
+    const { url } = be.post({ action: 'stravaAuthUrl', token: u.token });
+    expect(url).toMatch(/^https:\/\/www\.strava\.com\/oauth\/authorize\?client_id=123/);
+    const state = decodeURIComponent(/state=([^&]+)/.exec(url)![1]);
+    // a forged state is refused
+    expect(be.get({ state: state.slice(0, -2) + 'xx', code: 'c' }).html).toMatch(/נכשל/);
+    expect(be.get({ state, code: 'c' }).html).toMatch(/חובר/);
+    expect(be.post({ action: 'stravaStatus', token: u.token })).toMatchObject({ configured: true, connected: true });
+    const acts = be.post({ action: 'stravaImport', token: u.token }).activities;
+    expect(acts).toHaveLength(1); // yoga is skipped
+    expect(acts[0]).toMatchObject({ id: 's11', type: 'run', distanceM: 5012, durationS: 1800 });
+    expect(acts[0].polyline).toBeTruthy();
+    be.post({ action: 'stravaDisconnect', token: u.token });
+    expect(be.post({ action: 'stravaStatus', token: u.token }).connected).toBe(false);
+  });
+});

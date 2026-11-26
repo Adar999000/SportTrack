@@ -113,6 +113,8 @@ export function normalizeWeek(raw: any): Week | null {
   if (typeof raw.note === 'string' && raw.note.trim()) w.note = raw.note;
   if (typeof raw.updatedAt === 'number') w.updatedAt = raw.updatedAt;
   if (typeof raw.photoId === 'string' && raw.photoId) w.photoId = raw.photoId;
+  if (raw.locked === true) w.locked = true;
+  if (Array.isArray(raw.lockedDays)) { const ld = raw.lockedDays.filter((x: unknown) => Number.isInteger(x) && (x as number) >= 0 && (x as number) < 7); if (ld.length) w.lockedDays = [...new Set(ld as number[])]; }
   if (raw.extra && typeof raw.extra === 'object') {
     const extra: Record<string, CellVal[]> = {};
     for (const [k, v] of Object.entries(raw.extra)) {

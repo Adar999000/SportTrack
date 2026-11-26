@@ -1,7 +1,7 @@
 import { isRTL, lang, t, tr } from '../i18n';
 import { DAY_NAMES, addDays, dayIndex, formatShort, sundayOf, todayISO, weekRangeLabel } from '../dates';
 import { cycleMark, cycleSmoked, sportShort } from '../model';
-import { allWeeks, editWeek, getSettings, getWeek } from '../store';
+import { allWeeks, editWeek, getSettings, getWeek, setLock, subscribe } from '../store';
 import { lunchStreak, workoutsInWeek } from '../stats';
 import type { Day, Mark, MealKey } from '../types';
 import { h, openSheet } from './dom';
@@ -109,9 +109,10 @@ function ring(done: number, total: number, size = 64): SVGSVGElement {
 }
 
 /** Big buttons for today's tasks. */
-function todayPanel(today: string): HTMLElement {
-  const sunday = sundayOf(today);
-  const i = dayIndex(today);
+/** The big buttons for one day (today's panel and the day sheet). */
+function dayGrid(date: string): HTMLElement {
+  const sunday = sundayOf(date);
+  const i = dayIndex(date);
   const d: Day = getWeek(sunday).days[i];
   const settings = getSettings();
   const btn = (title: string, value: string, cls: string, onclick: () => void, aria: string, k = '') =>
@@ -119,6 +120,43 @@ function todayPanel(today: string): HTMLElement {
       h('span', { class: 'today-title' }, title),
       value ? h('span', { class: 'today-val' }, value) : h('span', { class: 'today-empty' }, t('לא סומן')),
     );
+  return h('div', { class: 'today-grid' + (isLocked(sunday, i) ? ' is-locked' : '') },
+      mealRows().map((r) =>
+        btn(r.short, d[r.key] ?? '', markClass(d[r.key]), () => cycleMeal(sunday, i, r.key), d[r.key] ? MARK_TEXT[d[r.key]!] : t('ריק'), popKey(sunday, i, r.key)),
+      ),
+      btn(rowName('sport', t('פעילות ספורט'), t('ספורט')).short, sportShort(d.sport), markClass(d.sport.status) + ' today-sport', () => openSportSheet(sunday, i), sportShort(d.sport) || t('ריק')),
+      settings.showSmoking &&
+        btn(rowName('smoked', t('מעשן?'), t('מעשן?')).short, smokeText(d.smoked), d.smoked === true ? 'mark-X' : d.smoked === false ? 'mark-V' : 'mark-empty', () => cycleSmoke(sunday, i), smokeText(d.smoked) || t('ריק'), popKey(sunday, i, 'smoked')),
+  );
+}
+
+const isLocked = (sunday: string, i: number) => { const w = getWeek(sunday); return !!w.locked || !!w.lockedDays?.includes(i); };
+
+/** Tap a day in the table: fill it in with the big buttons, or lock it. */
+export function openDaySheet(date: string): void {
+  const sunday = sundayOf(date), i = dayIndex(date);
+  const body = h('div', { class: 'stack day-sheet' });
+  const draw = () => {
+    const w = getWeek(sunday);
+    const dayLocked = !!w.lockedDays?.includes(i);
+    body.replaceChildren(
+      w.locked ? h('p', { class: 'hint' }, '🔒 ', t('כל השבוע נעול. אפשר לשחרר אותו מתחת לטבלה.')) : '',
+      dayGrid(date),
+      h('button', { class: 'btn' + (dayLocked ? ' btn-primary' : ''), type: 'button', disabled: !!w.locked, onclick: () => setLock(sunday, i, !dayLocked) },
+        dayLocked ? '🔓 ' + t('שחרר את היום') : '🔒 ' + t('נעל את היום')),
+      h('p', { class: 'hint' }, t('יום נעול לא משתנה בטעות, גם לא דרך העוזר. אפשר לשחרר בכל רגע.')),
+    );
+  };
+  draw();
+  const off = subscribe(() => { if (!body.isConnected) off(); else draw(); });
+  openSheet(tr`יום ${t(DAY_NAMES[i])} ${formatShort(date)}`, body);
+}
+
+/** Big buttons for today's tasks. */
+function todayPanel(today: string): HTMLElement {
+  const sunday = sundayOf(today);
+  const i = dayIndex(today);
+  const d: Day = getWeek(sunday).days[i];
   const done = dayDone(d);
   return h('section', { class: 'card today', 'aria-label': t('היום') },
     h('div', { class: 'today-head' },
@@ -130,14 +168,8 @@ function todayPanel(today: string): HTMLElement {
       ),
       h('div', { class: 'today-ring', role: 'img', 'aria-label': tr`${done} מתוך 4 משימות היום` }, ring(done, 4, 72)),
     ),
-    h('div', { class: 'today-grid' },
-      mealRows().map((r) =>
-        btn(r.short, d[r.key] ?? '', markClass(d[r.key]), () => cycleMeal(sunday, i, r.key), d[r.key] ? MARK_TEXT[d[r.key]!] : t('ריק'), popKey(sunday, i, r.key)),
-      ),
-      btn(rowName('sport', t('פעילות ספורט'), t('ספורט')).short, sportShort(d.sport), markClass(d.sport.status) + ' today-sport', () => openSportSheet(sunday, i), sportShort(d.sport) || t('ריק')),
-      settings.showSmoking &&
-        btn(rowName('smoked', t('מעשן?'), t('מעשן?')).short, smokeText(d.smoked), d.smoked === true ? 'mark-X' : d.smoked === false ? 'mark-V' : 'mark-empty', () => cycleSmoke(sunday, i), smokeText(d.smoked) || t('ריק'), popKey(sunday, i, 'smoked')),
-    ),
+    dayGrid(today),
+    h('a', { class: 'start-wo', href: HASH.workout() }, h('span', { 'aria-hidden': 'true' }, '▶'), t('התחל אימון עם GPS')),
   );
 }
 
@@ -145,15 +177,17 @@ function weekTable(sunday: string, today: string): HTMLElement {
   const week = getWeek(sunday);
   const settings = getSettings();
   const todayIdx = sundayOf(today) === sunday ? dayIndex(today) : -1;
-  const colCls = (i: number) => (i === todayIdx ? 'is-today' : '');
+  const colCls = (i: number) => (i === todayIdx ? 'is-today' : '') + (isLocked(sunday, i) ? ' locked-col' : '');
 
   const head = h('tr', null,
     h('th', { class: 'corner', scope: 'col' }, mainCfg().corner || t('משימה')),
     DAY_NAMES.map((n, i) =>
-      h('th', { scope: 'col', class: colCls(i), 'aria-current': i === todayIdx ? 'date' : undefined },
-        h('span', { class: 'lbl-full' }, t(n)),
-        h('span', { class: 'lbl-short', 'aria-hidden': 'true' }, DAY_LETTERS[i]),
-        h('span', { class: 'th-date' }, formatShort(addDays(sunday, i)).slice(0, 5)),
+      h('th', { scope: 'col', class: colCls(i) + (isLocked(sunday, i) ? ' is-locked' : ''), 'aria-current': i === todayIdx ? 'date' : undefined },
+        h('button', { class: 'day-btn', type: 'button', 'aria-label': tr`פתח את יום ${t(n)}${isLocked(sunday, i) ? ' (' + t('נעול') + ')' : ''}`, onclick: () => openDaySheet(addDays(sunday, i)) },
+          h('span', { class: 'lbl-full' }, t(n)),
+          h('span', { class: 'lbl-short', 'aria-hidden': 'true' }, DAY_LETTERS[i]),
+          h('span', { class: 'th-date' }, isLocked(sunday, i) ? '🔒' : formatShort(addDays(sunday, i)).slice(0, 5)),
+        ),
       ),
     ),
   );
@@ -345,6 +379,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     h('div', { class: 'mini-actions' },
       !week.note && h('button', { class: 'link-btn', type: 'button', onclick: (e: Event) => { note.hidden = false; note.focus(); (e.currentTarget as HTMLElement).remove(); } }, t('הערה')),
       week.photoId ? '' : weekPhoto(sunday),
+      h('button', { class: 'link-btn', type: 'button', onclick: () => setLock(sunday, null, !week.locked) }, week.locked ? '🔓 ' + t('שחרר שבוע') : '🔒 ' + t('נעל שבוע')),
       h('button', { class: 'link-btn', type: 'button', onclick: () => openWeekMenu() }, t('התאמה אישית')),
     ),
   );

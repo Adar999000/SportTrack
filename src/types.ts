@@ -34,6 +34,9 @@ export interface Week {
   photoId?: string;
   /** Values of the user's own extra rows in the main table: rowId → 7 values (Sunday → Saturday). */
   extra?: Record<string, CellVal[]>;
+  /** Locked against edits: the whole week, or single days (0 = Sunday). */
+  locked?: boolean;
+  lockedDays?: number[];
 }
 
 /** A value in a custom row: a mark, ✓, emoji, number of stars, a number or free text. */

@@ -122,12 +122,39 @@ let onDayComplete: (() => void) | null = null;
 /** Called when today's row becomes complete (used for the confetti effect). */
 export function setDayCompleteHandler(fn: () => void): void { onDayComplete = fn; }
 
-export function editWeek(sunday: string, fn: (w: Week) => void): void {
+let onLocked: ((whole: boolean) => void) | null = null;
+/** Called when an edit is refused because the day or week is locked. */
+export function setLockedHandler(fn: (whole: boolean) => void): void { onLocked = fn; }
+
+/** Lock or unlock a whole week, or one day (0 = Sunday). */
+export function setLock(sunday: string, day: number | null, locked: boolean): void {
   const w = structuredClone(getWeek(sunday));
+  if (day === null) { if (locked) w.locked = true; else delete w.locked; }
+  else {
+    const set = new Set(w.lockedDays ?? []);
+    if (locked) set.add(day); else set.delete(day);
+    if (set.size) w.lockedDays = [...set].sort(); else delete w.lockedDays;
+  }
+  w.updatedAt = Date.now();
+  state.weeks[sunday] = w;
+  state.dirty.add(sunday);
+  emit();
+}
+
+export function editWeek(sunday: string, fn: (w: Week) => void): void {
+  const before = getWeek(sunday);
+  const w = structuredClone(before);
   const today = todayISO();
   const idx = sunday === sundayOf(today) ? new Date(today + 'T12:00:00').getDay() : -1;
   const wasFull = idx >= 0 && fullDay(w.days[idx]);
   fn(w);
+  // locked week / days can't change
+  const j = (x: unknown) => JSON.stringify(x ?? null);
+  if (before.locked && (j(before.days) !== j(w.days) || before.startWeight !== w.startWeight || j(before.note) !== j(w.note) || j(before.extra) !== j(w.extra))) { onLocked?.(true); emit(); return; }
+  const ld = before.lockedDays ?? [];
+  const extraKeys = [...new Set([...Object.keys(before.extra ?? {}), ...Object.keys(w.extra ?? {})])];
+  const dayChanged = (d: number) => j(before.days[d]) !== j(w.days[d]) || extraKeys.some((k) => j(before.extra?.[k]?.[d]) !== j(w.extra?.[k]?.[d]));
+  if (ld.some(dayChanged)) { onLocked?.(false); emit(); return; }
   if (idx >= 0 && !wasFull && fullDay(w.days[idx])) queueMicrotask(() => onDayComplete?.());
   w.updatedAt = Date.now();
   state.weeks[sunday] = w;

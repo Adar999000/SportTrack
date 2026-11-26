@@ -6,7 +6,7 @@ import { call, hasBackend } from './api';
 import { sundayOf, todayISO } from './dates';
 import { checkReminders } from './reminders';
 import { currentUser, isAdmin, loadSession, onSession, refreshUser } from './session';
-import { allWeeks, dirtyCount, flush, getSettings, loadStore, setDayCompleteHandler, setOwner, subscribe, weeksOwner } from './store';
+import { allWeeks, dirtyCount, flush, getSettings, loadStore, setDayCompleteHandler, setLockedHandler, setOwner, subscribe, weeksOwner } from './store';
 import { getSyncState, onSync, resetPullCursor, scheduleSync, syncNow } from './sync';
 import { renderAdmin, renderAdminUser } from './ui/adminView';
 import { renderAuth } from './ui/authView';
@@ -26,6 +26,7 @@ import { renderRewards } from './ui/rewardsView';
 import { renderShare } from './ui/shareView';
 import { avatar } from './ui/avatar';
 import { renderTracker } from './ui/trackerView';
+import { renderWorkout, workoutsCard } from './ui/workoutView';
 import { renderFeed } from './ui/feedView';
 import { dirtyDocCount, loadDocs, setDocsOwner } from './docs';
 import { initAnalytics, track } from './analytics';
@@ -40,6 +41,7 @@ import { maybeStartTour } from './ui/tour';
 import { BADGES, getRewards, levelLabel, loadCachedRewards, onRewards, owns, refreshRewards } from './rewards';
 import { celebrate } from './ui/celebrate';
 import { refreshMascots } from './ui/mascot';
+setLockedHandler((whole) => toast(whole ? t('השבוע נעול. אפשר לשחרר אותו מתחת לטבלה.') : t('היום נעול. לחיצה על היום בטבלה פותחת אותו לשחרור.')));
 setDayCompleteHandler(() => {
   const today = todayISO();
   const w = allWeeks().find((x) => x.sundayDate === sundayOf(today));
@@ -54,7 +56,7 @@ interface Tab { names: Route['name'][]; hash: string; label: string; icon: strin
 
 function tabs(): Tab[] {
   const today: Tab = { names: ['week', 'tracker'], hash: HASH.week(), label: t('היום'), icon: 'week' };
-  const progress: Tab = { names: ['stats', 'history'], hash: HASH.stats, label: t('התקדמות'), icon: 'stats' };
+  const progress: Tab = { names: ['stats', 'history', 'workout'], hash: HASH.stats, label: t('התקדמות'), icon: 'stats' };
   if (!hasBackend()) return [today, progress, { names: ['settings'], hash: HASH.settings, label: t('הגדרות'), icon: 'settings' }];
   return [today, progress, { names: ['profile', 'settings', 'chat', 'rewards', 'share', 'feed', 'admin', 'adminUser'], hash: HASH.profile, label: t('אני'), icon: 'profile' }];
 }
@@ -168,7 +170,7 @@ function render() {
     return;
   }
   // Keep in-progress forms (chat, profile edit) from being wiped by background updates.
-  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share' || route.name === 'feed')) return;
+  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share' || route.name === 'feed' || route.name === 'workout')) return;
 
   nav.hidden = false;
   nav.replaceChildren(
@@ -190,7 +192,7 @@ function render() {
     case 'stats': {
       const a = h('div', { class: 'stack' }), b = h('div', { class: 'stack' });
       renderStats(a); renderHistory(b);
-      main.replaceChildren(a, b);
+      main.replaceChildren(workoutsCard(), a, b);
       break;
     }
     case 'settings': renderSettings(main); break;
@@ -208,6 +210,7 @@ function render() {
     case 'rewards': hasBackend() ? renderRewards(main) : renderWeek(main, sundayOf(todayISO())); break;
     case 'share': hasBackend() ? renderShare(main) : renderWeek(main, sundayOf(todayISO())); break;
     case 'tracker': renderTracker(main, route.id, route.sunday); break;
+    case 'workout': renderWorkout(main, route.id); break;
     case 'feed': hasBackend() ? renderFeed(main, route.tab ?? 'posts') : renderWeek(main, sundayOf(todayISO())); break;
     case 'duel':
       call('joinDuel', { code: route.code }).then(() => { toast(t('הצטרפת לאתגר! בהצלחה 💪')); track('duel:join-link'); }).catch((e) => toast(e.message)).finally(() => navigate(HASH.duels));
@@ -337,6 +340,7 @@ async function boot() {
   );
   initAnalytics();
   initSwipeTabs();
+  addEventListener('scroll', () => document.body.classList.toggle('scrolled', scrollY > 4), { passive: true });
   await loadStore();
   await loadDocs();
   await loadSession();

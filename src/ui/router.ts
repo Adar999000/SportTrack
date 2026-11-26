@@ -16,7 +16,8 @@ export type Route =
   | { name: 'privacy' }
   | { name: 'tracker'; id: string; sunday?: string }
   | { name: 'feed'; tab?: 'posts' | 'events' | 'duels' }
-  | { name: 'duel'; code: string };
+  | { name: 'duel'; code: string }
+  | { name: 'workout'; id?: string };
 
 /** Hashes are plain names: #week-2026-11-22, #history, #stats, #prefs, #profile, #admin, #chat … */
 export const HASH = {
@@ -39,6 +40,7 @@ export const HASH = {
   feed: '#feed',
   events: '#events',
   duels: '#duels',
+  workout: (id?: string) => (id ? `#workout-${id}` : '#workout'),
   duel: (code: string) => `#duel-${code}`,
 };
 
@@ -69,6 +71,9 @@ export function parseRoute(hash: string): Route {
   if (h === 'feed') return { name: 'feed', tab: 'posts' };
   if (h === 'events') return { name: 'feed', tab: 'events' };
   if (h === 'duels') return { name: 'feed', tab: 'duels' };
+  if (h === 'workout') return { name: 'workout' };
+  m = /^workout-([a-z0-9]{3,16})$/.exec(h);
+  if (m) return { name: 'workout', id: m[1] };
   m = /^duel-([A-Za-z0-9]{4,10})$/.exec(h);
   if (m) return { name: 'duel', code: m[1].toUpperCase() };
   m = /^week[-/](\d{4}-\d{2}-\d{2})$/.exec(h);

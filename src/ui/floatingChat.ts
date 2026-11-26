@@ -53,9 +53,11 @@ export function mountFloatingChat(): { refresh: () => void } {
   /** On phones the panel fills exactly the visible area, also above the on-screen keyboard. */
   const fit = () => {
     const vv = window.visualViewport;
-    if (!vv || !isPhone()) { panel.style.removeProperty('--vv-h'); panel.style.removeProperty('--vv-top'); return; }
-    panel.style.setProperty('--vv-h', vv.height + 'px');
-    panel.style.setProperty('--vv-top', vv.offsetTop + 'px');
+    if (!vv || !isPhone()) { panel.style.removeProperty('--vv-h'); panel.style.removeProperty('--vv-bottom'); return; }
+    // a sheet from the bottom that stays above the on-screen keyboard
+    const kb = Math.max(0, window.innerHeight - (vv.offsetTop + vv.height));
+    panel.style.setProperty('--vv-bottom', kb + 'px');
+    panel.style.setProperty('--vv-h', Math.min(vv.height - 16, window.innerHeight * 0.78) + 'px');
     const log = panel.querySelector('.chat-log') as HTMLElement | null;
     if (log) log.scrollTop = log.scrollHeight;
   };
@@ -75,6 +77,8 @@ export function mountFloatingChat(): { refresh: () => void } {
   }
   fab.addEventListener('click', () => (panel.hidden ? open() : close()));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) close(); });
+  // phones: tapping the dimmed page behind the sheet closes it
+  document.addEventListener('click', (e) => { if (!panel.hidden && isPhone() && e.target === document.body) close(); });
 
   openPanel = (tab0?: 'ai' | 'support') => { if (tab0) tab = tab0; open(); };
   const refresh = () => {

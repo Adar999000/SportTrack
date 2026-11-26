@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.3.0 (2026-11-26)
+- Tap a day header in the table: a sheet with that day's big buttons; lock/unlock the day there, or the whole week under the table. Locks live in the week (`locked`, `lockedDays`) and the store refuses edits to locked days (also from the assistant).
+- GPS workout recorder (`#workout`): run/walk/hike/ride, live time, distance, pace or speed, estimated steps, Leaflet + OpenStreetMap route map, pause/resume, survives reloads, wake lock; saved as synced docs `wo:<id>`, marks the day's sport cell; history with route thumbnails and per-km splits on the Progress screen.
+- Smart watches through Strava: OAuth via the Apps Script web app (`doGet` callback, signed state), token refresh, import of runs/walks/hikes/rides with route polylines. Needs `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` script properties.
+- Voice input in the chat (Web Speech API, he-IL / en-US) with live transcription into the input.
+- Chat on phones is a keyboard-aware bottom sheet with a dimmed backdrop; translucent sticky top bar and tab bar; no overscroll bounce.
+
 ## 5.2.0 (2026-11-26)
 - Skins (store kind `skin`, level-locked): bubbly (Varela Round, pastel, round), feminine elegant (Bellefair serif, rose gold), stadium (pitch stripes), anime (ink outlines, comic shadows, halftone), retro 80s (Karantina, sunset stripes), neon night, leopard (print background), luxe (black and gold). Light and dark variants (neon and luxe are always dark); try-on in the store; picker in Settings.
 - Celebrations: overlay for a full day, closing the week (Saturday), level up and new badges (compared with what was seen last), with confetti/stars/fireworks and haptics.
