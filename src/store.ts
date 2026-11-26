@@ -1,6 +1,7 @@
 import { KEYS, kvGet, kvSet } from './db';
 import { emptyWeek, normalizeWeek, weekHasData } from './model';
-import { DEFAULT_SETTINGS, type Settings, type Week } from './types';
+import { DEFAULT_SETTINGS, type Day, type Settings, type Week } from './types';
+import { sundayOf, todayISO } from './dates';
 
 type Listener = () => void;
 
@@ -111,9 +112,18 @@ export function allWeeks(): Week[] {
 }
 
 /** Apply a mutation to a week (creating it if needed). */
+const fullDay = (d?: Day) => !!d && (['breakfast', 'lunch', 'dinner'] as const).every((k) => d[k] || d.text?.[k]) && !!d.sport?.status;
+let onDayComplete: (() => void) | null = null;
+/** Called when today's row becomes complete (used for the confetti effect). */
+export function setDayCompleteHandler(fn: () => void): void { onDayComplete = fn; }
+
 export function editWeek(sunday: string, fn: (w: Week) => void): void {
   const w = structuredClone(getWeek(sunday));
+  const today = todayISO();
+  const idx = sunday === sundayOf(today) ? new Date(today + 'T12:00:00').getDay() : -1;
+  const wasFull = idx >= 0 && fullDay(w.days[idx]);
   fn(w);
+  if (idx >= 0 && !wasFull && fullDay(w.days[idx])) queueMicrotask(() => onDayComplete?.());
   w.updatedAt = Date.now();
   state.weeks[sunday] = w;
   state.dirty.add(sunday);

@@ -78,6 +78,8 @@ function route(req) {
     case 'spend': return spend(me, req);
     case 'leaderboard': return { leaders: leaderboard(String(req.period || 'week')) };
     case 'myInvite': return myInvite(me);
+    case 'setFrame': return setFrame(me, String(req.frame || ''));
+    case 'approveHistory': requireAdmin(me); return approveHistory(me, String(req.userId || ''), !!req.approved);
     case 'contactAdmin': return { message: createMessage(me, String(req.subject || ''), String(req.text || '')) };
     case 'myMessages': return myMessages(me);
     case 'unreadCount': return { unread: messageRows().filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length };
@@ -659,6 +661,7 @@ function userSummary(userId, viewer) {
     mealsPct: avg(weeks.map((w) => w[W.meals]).filter((x) => x !== '')),
     weightChange: wts.length > 1 ? Math.round((wts[wts.length - 1] - wts[0]) * 10) / 10 : null,
     level: rw.level.n, levelName: rw.level.name, coins: rw.balance,
+    historyApproved: historyApproved(u.r),
     months: months,
   };
 }
@@ -730,10 +733,56 @@ function setRole(me, req) {
 
 const LEVELS = [
   [0, 'מתחיל'], [100, 'מתמיד'], [300, 'ממושמע'], [600, 'לוחם'], [1000, 'אלוף השכונה'],
-  [1600, 'מכונה'], [2500, 'ברזל'], [3600, 'פלדה'], [5000, 'אגדה'], [7000, 'משמעת אישית'],
+  [1600, 'מכונה'], [2500, 'ברזל'], [3600, 'פלדה'], [5000, 'טיטניום'], [7000, 'יהלום'],
+  [10000, 'אגדה'], [14000, 'מאסטר'], [19000, 'גראנד מאסטר'], [25000, 'אגדה חיה'], [32000, 'משמעת אישית'],
 ];
+const STAR_EVERY = 10000;
 const COSTS = { freezeDay: 50, freezeWeek: 100, chat10: 30, color: 150 };
-const PREMIUM_COLORS = ['gold', 'teal', 'crimson'];
+
+/** Everything the store sells (besides freezes and assistant messages). Price in coins. */
+const CATALOG = {
+  color: { gold: 150, teal: 150, crimson: 150, indigo: 200, coral: 200, olive: 200, plum: 200 },
+  bg: { sand: 200, ocean: 200, forest: 200, rose: 200, midnight: 300 },
+  frame: { silver: 120, goldframe: 250, fire: 300, rainbow: 350, diamond: 400 },
+  effect: { confetti: 200 },
+};
+
+/** What each level unlocks (cumulative), enforced on the server. */
+const LEVEL_PERKS = [
+  { level: 2, chatBonus: 5, text: '+5 הודעות ביום לעוזר' },
+  { level: 3, free: ['frame:silver'], text: 'מסגרת פרופיל כסופה בחינם' },
+  { level: 4, chatBonus: 5, text: '+5 הודעות ביום לעוזר (סה"כ +10)' },
+  { level: 5, free: ['color:gold'], text: 'צבע זהב בחינם' },
+  { level: 6, discount: 10, text: '10% הנחה בחנות' },
+  { level: 7, free: ['frame:goldframe'], text: 'מסגרת זהב בחינם' },
+  { level: 8, chatBonus: 10, text: '+10 הודעות ביום לעוזר (סה"כ +20)' },
+  { level: 9, discount: 20, text: '20% הנחה בחנות' },
+  { level: 10, free: ['bg:midnight'], text: 'רקע חצות בחינם' },
+  { level: 11, free: ['frame:diamond'], text: 'מסגרת יהלום בחינם' },
+  { level: 12, discount: 30, text: '30% הנחה בחנות' },
+  { level: 13, free: Object.keys(CATALOG.color).map((c) => 'color:' + c), text: 'כל הצבעים בחינם' },
+  { level: 14, chatBonus: 30, text: '+30 הודעות ביום לעוזר (סה"כ +50)' },
+  { level: 15, freeAll: true, text: 'כל הפריטים בחנות בחינם ותג היכל התהילה' },
+];
+
+function perksFor(levelN) {
+  const p = { chatBonus: 0, discount: 0, free: {}, freeAll: false };
+  LEVEL_PERKS.forEach((x) => {
+    if (levelN < x.level) return;
+    p.chatBonus += x.chatBonus || 0;
+    if (x.discount) p.discount = Math.max(p.discount, x.discount);
+    (x.free || []).forEach((k) => { p.free[k] = true; });
+    if (x.freeAll) p.freeAll = true;
+  });
+  return p;
+}
+
+function priceFor(kind, id, perks) {
+  const base = (CATALOG[kind] || {})[id];
+  if (base === undefined) return null;
+  if (perks.freeAll || perks.free[kind + ':' + id]) return 0;
+  return Math.round(base * (100 - perks.discount) / 100);
+}
 const WELCOME_CAP = 500;
 
 function extraOf(r) { return parseJSON(r[U.extra], {}) || {}; }
@@ -788,12 +837,14 @@ function levelFor(lifetime) {
   let i = 0;
   while (i + 1 < LEVELS.length && lifetime >= LEVELS[i + 1][0]) i++;
   if (i === LEVELS.length - 1) {
-    const extra = Math.floor((lifetime - LEVELS[i][0]) / 2500);
-    const base = LEVELS[i][0] + extra * 2500;
-    return { n: i + 1 + extra, name: LEVELS[i][1] + (extra ? ' ★' + extra : ''), from: base, to: base + 2500 };
+    const extra = Math.floor((lifetime - LEVELS[i][0]) / STAR_EVERY);
+    const base = LEVELS[i][0] + extra * STAR_EVERY;
+    return { n: i + 1 + extra, name: LEVELS[i][1] + (extra ? ' ★' + extra : ''), from: base, to: base + STAR_EVERY };
   }
   return { n: i + 1, name: LEVELS[i][1], from: LEVELS[i][0], to: LEVELS[i + 1][0] };
 }
+
+function historyApproved(r) { return r[U.role] === 'admin' || extraOf(r).historyApproved === true; }
 
 function isWorkout(day) { return !!(day && day.sport && day.sport.status === 'V' && day.sport.countsAsWorkout); }
 
@@ -810,18 +861,21 @@ function rewardsFor(userRow, cache) {
   const today = todayStr();
   const created = String(userRow[U.created] || '').slice(0, 10);
   const startGlobal = rewardsStart();
-  const start = created > startGlobal ? created : startGlobal;
+  // Approved users have their whole history counted; otherwise from the later of sign-up and launch (+ a capped bonus).
+  const fullHistory = historyApproved(userRow);
+  const start = fullHistory ? '2000-01-01' : (created > startGlobal ? created : startGlobal);
   const extra = extraOf(userRow);
   const all = (cache && cache.weeks) || rows('Weeks');
   const users = (cache && cache.users) || rows('Users');
   const ledger = ((cache && cache.ledger) || ledgerRows()).filter((r) => r[0] === uid);
 
-  const frozenDays = {}, frozenWeeks = {}, unlocked = {};
+  const frozenDays = {}, frozenWeeks = {}, owned = {};
   ledger.forEach((r) => {
     const ref = String(r[3]);
     if (ref.indexOf('freezeDay:') === 0) frozenDays[ref.slice(10)] = true;
     if (ref.indexOf('freezeWeek:') === 0) frozenWeeks[ref.slice(11)] = true;
-    if (ref.indexOf('color:') === 0) unlocked[ref.slice(6)] = true;
+    if (ref.indexOf('item:') === 0) owned[ref.slice(5)] = true; // item:kind:id
+    if (ref.indexOf('color:') === 0) owned['color:' + ref.slice(6)] = true; // older purchases
   });
 
   const weeks = all.filter((r) => r[W.user] === uid)
@@ -974,13 +1028,29 @@ function rewardsFor(userRow, cache) {
   const cy = byYear[today.slice(0, 4)] || { wo: 0 };
   const mealsPct = cm.v + cm.x ? Math.round((cm.v / (cm.v + cm.x)) * 100) : 0;
 
+  const level = levelFor(lifetime);
+  const perks = perksFor(level.n);
+  const unlocked = Object.keys(owned);
+  Object.keys(CATALOG).forEach((kind) => Object.keys(CATALOG[kind]).forEach((id) => {
+    if (priceFor(kind, id, perks) === 0 && unlocked.indexOf(kind + ':' + id) < 0) unlocked.push(kind + ':' + id);
+  }));
+  const catalog = [];
+  Object.keys(CATALOG).forEach((kind) => Object.keys(CATALOG[kind]).forEach((id) => {
+    catalog.push({ kind: kind, id: id, base: CATALOG[kind][id], price: priceFor(kind, id, perks), owned: unlocked.indexOf(kind + ':' + id) >= 0 });
+  }));
   return {
     start: start,
+    fullHistory: fullHistory,
     balance: balance,
     lifetime: lifetime,
     week: earnedSince(weekStart),
     month: earnedSince(monthStart),
-    level: levelFor(lifetime),
+    level: level,
+    perks: { chatBonus: perks.chatBonus, discount: perks.discount },
+    levels: LEVELS.map((l, i) => ({ n: i + 1, name: l[1], from: l[0], perks: LEVEL_PERKS.filter((p) => p.level === i + 1).map((p) => p.text) })),
+    catalog: catalog,
+    unlocked: unlocked,
+    frame: extra.frame || '',
     challenges: [
       { id: 'day3', period: 'day', title: '3 ארוחות בריאות היום', progress: mealsToday, target: 3, reward: 15 },
       { id: 'week3', period: 'week', title: '3 אימונים השבוע', progress: weekWo, target: 3, reward: 30 },
@@ -992,11 +1062,27 @@ function rewardsFor(userRow, cache) {
     items: items.slice(-60).reverse(),
     frozenDays: Object.keys(frozenDays).sort(),
     frozenWeeks: Object.keys(frozenWeeks).sort(),
-    unlockedColors: Object.keys(unlocked),
+    unlockedColors: unlocked.filter((k) => k.indexOf('color:') === 0).map((k) => k.slice(6)),
     chatCredits: Number(extra.chatCredits) || 0,
     costs: COSTS,
     hasGoal: !!goal,
   };
+}
+
+function setFrame(me, frame) {
+  if (frame && rewardsFor(me.r).unlocked.indexOf('frame:' + frame) < 0) throw new Error('המסגרת לא שלך עדיין');
+  setExtra(me, { frame: frame });
+  CacheService.getScriptCache().remove('lb-v1');
+  return { frame: frame };
+}
+
+function approveHistory(me, userId, approved) {
+  const u = findUser((r) => r[U.id] === userId);
+  if (!u) throw new Error('המשתמש לא נמצא');
+  setExtra(u, { historyApproved: approved });
+  CacheService.getScriptCache().remove('lb-v1');
+  audit(me.r[U.id], 'history_approval', userId + ' ' + approved);
+  return { ok: true };
 }
 
 function targetRow(me, userId) {
@@ -1024,11 +1110,13 @@ function spend(me, req) {
       cost = COSTS.freezeWeek; ref = 'freezeWeek:' + s; label = 'הקפאת שבוע: ' + s;
     } else if (req.item === 'chat10') {
       cost = COSTS.chat10; ref = 'chat10'; label = '10 הודעות לבוט';
-    } else if (req.item === 'color') {
-      const c = String(req.color || '');
-      if (PREMIUM_COLORS.indexOf(c) < 0) throw new Error('צבע לא מוכר');
-      if (rw.unlockedColors.indexOf(c) >= 0) throw new Error('הצבע כבר פתוח');
-      cost = COSTS.color; ref = 'color:' + c; label = 'צבע: ' + c;
+    } else if (req.item === 'color' || req.item === 'cosmetic') {
+      const kind = req.item === 'color' ? 'color' : String(req.kind || '');
+      const id = req.item === 'color' ? String(req.color || '') : String(req.id || '');
+      const price = priceFor(kind, id, perksFor(rw.level.n));
+      if (price === null) throw new Error('פריט לא מוכר');
+      if (rw.unlocked.indexOf(kind + ':' + id) >= 0) throw new Error('הפריט כבר שלך');
+      cost = price; ref = 'item:' + kind + ':' + id; label = 'חנות: ' + kind + ':' + id;
     } else throw new Error('פריט לא מוכר');
     if (rw.balance < cost) throw new Error('אין מספיק מטבעות');
     appendRows(ledgerSheet(), [[me.r[U.id], new Date().toISOString(), -cost, ref, label]]);
@@ -1045,7 +1133,7 @@ function leaderboard(period) {
     const ctx = { weeks: rows('Weeks'), users: rows('Users'), ledger: ledgerRows() };
     list = ctx.users.map((r) => {
       const rw = rewardsFor(r, ctx);
-      return { userId: r[U.id], name: r[U.name], photoId: r[U.photo] || null, level: rw.level.n, levelName: rw.level.name, week: rw.week, month: rw.month, lifetime: rw.lifetime };
+      return { userId: r[U.id], name: r[U.name], photoId: r[U.photo] || null, frame: extraOf(r).frame || '', level: rw.level.n, levelName: rw.level.name, week: rw.week, month: rw.month, lifetime: rw.lifetime };
     });
     cache.put(key, JSON.stringify(list), 300);
   }
@@ -1320,7 +1408,9 @@ function userContext(userRow, weeks, detailWeeks) {
 function chat(me, req) {
   const key = props().getProperty('OPENAI_API_KEY');
   if (!key) throw new Error('הבוט עדיין לא הוגדר (חסר מפתח OpenAI)');
-  const limit = Number(props().getProperty('CHAT_DAILY_LIMIT')) || 20;
+  const limit = (Number(props().getProperty('CHAT_DAILY_LIMIT')) || 20) + (function () {
+    try { return perksFor(rewardsFor(me.r).level.n).chatBonus; } catch (e) { return 0; }
+  })();
   const globalLimit = Number(props().getProperty('CHAT_GLOBAL_DAILY_LIMIT')) || 150;
   const cache = CacheService.getScriptCache();
   const day = new Date().toISOString().slice(0, 10);

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.3.0 (2026-11-26)
+- Weight chart: time runs left→right, range filter (3m / 6m / 1y / 2y / all, remembered), emoji markers (🚩 start, 🏆 lowest, ⛰️ highest, 📍 now), 🎯 goal line, 🏖️ vacation weeks, in-range summary.
+- 15 levels (up to 32,000 lifetime coins, then a ⭐ per 10,000) with server-enforced perks: extra daily assistant messages, free items, 10/20/30% store discounts, everything free at level 15.
+- Rewards page: levels-and-perks table, earning table and a "what it means" section.
+- Store by category: app colors (+indigo, coral, olive, plum), backgrounds (sand, ocean, forest, blush, midnight), profile frames shown on the leaderboard (silver, gold, fire, rainbow, diamond) and a confetti effect when today's row is complete.
+- Full pre-join history counts toward coins and level once the admin approves it (admin user page toggle); the admin is auto-approved. Otherwise the capped 500 starting bonus stays.
+- New endpoints `setFrame`, `approveHistory`; `spend` accepts `cosmetic`. Needs the updated `apps-script/Code.gs`.
+
 ## 3.2.0 (2026-11-26)
 - Landing page: top menu with section links (☰ menu on phones), light/dark toggle, sign-in/sign-up in the header.
 - Visitor support assistant (signed-out): app-only questions via `publicChat` (no user data, 15 questions/day per visitor, 200/day overall) and a "Contact the admin" tab using the public contact form.

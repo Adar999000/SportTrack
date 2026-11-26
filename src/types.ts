@@ -39,7 +39,7 @@ export const MEALS: MealKey[] = ['breakfast', 'lunch', 'dinner'];
 
 export type Theme = 'auto' | 'light' | 'dark';
 export type Lang = 'he' | 'en';
-export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate' | 'gold' | 'teal' | 'crimson';
+export type Accent = 'green' | 'blue' | 'purple' | 'orange' | 'rose' | 'slate' | 'gold' | 'teal' | 'crimson' | 'indigo' | 'coral' | 'olive' | 'plum';
 
 export const ACCENTS: { id: Accent; name: string; swatch: string; premium?: boolean }[] = [
   { id: 'green', name: 'ירוק', swatch: '#2f6f5e' },
@@ -51,12 +51,36 @@ export const ACCENTS: { id: Accent; name: string; swatch: string; premium?: bool
   { id: 'gold', name: 'זהב', swatch: '#8a6508', premium: true },
   { id: 'teal', name: 'טורקיז', swatch: '#0e6b74', premium: true },
   { id: 'crimson', name: 'אדום', swatch: '#a3222f', premium: true },
+  { id: 'indigo', name: 'אינדיגו', swatch: '#3e3fb8', premium: true },
+  { id: 'coral', name: 'אלמוג', swatch: '#ad4128', premium: true },
+  { id: 'olive', name: 'זית', swatch: '#566510', premium: true },
+  { id: 'plum', name: 'שזיף', swatch: '#7a2c6b', premium: true },
+];
+
+export const BG_THEMES: { id: string; name: string; swatch: string }[] = [
+  { id: 'sand', name: 'חול', swatch: '#f4ede0' },
+  { id: 'ocean', name: 'אוקיינוס', swatch: '#eaf1f7' },
+  { id: 'forest', name: 'יער', swatch: '#eaf1ea' },
+  { id: 'rose', name: 'ורדרד', swatch: '#f7ecee' },
+  { id: 'midnight', name: 'חצות', swatch: '#141a2e' },
+];
+
+export const FRAMES: { id: string; name: string }[] = [
+  { id: 'silver', name: 'כסף' },
+  { id: 'goldframe', name: 'זהב' },
+  { id: 'fire', name: 'אש' },
+  { id: 'rainbow', name: 'קשת' },
+  { id: 'diamond', name: 'יהלום' },
 ];
 
 export interface Settings {
   showSmoking: boolean;
   theme: Theme;
   accent: Accent;
+  /** Purchased page background (empty = default). */
+  bgTheme?: string;
+  /** Celebration effects (if owned). */
+  effects?: boolean;
   /** User-added sport types, remembered for the sport picker. */
   customSportTypes: string[];
   dailyReminder: boolean;

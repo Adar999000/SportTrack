@@ -1,4 +1,4 @@
-import { getRewards } from '../rewards';
+import { owns } from '../rewards';
 import { hasBackend } from '../api';
 import { HASH, navigate } from './router';
 import { parseDocx } from '../docx';
@@ -6,7 +6,7 @@ import { todayISO } from '../dates';
 import { download, parseBackup, toBackup, toCSV } from '../io';
 import { checkReminders, notificationsSupported, registerBackgroundCheck, requestPermission } from '../reminders';
 import { allWeeks, getSettings, putWeeks, replaceAll, updateSettings } from '../store';
-import { ACCENTS, type Theme } from '../types';
+import { ACCENTS, BG_THEMES, type Theme } from '../types';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION, CHANGELOG } from '../version';
@@ -82,7 +82,7 @@ export function renderSettings(root: HTMLElement): void {
         h('span', { id: 'accent-label' }, t('צבע האפליקציה')),
         h('div', { class: 'swatches', role: 'radiogroup', 'aria-labelledby': 'accent-label' },
           ACCENTS.filter((a) => !a.premium || hasBackend()).map((a) => {
-            const locked = !!a.premium && !(getRewards()?.unlockedColors ?? []).includes(a.id);
+            const locked = !!a.premium && !owns('color:' + a.id);
             return h('button', {
               class: 'swatch' + (locked ? ' locked' : ''), type: 'button', role: 'radio',
               'aria-checked': String((st.accent ?? 'green') === a.id),
@@ -95,6 +95,24 @@ export function renderSettings(root: HTMLElement): void {
             });
           })),
       ),
+      hasBackend() && h('div', { class: 'setting setting-col' },
+        h('span', { id: 'bg-label' }, t('רקע')),
+        h('div', { class: 'swatches', role: 'radiogroup', 'aria-labelledby': 'bg-label' },
+          [{ id: '', name: 'רגיל', swatch: 'var(--bg)' }, ...BG_THEMES].map((b) => {
+            const locked = !!b.id && !owns('bg:' + b.id);
+            const label = locked ? tr`${t(b.name)} (נפתח במטבעות)` : t(b.name);
+            return h('button', {
+              class: 'swatch swatch-bg' + (locked ? ' locked' : ''), type: 'button', role: 'radio',
+              'aria-checked': String((st.bgTheme ?? '') === b.id), 'aria-label': label, title: label,
+              style: { background: b.swatch },
+              onclick: () => {
+                if (locked) { toast(t('את הרקע הזה פותחים במטבעות בחנות')); navigate(HASH.rewards); return; }
+                updateSettings({ bgTheme: b.id });
+              },
+            });
+          })),
+      ),
+      hasBackend() && owns('effect:confetti') && toggle(t('קונפטי ביום מלא'), !!st.effects, (v) => updateSettings({ effects: v })),
       h('div', { class: 'setting' }, h('label', { for: 'lang-select' }, t('שפה / Language')), langSel),
       installButton('btn install-setting'),
     ),

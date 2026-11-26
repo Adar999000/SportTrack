@@ -205,6 +205,21 @@ function tile(label: string, value: string) {
   return h('div', { class: 'tile' }, h('div', { class: 'tile-label' }, label), h('div', { class: 'tile-value' }, value));
 }
 
+function historyCard(userId: string, approved: boolean): HTMLElement {
+  const id = 'hist-approve';
+  const input = h('input', { type: 'checkbox', role: 'switch', id, checked: approved, class: 'switch' }) as HTMLInputElement;
+  input.addEventListener('change', async () => {
+    input.disabled = true;
+    try { await call('approveHistory', { userId, approved: input.checked }); toast(t('נשמר')); }
+    catch (e: any) { input.checked = !input.checked; toast(e.message); }
+    finally { input.disabled = false; }
+  });
+  return h('section', { class: 'card' },
+    h('div', { class: 'setting' }, h('label', { for: id }, t('אישור ספירת היסטוריה מלאה')), input),
+    h('p', { class: 'hint' }, t('בלי אישור, היסטוריה מלפני ההצטרפות נספרת כבונוס פתיחה של עד 500 מטבעות. עם אישור, כל ההיסטוריה נספרת למטבעות ולרמה.')),
+  );
+}
+
 export function renderAdminUser(root: HTMLElement, userId: string): void {
   const u = usersCache?.find((x) => x.userId === userId);
   const body = h('div', { class: 'stack' }, h('section', { class: 'card' }, h('p', { class: 'muted' }, t('טוען נתונים…'))));
@@ -234,6 +249,7 @@ export function renderAdminUser(root: HTMLElement, userId: string): void {
           ),
           h('p', { class: 'hint' }, t('מוצגים רק נתונים סטטיסטיים. הערות, תמונות שבועיות ופרטים אישיים של המשתמש לא מוצגים למנהל.')),
         ),
+        historyCard(userId, !!s.historyApproved),
         h('section', { class: 'card' },
           h('h2', { class: 'card-title' }, t('לפי חודש')),
           h('div', { class: 'table-scroll' },

@@ -28,8 +28,14 @@ export interface Rewards {
   chatCredits: number;
   costs: { freezeDay: number; freezeWeek: number; chat10: number; color: number };
   hasGoal: boolean;
+  fullHistory?: boolean;
+  perks?: { chatBonus: number; discount: number };
+  levels?: { n: number; name: string; from: number; perks: string[] }[];
+  catalog?: { kind: 'color' | 'bg' | 'frame' | 'effect'; id: string; base: number; price: number; owned: boolean }[];
+  unlocked?: string[];
+  frame?: string;
 }
-export interface Leader { userId: string; name: string; photoId: string | null; level: number; levelName: string; week: number; month: number; lifetime: number }
+export interface Leader { userId: string; name: string; photoId: string | null; frame?: string; level: number; levelName: string; week: number; month: number; lifetime: number }
 
 let current: Rewards | null = null;
 let lastError = '';
@@ -61,10 +67,17 @@ export function refreshRewards(): Promise<void> {
   return inflight;
 }
 
-export async function spend(item: 'freezeDay' | 'freezeWeek' | 'chat10' | 'color', extra: Record<string, string> = {}): Promise<void> {
+export async function spend(item: 'freezeDay' | 'freezeWeek' | 'chat10' | 'color' | 'cosmetic', extra: Record<string, string> = {}): Promise<void> {
   const r = await call<{ rewards: Rewards }>('spend', { item, ...extra });
   set(r.rewards);
 }
+
+export async function wearFrame(frame: string): Promise<void> {
+  await call('setFrame', { frame });
+  if (current) set({ ...current, frame });
+}
+
+export const owns = (key: string) => !!current?.unlocked?.includes(key) || (key.startsWith('color:') && !!current?.unlockedColors.includes(key.slice(6)));
 
 export const leaderboard = (period: 'week' | 'month' | 'all') => call<{ leaders: Leader[] }>('leaderboard', { period }).then((r) => r.leaders);
 export const myInvite = () => call<{ code: string; used: number; rewarded: number; cap: number }>('myInvite');

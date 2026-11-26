@@ -6,7 +6,7 @@ import { hasBackend } from './api';
 import { sundayOf, todayISO } from './dates';
 import { checkReminders } from './reminders';
 import { currentUser, isAdmin, loadSession, onSession, refreshUser } from './session';
-import { allWeeks, dirtyCount, flush, getSettings, loadStore, setOwner, subscribe, weeksOwner } from './store';
+import { allWeeks, dirtyCount, flush, getSettings, loadStore, setDayCompleteHandler, setOwner, subscribe, weeksOwner } from './store';
 import { getSyncState, onSync, resetPullCursor, scheduleSync, syncNow } from './sync';
 import { renderAdmin, renderAdminUser } from './ui/adminView';
 import { renderAuth } from './ui/authView';
@@ -32,6 +32,8 @@ import { renderAccessibility, renderPrivacy } from './ui/legalPages';
 import { mountFloatingChat } from './ui/floatingChat';
 import { maybeStartTour } from './ui/tour';
 import { getRewards, loadCachedRewards, onRewards, refreshRewards } from './rewards';
+import { burst } from './ui/confetti';
+setDayCompleteHandler(() => burst());
 
 interface Tab { names: Route['name'][]; hash: string; label: string; icon: string }
 
@@ -90,6 +92,8 @@ function applyTheme() {
   else root.setAttribute('data-theme', th);
   if (!accent || accent === 'green') root.removeAttribute('data-accent');
   else root.setAttribute('data-accent', accent);
+  const bg = getSettings().bgTheme;
+  if (bg) root.setAttribute('data-bg', bg); else root.removeAttribute('data-bg');
   const brand = getComputedStyle(root).getPropertyValue('--brand').trim();
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     if (!(m as HTMLMetaElement).media.includes('dark')) m.setAttribute('content', brand || '#2f6f5e');

@@ -187,7 +187,7 @@ export function renderProfile(root: HTMLElement): void {
 
   root.replaceChildren(
     h('section', { class: 'card profile-head' },
-      avatar(u.name, u.photoId, 72),
+      avatar(u.name, u.photoId, 72, getRewards()?.frame ?? ''),
       h('div', { class: 'profile-id' },
         h('h2', null, u.name),
         h('div', { class: 'muted', dir: 'ltr' }, u.email),
@@ -222,7 +222,7 @@ export function renderProfile(root: HTMLElement): void {
         ),
       );
     })(),
-    ...statsSections(weeks, { days: getRewards()?.frozenDays, weeks: getRewards()?.frozenWeeks }),
+    ...statsSections(weeks, { days: getRewards()?.frozenDays, weeks: getRewards()?.frozenWeeks, goal: u.profile?.goalWeight }),
     h('section', { class: 'card stack' },
       h('button', { class: 'btn ai-btn', onclick: () => navigate(HASH.chat) }, aiBadge(), ' ', t('שאל את העוזר על הנתונים שלך')),
       isAdmin() && h('button', { class: 'btn btn-primary', onclick: () => navigate(HASH.admin) }, t('לוח מנהל')),

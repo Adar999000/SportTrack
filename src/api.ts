@@ -50,6 +50,7 @@ export interface UserSummary {
   weightChange: number | null;
   level: number;
   levelName: string;
+  historyApproved?: boolean;
   coins: number;
   months: { month: string; weeks: number; workoutsPerWeek: number; mealsPct: number | null; weightChange: number | null }[];
 }

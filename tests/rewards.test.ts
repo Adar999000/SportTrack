@@ -41,17 +41,66 @@ describe('rewards', () => {
     expect(r.level).toMatchObject({ n: 1, name: 'מתחיל' });
   });
 
-  it('gives a capped opening bonus for history before the start', () => {
+  it('regular users get a capped opening bonus for history; approved history counts in full', () => {
     const { be, t } = setup();
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'U' });
+    backdate(be);
     const old = Array.from({ length: 120 }, (_, i) => {
       const d = new Date(Date.UTC(2024, 0, 7 + 7 * i)).toISOString().slice(0, 10);
       return wk(d, Array.from({ length: 7 }, () => full(true)), 90);
     });
-    be.post({ action: 'putWeeks', token: t, weeks: old });
+    be.post({ action: 'putWeeks', token: u.token, weeks: old });
+    let r = be.post({ action: 'rewards', token: u.token }).rewards;
+    expect(r.fullHistory).toBe(false);
+    expect(r.items.find((x: any) => x.kind === 'bonus').amount).toBe(500);
+    expect(r.items.filter((x: any) => x.kind === 'workout')).toHaveLength(0);
+    // the admin approves the user's history
+    expect(be.post({ action: 'approveHistory', token: u.token, userId: u.user.userId, approved: true }).error).toMatch(/מנהל/);
+    be.post({ action: 'approveHistory', token: t, userId: u.user.userId, approved: true });
+    r = be.post({ action: 'rewards', token: u.token }).rewards;
+    expect(r.fullHistory).toBe(true);
+    expect(r.items.some((x: any) => x.kind === 'bonus')).toBe(false);
+    expect(r.lifetime).toBeGreaterThan(10000);
+  });
+
+  it('levels unlock perks: assistant messages, free items and store discounts', () => {
+    const { be, t } = setup();
+    const many = Array.from({ length: 60 }, (_, i) => {
+      const d = new Date(Date.UTC(2023, 0, 1 + 7 * i)).toISOString().slice(0, 10);
+      return wk(d, Array.from({ length: 7 }, () => day({ breakfast: 'V', lunch: 'V', dinner: 'V', sport: { status: 'V', label: 'ריצה', countsAsWorkout: true } })), 90);
+    });
+    be.post({ action: 'putWeeks', token: t, weeks: many });
     const r = be.post({ action: 'rewards', token: t }).rewards;
-    const bonus = r.items.find((x: any) => x.kind === 'bonus');
-    expect(bonus.amount).toBe(500);
-    expect(r.items.filter((x: any) => x.kind === 'workout')).toHaveLength(0); // old workouts don't pay twice
+    expect(r.level.n).toBeGreaterThanOrEqual(13);
+    expect(r.level.n).toBeLessThan(15);
+    expect(r.perks.discount).toBe(30);
+    expect(r.perks.chatBonus).toBeGreaterThanOrEqual(20);
+    expect(r.unlocked).toEqual(expect.arrayContaining(['frame:silver', 'color:gold', 'color:plum', 'bg:midnight', 'frame:diamond']));
+    const ocean = r.catalog.find((c: any) => c.kind === 'bg' && c.id === 'ocean');
+    expect(ocean.price).toBe(140); // 200 - 30%
+    const before = r.balance;
+    const res = be.post({ action: 'spend', token: t, item: 'cosmetic', kind: 'bg', id: 'ocean' });
+    const after = res.rewards;
+    expect(before - after.balance).toBe(140);
+    expect(after.unlocked).toContain('bg:ocean');
+    expect(be.post({ action: 'spend', token: t, item: 'cosmetic', kind: 'bg', id: 'ocean' }).error).toMatch(/כבר/);
+    expect(r.levels).toHaveLength(15);
+  });
+
+  it('frames: only owned ones can be worn, and others see them on the leaderboard', () => {
+    const { be, t } = setup();
+    be.post({ action: 'putWeeks', token: t, weeks: [wk('2026-12-06', [full(true), full(true), full(true), full(true), day(), day(), day()], 100)] });
+    expect(be.post({ action: 'setFrame', token: t, frame: 'diamond' }).error).toMatch(/לא שלך/);
+    be.properties.set('X', '1');
+    const r = be.post({ action: 'rewards', token: t }).rewards;
+    const silver = r.catalog.find((c: any) => c.id === 'silver');
+    expect(silver.price).toBe(120);
+    // give coins via a bigger history, then buy and wear
+    const lots = Array.from({ length: 10 }, (_, i) => wk(new Date(Date.UTC(2026, 9, 4 + 7 * i)).toISOString().slice(0, 10), Array.from({ length: 7 }, () => full(true)), 100));
+    be.post({ action: 'putWeeks', token: t, weeks: lots });
+    be.post({ action: 'spend', token: t, item: 'cosmetic', kind: 'frame', id: 'fire' });
+    expect(be.post({ action: 'setFrame', token: t, frame: 'fire' }).frame).toBe('fire');
+    expect(be.post({ action: 'leaderboard', token: t, period: 'all' }).leaders[0].frame).toBe('fire');
   });
 
   it('rewards weight progress at most one kg per week, then the goal', () => {

@@ -15,7 +15,12 @@ function tile(label: string, value: string, sub?: string) {
 }
 
 /** Stats sections for a list of weeks (the current user's by default). */
-export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: string[]; weeks?: string[] } = {}): (Node | string)[] {
+/** Sundays of weeks that include a vacation entry in the sport row. */
+function vacationWeeks(weeks: Week[]): string[] {
+  return weeks.filter((w) => w.days.some((d) => d.sport.status === 'V' && !d.sport.countsAsWorkout && /חופש|vacation|holiday/i.test(d.sport.label ?? ''))).map((w) => w.sundayDate);
+}
+
+export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: string[]; weeks?: string[]; goal?: number } = {}): (Node | string)[] {
   const today = todayISO();
   if (!weeks.length) return [h('section', { class: 'card' }, h('p', { class: 'muted' }, t('אין עדיין נתונים להצגה.')))];
   const pts = weightPoints(weeks);
@@ -42,7 +47,7 @@ export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: strin
             tile(t('מקסימום'), fmtKg(ws.max.weight), formatShort(ws.max.date)),
           )
         : h('p', { class: 'muted' }, t('אין שקילות.')),
-      weightChart(pts),
+      weightChart(pts, { goal: frozen.goal, vacations: vacationWeeks(weeks) }),
     ),
 
     h('section', { class: 'card' },
