@@ -44,7 +44,7 @@ export function renderShare(root: HTMLElement): void {
         a('X', `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(link)}`, brandIcon('x')),
         a('Gmail', `https://mail.google.com/mail/?view=cm&su=${enc(t('הזמנה למשמעת אישית'))}&body=${enc(msg)}`, brandIcon('gmail')),
         a(t('מייל'), `mailto:?subject=${enc(t('הזמנה למשמעת אישית'))}&body=${enc(msg)}`, icon('mail', 22)),
-        a('SMS', `sms:?&body=${enc(msg)}`, icon('chat', 22)),
+        a('SMS', `sms:?&body=${enc(msg)}`, brandIcon('sms')),
       ),
     );
   }).catch((e) => box.replaceChildren(h('p', { class: 'form-error' }, e.message)));
