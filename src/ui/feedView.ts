@@ -1,7 +1,7 @@
 import { t, tr } from '../i18n';
 import { call } from '../api';
 import { currentUser, isAdmin, photoUrl, rememberPhoto } from '../session';
-import { fileToDataUrl, pickImage } from '../image';
+import { fileToDataUrl, pickImages } from '../image';
 import { levelLabel } from '../rewards';
 import { formatShort } from '../dates';
 import { avatar } from './avatar';
@@ -39,6 +39,17 @@ function postPhoto(id: string): HTMLElement {
   const img = h('img', { class: 'post-photo', alt: t('תמונה מצורפת לפוסט'), loading: 'lazy' }) as HTMLImageElement;
   photoUrl(id).then((u) => { img.src = u; }).catch(() => img.remove());
   return img;
+}
+
+/** Several photos: swipe sideways, dots show where you are. */
+function postGallery(ids: string[]): HTMLElement {
+  const track = h('div', { class: 'gallery-track', tabindex: '0', role: 'region', 'aria-label': tr`${ids.length} תמונות, אפשר לגלול לצדדים` }, ids.map((id) => h('div', { class: 'gallery-slide' }, postPhoto(id))));
+  const dots = h('div', { class: 'gallery-dots', 'aria-hidden': 'true' }, ids.map((_, i) => h('span', { class: i ? '' : 'on' })));
+  track.addEventListener('scroll', () => {
+    const i = Math.round(Math.abs(track.scrollLeft) / track.clientWidth);
+    dots.querySelectorAll('span').forEach((d, j) => d.classList.toggle('on', j === i));
+  }, { passive: true });
+  return h('div', { class: 'post-gallery' }, track, dots, h('span', { class: 'gallery-count' }, `${ids.length} 📷`));
 }
 
 function postCard(p: Post, reload: () => void): HTMLElement {
@@ -96,7 +107,7 @@ function postCard(p: Post, reload: () => void): HTMLElement {
     p.kind === 'achievement' && p.data && cardPreview(p.data as Achievement),
     p.kind === 'event' && p.data && eventMini(p.data as CompEvent),
     p.kind === 'meetup' && p.data && meetupCard(p),
-    p.photoId && postPhoto(p.photoId),
+    p.data?.photos?.length > 1 ? postGallery(p.data.photos as string[]) : p.photoId && postPhoto(p.photoId),
     h('footer', { class: 'post-actions' },
       likeBtn,
       h('button', { class: 'post-act', type: 'button', 'aria-label': tr`תגובות (${p.comments.length})`, onclick: () => { comments.hidden = !comments.hidden; if (!comments.hidden) (comments.querySelector('input') as HTMLInputElement)?.focus(); } }, '💬 ', String(p.comments.length)),
@@ -183,18 +194,24 @@ function composer(onPosted: () => void): HTMLElement {
   const u = currentUser()!;
   const text = h('textarea', { class: 'input', rows: 2, maxlength: 1000, placeholder: t('מה חדש? אימון, הישג, טיפ או שאלה…'), 'aria-label': t('פוסט חדש') }) as HTMLTextAreaElement;
   const vis = visibilitySelect('post-vis') as HTMLSelectElement;
-  let photo: string | null = null;
-  const thumb = h('div', { class: 'post-thumb', hidden: true });
+  let photos: string[] = [];
+  const thumb = h('div', { class: 'post-thumbs', hidden: true });
+  const drawThumbs = () => {
+    thumb.hidden = !photos.length;
+    thumb.replaceChildren(...photos.map((src, i) => h('div', { class: 'post-thumb' }, h('img', { src, alt: tr`תמונה ${i + 1}` }),
+      h('button', { class: 'icon-btn sm', type: 'button', 'aria-label': tr`הסר תמונה ${i + 1}`, onclick: () => { photos.splice(i, 1); drawThumbs(); } }, '✕'))));
+  };
   const post = h('button', { class: 'btn btn-primary', type: 'submit' }, t('פרסם'));
   return h('form', { class: 'card composer', onsubmit: async (e: Event) => {
     e.preventDefault();
-    if (!text.value.trim() && !photo) return toast(t('נא לכתוב משהו'));
+    if (!text.value.trim() && !photos.length) return toast(t('נא לכתוב משהו'));
     (post as HTMLButtonElement).disabled = true;
     try {
       const asTeam = !!(document.getElementById('as-team') as HTMLInputElement | null)?.checked;
-      const r = await call<{ post: Post }>('createPost', { text: text.value, visibility: vis.value, photo, asTeam });
-      if (r.post.photoId && photo) rememberPhoto(r.post.photoId, photo);
-      text.value = ''; photo = null; thumb.hidden = true; toast(t('פורסם')); track('post:create');
+      const r = await call<{ post: Post }>('createPost', { text: text.value, visibility: vis.value, photos, asTeam });
+      const ids: string[] = r.post.data?.photos ?? (r.post.photoId ? [r.post.photoId] : []);
+      ids.forEach((id, i) => photos[i] && rememberPhoto(id, photos[i]));
+      text.value = ''; photos = []; drawThumbs(); toast(t('פורסם')); track('post:create');
       onPosted();
     } catch (ex: any) { toast(ex.message); }
     (post as HTMLButtonElement).disabled = false;
@@ -203,10 +220,11 @@ function composer(onPosted: () => void): HTMLElement {
     thumb,
     h('div', { class: 'composer-bar' },
       h('button', { class: 'btn', type: 'button', onclick: async () => {
-        const f = await pickImage(); if (!f) return;
-        try { photo = await fileToDataUrl(f); thumb.replaceChildren(h('img', { src: photo, alt: '' }), h('button', { class: 'icon-btn sm', type: 'button', 'aria-label': t('הסר תמונה'), onclick: () => { photo = null; thumb.hidden = true; } }, '✕')); thumb.hidden = false; }
+        if (photos.length >= 4) return toast(t('עד 4 תמונות בפוסט'));
+        const files = await pickImages(4 - photos.length); if (!files.length) return;
+        try { for (const f of files) photos.push(await fileToDataUrl(f)); drawThumbs(); }
         catch (ex: any) { toast(ex.message); }
-      } }, '📷 ', t('תמונה')),
+      } }, '🖼️ ', t('תמונות')),
       h('button', { class: 'btn', type: 'button', onclick: () => openShareAchievement(onPosted) }, '🏅 ', t('הישג')),
       h('button', { class: 'btn', type: 'button', onclick: () => meetupForm(onPosted) }, '📅 ', t('מפגש')),
       isAdmin() && h('label', { class: 'team-toggle' }, h('input', { type: 'checkbox', id: 'as-team' }), ' ', t('בשם הצוות')),

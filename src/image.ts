@@ -18,6 +18,20 @@ export async function fileToDataUrl(file: File, maxSide = 1280, quality = 0.82):
   }
 }
 
+/** Several photos from the gallery at once (up to `max`). */
+export function pickImages(max = 4): Promise<File[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.style.display = 'none';
+    input.addEventListener('change', () => { resolve(Array.from(input.files ?? []).slice(0, max)); input.remove(); });
+    document.body.append(input);
+    input.click();
+  });
+}
+
 export function pickImage(): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');

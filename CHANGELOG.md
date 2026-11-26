@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.8.0 (2026-11-27)
+- Posts take up to 4 photos (`photos` array; extra ids in `data.photos`, all trashed on delete, visibility checked for each) with a swipeable gallery.
+- Stories from the gallery: a Gallery bubble and a first "Gallery" template, up to 5 photos posted as separate stories, optional stats overlay (`ov`: last workout or today).
+
 ## 5.7.0 (2026-11-27)
 - Gendered Hebrew: `setGender` + `genderize` in i18n ("סמן/י", "את/ה", "קרוב/ה" resolve to the chosen form, final letters handled) and a feminine dictionary (`src/i18n-fem.ts`) for strings written in the masculine.
 - Weekly recap card (Saturday evening to Monday) with deltas vs the previous week, one focus, and a new `week` story template.

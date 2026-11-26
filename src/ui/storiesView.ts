@@ -8,7 +8,7 @@ import { lang, t, tr } from '../i18n';
 const LOC = () => (lang === 'he' ? 'he-IL' : 'en-GB');
 import { call } from '../api';
 import { currentUser, photoUrl } from '../session';
-import { fileToDataUrl, pickImage } from '../image';
+import { fileToDataUrl, pickImages } from '../image';
 import { allWeeks, getWeek } from '../store';
 import { dayIndex, sundayOf, todayISO } from '../dates';
 import { lunchStreak } from '../stats';
@@ -28,6 +28,8 @@ export interface StoryData {
   meals?: number; sport?: number; week?: number; streak?: number;
   type?: WorkoutType; distanceM?: number; durationS?: number; name?: string; route?: [number, number][];
   title?: string; emoji?: string;
+  /** Stats laid over a photo story. */
+  ov?: { km?: number; time?: string; pace?: string; meals?: number; sport?: number };
   viewCount?: number; viewers?: string[];
 }
 interface Group { author: Post['author']; items: Post[] }
@@ -105,7 +107,10 @@ export function storyCard(d: StoryData, text: string, photo: string | null, who:
   } else if (d.tpl === 'achievement') {
     body = h('div', { class: 'st-body st-center' }, h('div', { class: 'st-emoji', 'aria-hidden': 'true' }, d.emoji || '🏆'), h('p', { class: 'st-title' }, d.title || ''));
   } else if (d.tpl === 'photo') {
-    body = h('div', { class: 'st-body st-photo' }, photo ? h('img', { src: photo, alt: text || t('תמונה') }) : h('div', { class: 'st-photo-empty' }, icon('camera', 40)));
+    body = h('div', { class: 'st-body st-photo' }, photo ? h('img', { src: photo, alt: text || t('תמונה') }) : h('div', { class: 'st-photo-empty' }, icon('camera', 40)),
+      d.ov ? h('div', { class: 'st-ov' }, d.ov.km !== undefined
+        ? [h('b', null, `${fmtKm((d.ov.km ?? 0) * 1000)}`), h('span', null, t('ק"מ')), d.ov.time ? h('span', null, '· ' + d.ov.time) : '', d.ov.pace ? h('span', null, '· ' + d.ov.pace) : '']
+        : [h('span', null, '🍽️ ', `${d.ov.meals ?? 0}/3`), h('span', null, '🏃 ', `${d.ov.sport ?? 0}/1`)]) : '');
   } else {
     body = h('div', { class: 'st-body st-center' }, h('p', { class: 'st-bigtext' }, text || t('מה בא לך לשתף?')));
   }
@@ -155,7 +160,7 @@ function openViewer(groups: Group[], gi: number, onClose: () => void): void {
     const card = storyCard(d, p.text, null, { name: g.author.name, at: p.at });
     if (d.tpl === 'photo' && p.photoId) {
       const img = card.querySelector('.st-photo') as HTMLElement;
-      photoUrl(p.photoId).then((u) => img.replaceChildren(h('img', { src: u, alt: p.text || t('תמונה') }))).catch(() => {});
+      photoUrl(p.photoId).then((u) => (img.querySelector('img, .st-photo-empty') as HTMLElement | null)?.replaceWith(h('img', { src: u, alt: p.text || t('תמונה') }))).catch(() => {});
     }
     stage.replaceChildren(card,
       h('button', { class: 'sv-tap sv-prev', type: 'button', 'aria-label': t('הקודם'), onclick: () => go(-1) }),
@@ -239,9 +244,10 @@ export function workoutStory(w: Workout): StoryData {
 }
 
 /** Pick a template, see it live, post it for 24 hours. */
-export function openStoryComposer(preset?: StoryData, onPosted?: () => void): void {
-  let d: StoryData = preset ?? todayRings();
-  let photo: string | null = null;
+export function openStoryComposer(preset?: StoryData, onPosted?: () => void, gallery: string[] = []): void {
+  let d: StoryData = preset ?? (gallery.length ? { tpl: 'photo', bg: 'ink' } : todayRings());
+  let queue: string[] = gallery.slice(0, 5);
+  let photo: string | null = queue[0] ?? null;
   const me = currentUser()!;
   const text = h('input', { class: 'input', maxlength: 140, placeholder: t('כמה מילים (לא חובה)'), 'aria-label': t('טקסט לסטורי') }) as HTMLInputElement;
   const vis = visibilitySelect('story-vis') as HTMLSelectElement;
@@ -251,7 +257,7 @@ export function openStoryComposer(preset?: StoryData, onPosted?: () => void): vo
   text.addEventListener('input', draw);
   const workouts = listWorkouts().slice(0, 6);
   const achievements = availableAchievements().slice(0, 6);
-  const tpls: [StoryData['tpl'], string, string][] = [['rings', '⭕', 'היום שלי'], ['workout', '🏃', 'אימון'], ['achievement', '🏆', 'הישג'], ['photo', '📷', 'תמונה'], ['text', 'Aa', 'טקסט']];
+  const tpls: [StoryData['tpl'], string, string][] = [['photo', '🖼️', 'מהגלריה'], ['rings', '⭕', 'היום שלי'], ['workout', '🏃', 'אימון'], ['achievement', '🏆', 'הישג'], ['text', 'Aa', 'טקסט']];
   const tplBar = h('div', { class: 'chips story-tpls', role: 'radiogroup', 'aria-label': t('סוג') });
   const setTpl = (k: StoryData['tpl']) => {
     const bg = d.bg;
@@ -277,11 +283,24 @@ export function openStoryComposer(preset?: StoryData, onPosted?: () => void): vo
       extra.replaceChildren(h('div', { class: 'chips', role: 'radiogroup', 'aria-label': t('הישג') }, achievements.map((a) =>
         h('button', { type: 'button', class: 'chip', role: 'radio', 'aria-checked': String(d.title === a.title), onclick: () => { d = { ...d, title: a.title, emoji: a.icon }; drawExtra(); draw(); } }, `${a.icon} ${a.title}`))));
     } else if (d.tpl === 'photo') {
-      extra.replaceChildren(h('button', { class: 'btn', type: 'button', onclick: async () => {
-        const f = await pickImage();
-        if (!f) return;
-        try { photo = await fileToDataUrl(f, 1080); draw(); } catch (e: any) { toast(e.message); }
-      } }, icon('camera'), ' ', photo ? t('החלפת תמונה') : t('בחירת תמונה')));
+      const lastWo = workouts[0];
+      const today = todayRings();
+      const ovs: [string, StoryData['ov'] | undefined][] = [['בלי נתונים', undefined], ...(lastWo ? [['האימון האחרון', { km: Math.round(lastWo.distanceM / 10) / 100, time: fmtDuration(lastWo.durationS), pace: paceOrSpeed(lastWo.type, lastWo.distanceM, lastWo.durationS).value }]] as [string, StoryData['ov']][] : []), ['נתוני היום', { meals: today.meals, sport: today.sport }]];
+      extra.replaceChildren(
+        h('button', { class: 'btn', type: 'button', onclick: async () => {
+          const files = await pickImages(5);
+          if (!files.length) return;
+          try { queue = []; for (const f of files) queue.push(await fileToDataUrl(f, 1080)); photo = queue[0]; drawExtra(); draw(); } catch (e: any) { toast(e.message); }
+        } }, '🖼️ ', queue.length ? t('בחירה מחדש מהגלריה') : t('בחירה מהגלריה (עד 5)')),
+        queue.length > 1 ? h('div', { class: 'story-queue', role: 'radiogroup', 'aria-label': t('התמונות שנבחרו') }, queue.map((src, i) => h('button', {
+          type: 'button', role: 'radio', 'aria-checked': String(photo === src), 'aria-label': tr`תמונה ${i + 1}`,
+          onclick: () => { photo = src; drawExtra(); draw(); },
+        }, h('img', { src, alt: '' })))) : '',
+        h('div', { class: 'chips', role: 'radiogroup', 'aria-label': t('נתונים על התמונה') }, ovs.map(([label, ov]) => h('button', {
+          type: 'button', class: 'chip', role: 'radio', 'aria-checked': String(JSON.stringify(d.ov) === JSON.stringify(ov)),
+          onclick: () => { d = { ...d, ov }; drawExtra(); draw(); },
+        }, t(label)))),
+      );
     } else extra.replaceChildren();
   };
   const bgBar = h('div', { class: 'story-bgs', role: 'radiogroup', 'aria-label': t('רקע') });
@@ -291,12 +310,13 @@ export function openStoryComposer(preset?: StoryData, onPosted?: () => void): vo
   })));
   const post = h('button', { class: 'btn btn-primary', type: 'button' }, t('העלאה ל-24 שעות'));
   post.addEventListener('click', async () => {
-    if (d.tpl === 'photo' && !photo) { toast(t('נא לבחור תמונה')); return; }
+    if (d.tpl === 'photo' && !queue.length) { toast(t('נא לבחור תמונה')); return; }
     if (d.tpl === 'text' && !text.value.trim()) { toast(t('נא לכתוב משהו')); return; }
     post.disabled = true;
     try {
-      await call('createPost', { kind: 'story', text: text.value.trim(), data: d, visibility: vis.value, ...(photo ? { photo } : {}) });
-      close(); toast(t('הסטורי עלה 🎉')); track('story:post:' + d.tpl); onPosted?.();
+      const shots = d.tpl === 'photo' ? queue : [null];
+      for (const ph of shots) await call('createPost', { kind: 'story', text: text.value.trim(), data: d, visibility: vis.value, ...(ph ? { photo: ph } : {}) });
+      close(); toast(shots.length > 1 ? tr`${shots.length} סטוריז עלו 🎉` : t('הסטורי עלה 🎉')); track('story:post:' + d.tpl); onPosted?.();
     } catch (e: any) { toast(e.message); post.disabled = false; }
   });
   drawTpls(); drawExtra(); drawBgs(); draw();
@@ -330,8 +350,14 @@ export function storiesBar(): HTMLElement {
       h('span', { class: 'sb-ring' }, avatar(g ? g.author.name : me.name, g ? g.author.photoId : me.photoId, 58), !g || g.author.userId === me.userId ? h('span', { class: 'sb-plus', 'aria-hidden': 'true' }, '+') : ''),
       h('span', { class: 'sb-name' }, g ? (g.author.userId === me.userId ? t('שלך') : g.author.name.split(' ')[0]) : t('שלך'))));
     };
+    const galleryBtn = h('div', { role: 'listitem' }, h('button', { class: 'story-bubble gallery', type: 'button', 'aria-label': t('סטורי מהגלריה'), onclick: async () => {
+      const files = await pickImages(5);
+      if (!files.length) return;
+      try { const srcs: string[] = []; for (const f of files) srcs.push(await fileToDataUrl(f, 1080)); openStoryComposer(undefined, load, srcs); } catch (e: any) { toast(e.message); }
+    } }, h('span', { class: 'sb-ring sb-gallery', 'aria-hidden': 'true' }, '🖼️'), h('span', { class: 'sb-name' }, t('גלריה'))));
     row.replaceChildren(
       mine ? bubble(mine, groups.indexOf(mine)) : bubble(null, -1),
+      galleryBtn,
       ...groups.map((g, i) => (g === mine ? null : bubble(g, i))).filter(Boolean) as HTMLElement[],
     );
     if (mine) {

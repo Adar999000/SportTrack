@@ -303,3 +303,25 @@ describe('leagues and story replies', () => {
     expect(lg.tier).toBe('זהב');
   });
 });
+
+describe('photo posts', () => {
+  it('saves up to 4 photos per post, lets viewers load each, and trashes them all on delete', () => {
+    const be = createBackend();
+    be.properties.set('TEAM_SEEDED', '1');
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });
+    const img = 'data:image/jpeg;base64,' + Buffer.from('jpegbytes').toString('base64');
+    const { post } = be.post({ action: 'createPost', token: a.token, text: 'ריצה', photos: [img, img, img, img, img] });
+    expect(post.data.photos).toHaveLength(4);
+    expect(post.photoId).toBe(post.data.photos[0]);
+    expect(be.post({ action: 'getPhoto', token: b.token, photoId: post.data.photos[3] }).dataUrl).toMatch(/^data:image/);
+    const story = be.post({ action: 'createPost', token: a.token, kind: 'story', data: { tpl: 'photo', ov: { km: 5.2, time: '28:10' } }, photos: [img, img] }).post;
+    expect(story.data.photos).toBeUndefined(); // stories keep one photo
+    expect(story.data.ov).toMatchObject({ km: 5.2, time: '28:10' });
+    const day = be.post({ action: 'createPost', token: a.token, kind: 'story', data: { tpl: 'photo', ov: { meals: 2, sport: 1 } }, photo: img }).post;
+    expect(day.data.ov).toEqual({ meals: 2, sport: 1 });
+    be.post({ action: 'deletePost', token: a.token, id: post.id });
+    expect(post.data.photos.every((id: string) => be.files.get(id).trashed)).toBe(true);
+  });
+});

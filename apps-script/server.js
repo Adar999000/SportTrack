@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.7.0';
+const SERVER_VERSION = '5.8.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -1851,6 +1851,11 @@ function cleanStory(d) {
       name: String(d.name || '').slice(0, 60) });
     if (Array.isArray(d.route)) out.route = d.route.slice(0, 80).map((p) => [Math.round(num(p[0], 100) * 10) / 10, Math.round(num(p[1], 100) * 10) / 10]);
   }
+  if (out.tpl === 'photo' && d.ov && typeof d.ov === 'object') {
+    out.ov = d.ov.km !== undefined
+      ? { km: num(d.ov.km, 1000), time: String(d.ov.time || '').slice(0, 10), pace: String(d.ov.pace || '').slice(0, 16) }
+      : { meals: num(d.ov.meals, 3), sport: num(d.ov.sport, 1) };
+  }
   if (out.tpl === 'week') Object.assign(out, { workouts: num(d.workouts, 50), full: num(d.full, 7), meals: num(d.meals, 100) });
   if (out.tpl === 'achievement') Object.assign(out, { title: String(d.title || '').slice(0, 80), emoji: String(d.emoji || '🏆').slice(0, 4) });
   return out;
@@ -1918,14 +1923,18 @@ function createPost(me, req) {
       sport: EVENT_TYPES.indexOf(m.sport) >= 0 ? m.sport : 'other', going: [me.r[U.id]] };
   }
   if (kind === 'story') dataObj = cleanStory(dataObj || {});
-  const data = dataObj ? JSON.stringify(dataObj) : '';
+  let data = dataObj ? JSON.stringify(dataObj) : '';
   const asTeam = !!req.asTeam && me.r[U.role] === 'admin';
   if (data.length > 4000) throw new Error('הפוסט גדול מדי');
-  if (!text && !data && !req.photo) throw new Error('נא לכתוב משהו');
+  if (!text && !data && !req.photo && !(Array.isArray(req.photos) && req.photos.length)) throw new Error('נא לכתוב משהו');
   if (kind === 'story') dailyCount('story-' + me.r[U.id], 10, 'אפשר להעלות עד 10 סטוריז ביום');
   else dailyCount('post-' + me.r[U.id], 15, 'אפשר לפרסם עד 15 פוסטים ביום');
   const id = Utilities.getUuid().slice(0, 10);
-  const photoId = req.photo ? savePhoto(String(req.photo), 'post-' + id + '.jpg', '') : '';
+  // up to 4 photos (stories: 1); the first also goes in the photo column, all of them in data.photos
+  const srcs = (Array.isArray(req.photos) ? req.photos : req.photo ? [req.photo] : []).slice(0, kind === 'story' ? 1 : 4);
+  const ids = srcs.map((src, i) => savePhoto(String(src), 'post-' + id + (i ? '-' + i : '') + '.jpg', ''));
+  const photoId = ids[0] || '';
+  if (ids.length > 1) { dataObj = Object.assign({}, dataObj || {}, { photos: ids }); data = JSON.stringify(dataObj); }
   const row = [id, asTeam ? TEAM_ID : me.r[U.id], new Date().toISOString(), req.visibility === 'friends' && !asTeam ? 'friends' : 'all', kind, text, data, photoId, '[]', '[]', '[]', 'ok'];
   withLock(() => appendRows(postsSheet(), [row]));
   if (asTeam) audit(me.r[U.id], 'team_post', id);
@@ -1985,7 +1994,8 @@ function deletePost(me, req) {
   return withLock(() => {
     const p = findPost(me, req.id);
     if (p.r[P.user] !== me.r[U.id] && me.r[U.role] !== 'admin') throw new Error('אין הרשאה');
-    if (p.r[P.photo]) { try { DriveApp.getFileById(p.r[P.photo]).setTrashed(true); } catch (e) {} }
+    const extra = (parseJSON(p.r[P.data], {}) || {}).photos || [];
+    [p.r[P.photo]].concat(extra).filter(Boolean).forEach((fid, i, a) => { if (a.indexOf(fid) === i) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} } });
     postsSheet().deleteRow(p.row);
     if (p.r[P.user] !== me.r[U.id]) audit(me.r[U.id], 'post_deleted', p.r[P.id]);
     return { ok: true };
@@ -2033,7 +2043,7 @@ function modAction(me, req) {
 function postPhotoVisible(me, photoId) {
   const uid = me.r[U.id];
   const friends = friendsOf(uid, rows('Users'));
-  return allRows(postsSheet(), POST_W).some((r) => r[P.photo] === photoId && canSeePost(uid, r, friends));
+  return allRows(postsSheet(), POST_W).some((r) => (r[P.photo] === photoId || String(r[P.data]).indexOf(photoId) >= 0) && canSeePost(uid, r, friends));
 }
 
 // ------------------------------------------------------------------ competitions & events
