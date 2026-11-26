@@ -9,6 +9,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '3.9.0',
+    date: '2026-11-26',
+    items: [
+      'השרת מתעדכן לבד מ-GitHub, באותה כתובת, בלי העתק-הדבק. במסך הניהול יש גם כפתור "עדכן עכשיו"',
+    ],
+  },
+  {
     version: '3.8.0',
     date: '2026-11-26',
     items: [

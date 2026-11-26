@@ -15,6 +15,10 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
+const SERVER_VERSION = '3.9.0';
+/** Self-update: the server pulls its own code from GitHub and redeploys the same web-app URL. */
+const UPDATE_SOURCE = 'https://raw.githubusercontent.com/Adar999000/SportTrack/claude/personal-discipline-pwa-13qhdk/apps-script/';
+const DEPLOYMENT_ID = 'AKfycbwPkm18f395SR3y5PYu6DpoV5g-VXJ7mihJaQaafo4YYL2qT6C3lTa5Ink7iMT6kdpu';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -52,7 +56,7 @@ function route(req) {
   if (a === 'publicContact') return publicContact(req);
   if (a === 'siteConfig') return { config: publicSiteConfig() };
   if (a === 'publicChat') return publicChat(req);
-  if (a === 'status') return { ok: true, hasUsers: sheet('Users').getLastRow() > 1 };
+  if (a === 'status') return { ok: true, hasUsers: sheet('Users').getLastRow() > 1, serverVersion: SERVER_VERSION };
   if (a === 'requestReset') return requestReset(req);
   if (a === 'confirmReset') return confirmReset(req);
 
@@ -103,6 +107,7 @@ function route(req) {
     case 'friends': return { friends: friendsList(me) };
     case 'track': return track(me, req.events);
     case 'adminAnalytics': requireAdmin(me); return adminAnalytics(req.days);
+    case 'serverUpdate': requireAdmin(me); return Object.assign(selfUpdate(!!req.force), { serverVersion: SERVER_VERSION });
     case 'contactAdmin': return { message: createMessage(me, String(req.subject || ''), String(req.text || '')) };
     case 'myMessages': return myMessages(me);
     case 'unreadCount': return { unread: messageRows().filter((r) => r[M.user] === me.r[U.id] && r[M.from] === 'admin' && r[M.status] === 'unread').length };
@@ -1632,6 +1637,7 @@ function setup() {
   MailApp.getRemainingDailyQuota(); // permission to send password-reset emails
   ensureBackupTrigger(); // daily backup of the spreadsheet into Drive
   backupsFolder();
+  ensureUpdateTrigger(); // hourly: install new server code from GitHub
   Logger.log('OK');
 }
 
@@ -2160,4 +2166,68 @@ function adminAnalytics(days) {
   const events = Object.keys(byEvent).map((e) => ({ event: e, count: byEvent[e].count, users: Object.keys(byEvent[e].users).length, count7: byEvent[e].count7, users7: Object.keys(byEvent[e].users7).length }))
     .sort((a, b) => b.count - a.count);
   return { days: days, daily: daily, dau: daily[daily.length - 1].users, wau: uniq(week), mau: uniq(from), totalUsers: rows('Users').length, events: events };
+}
+
+// ------------------------------------------------------------------ self-update from GitHub
+
+function hexDigest(text) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8)
+    .map((b) => ('0' + (b & 255).toString(16)).slice(-2)).join('');
+}
+
+/**
+ * Installs the latest Code.gs + appsscript.json from GitHub and points the existing deployment
+ * at the new version (same URL). Needs the Apps Script API turned on in the owner's settings.
+ */
+function selfUpdate(force) {
+  const get = (f) => UrlFetchApp.fetch(UPDATE_SOURCE + f + '?t=' + Date.now(), { muteHttpExceptions: true });
+  const res = get('Code.gs');
+  if (res.getResponseCode() !== 200) return { updated: false, error: 'לא הצלחתי להוריד את הקוד מ-GitHub (' + res.getResponseCode() + ')' };
+  const src = res.getContentText();
+  // sanity checks, so a broken file never replaces a working server
+  if (src.length < 20000 || src.indexOf('function doPost') < 0 || src.indexOf('function selfUpdate') < 0) return { updated: false, error: 'הקובץ שהורד לא נראה תקין, העדכון בוטל' };
+  const hash = hexDigest(src);
+  if (!force && props().getProperty('CODE_HASH') === hash) return { updated: false, upToDate: true };
+  const man = get('appsscript.json');
+  if (man.getResponseCode() !== 200) return { updated: false, error: 'חסר appsscript.json' };
+  const manifest = man.getContentText();
+  JSON.parse(manifest);
+  const api = 'https://script.googleapis.com/v1/projects/' + ScriptApp.getScriptId();
+  const call = (method, path, body) => {
+    const r = UrlFetchApp.fetch(api + path, {
+      method: method, contentType: 'application/json', muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      payload: body ? JSON.stringify(body) : undefined,
+    });
+    const out = parseJSON(r.getContentText(), {}) || {};
+    if (r.getResponseCode() >= 300) {
+      const msg = (out.error && out.error.message) || ('HTTP ' + r.getResponseCode());
+      throw new Error(/has not been used|is disabled|API has not/i.test(msg)
+        ? 'צריך להפעיל את Apps Script API: script.google.com/home/usersettings'
+        : 'עדכון השרת נכשל: ' + msg);
+    }
+    return out;
+  };
+  call('put', '/content', { files: [
+    { name: 'Code', type: 'SERVER_JS', source: src },
+    { name: 'appsscript', type: 'JSON', source: manifest },
+  ] });
+  const ver = call('post', '/versions', { description: 'auto ' + new Date().toISOString().slice(0, 16) });
+  call('put', '/deployments/' + DEPLOYMENT_ID, { deploymentConfig: {
+    scriptId: ScriptApp.getScriptId(), versionNumber: ver.versionNumber, manifestFileName: 'appsscript', description: 'auto-update',
+  } });
+  props().setProperty('CODE_HASH', hash);
+  props().setProperty('LAST_UPDATE', new Date().toISOString());
+  audit('', 'server_updated', 'v' + ver.versionNumber);
+  return { updated: true, version: ver.versionNumber };
+}
+
+/** Hourly trigger. */
+function autoUpdate() {
+  try { selfUpdate(false); } catch (e) { Logger.log(e); }
+}
+
+function ensureUpdateTrigger() {
+  const exists = ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === 'autoUpdate');
+  if (!exists) ScriptApp.newTrigger('autoUpdate').timeBased().everyHours(1).create();
 }

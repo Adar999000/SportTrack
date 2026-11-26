@@ -1,3 +1,4 @@
+import { APP_VERSION } from '../version';
 import { isRTL, t, tr } from '../i18n';
 import { call, type AdminUserRow, type UserSummary } from '../api';
 import { formatShort, monthLabel, sundayOf, todayISO, daysBetween } from '../dates';
@@ -55,6 +56,7 @@ function inboxCard(): HTMLElement {
 }
 
 const AUDIT_LABEL: Record<string, string> = {
+  server_updated: 'השרת עודכן אוטומטית',
   login_ok: 'כניסה', login_fail: 'כניסה נכשלה', login_locked: 'נחסם אחרי ניסיונות', '2fa_sent': 'נשלח קוד כניסה', '2fa_fail': 'קוד כניסה שגוי',
   '2fa_on': 'הופעל אימות דו-שלבי', '2fa_off': 'כובה אימות דו-שלבי', password_change: 'שינוי סיסמה', reset_request: 'בקשת איפוס סיסמה',
   reset_done: 'איפוס סיסמה', logout_all: 'ניתוק כל המכשירים', register: 'הרשמה', admin_view: 'צפייה של מנהל', role_change: 'שינוי הרשאה', public_contact: 'פנייה מהאתר',
@@ -94,6 +96,31 @@ function activityChart(daily: Analytics['daily']): SVGSVGElement {
   el('text', { x: W - pad, y: H - 6, class: 'axis-label', 'text-anchor': 'end' }, formatShort(daily[daily.length - 1].day).slice(0, 5));
   el('text', { x: pad, y: H - 6, class: 'axis-label' }, formatShort(daily[0].day).slice(0, 5));
   return svg;
+}
+
+function serverCard(): HTMLElement {
+  const info = h('p', { class: 'muted' }, t('בודק…'));
+  const btn = h('button', { class: 'btn', type: 'button' }, '🔄 ', t('עדכן את השרת עכשיו')) as HTMLButtonElement;
+  call<{ serverVersion?: string }>('status').then((r) => {
+    const v = r.serverVersion;
+    info.replaceChildren(v ? tr`גרסת שרת ${v} · גרסת אפליקציה ${APP_VERSION}` : t('השרת בגרסה ישנה. אחרי העדכון הידני האחרון הוא יתעדכן לבד.'));
+    if (v && v !== APP_VERSION) info.append(' · ', h('strong', null, t('יש עדכון')));
+  }).catch(() => info.replaceChildren(''));
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const r = await call<{ updated: boolean; upToDate?: boolean; error?: string; version?: number }>('serverUpdate', { force: false });
+      toast(r.updated ? tr`השרת עודכן (גרסה ${r.version}). רענון בעוד רגע…` : r.upToDate ? t('השרת כבר מעודכן') : r.error ?? t('העדכון נכשל'));
+      if (r.updated) setTimeout(() => location.reload(), 2500);
+    } catch (e: any) { toast(/לא מוכרת|Unknown action/.test(e.message) ? t('צריך עדכון ידני אחד אחרון של קוד השרת') : e.message); }
+    btn.disabled = false;
+  });
+  return h('section', { class: 'card stack' },
+    h('h2', { class: 'card-title' }, '🖥️ ', t('שרת')),
+    info,
+    h('p', { class: 'hint' }, t('השרת בודק כל שעה אם יש קוד חדש ב-GitHub ומתעדכן לבד, באותה כתובת.')),
+    btn,
+  );
 }
 
 function analyticsCard(): HTMLElement {
@@ -288,6 +315,7 @@ export function renderAdmin(root: HTMLElement): void {
       list,
     ),
     analyticsCard(),
+    serverCard(),
     settingsCard(),
     communityCard(),
     auditCard(Object.fromEntries((usersCache ?? []).map((u) => [u.userId, u.name]))),

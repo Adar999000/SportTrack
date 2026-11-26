@@ -41,3 +41,18 @@ npm test                          # includes tests/backend.test.ts
 node scripts/mock-server.mjs      # local API on :8787
 VITE_API_URL=http://localhost:8787 npm run dev
 ```
+
+## Automatic updates (from v3.9)
+After a one-time setup the server updates itself: every hour (and from Admin → Server → "Update now")
+it downloads `Code.gs` and `appsscript.json` from this branch on GitHub, saves them into the project,
+creates a version and points the **existing** deployment at it, so the URL never changes.
+
+One-time setup:
+1. Turn on **Google Apps Script API** at https://script.google.com/home/usersettings
+2. In the editor: Project Settings → tick "Show appsscript.json manifest file in editor".
+3. Paste `Code.gs` and `appsscript.json` from this folder, save.
+4. Run `setup` once and approve the new permissions (manage projects/deployments; installs the hourly trigger).
+5. Manage deployments → edit the existing deployment → New version → Deploy (last manual time).
+
+Safety: a downloaded file is installed only if it looks complete (contains `doPost` and `selfUpdate`).
+If an update ever breaks something, Manage deployments → edit → pick the previous version.

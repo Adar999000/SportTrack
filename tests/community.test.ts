@@ -137,3 +137,23 @@ describe('friend challenges and analytics', () => {
     expect(r.events.some((e: any) => e.event === 'BAD KEY!')).toBe(false);
   });
 });
+
+describe('server self-update', () => {
+  it('installs the GitHub code once, redeploys the same deployment, admin only', () => {
+    const be = createBackend();
+    const adm = be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'u' });
+    expect(be.post({ action: 'serverUpdate', token: u.token }).error).toMatch(/מנהל/);
+    const r = be.post({ action: 'serverUpdate', token: adm.token });
+    expect(r).toMatchObject({ updated: true, version: 7 });
+    const api = be.fetches.filter((f: any) => f.url.startsWith('https://script.googleapis.com/'));
+    expect(api.map((f: any) => `${f.opts.method} ${f.url.split('/projects/script-123')[1]}`)).toEqual([
+      'put /content', 'post /versions', 'put /deployments/AKfycbwPkm18f395SR3y5PYu6DpoV5g-VXJ7mihJaQaafo4YYL2qT6C3lTa5Ink7iMT6kdpu']);
+    const files = JSON.parse(api[0].opts.payload).files;
+    expect(files.map((f: any) => f.name)).toEqual(['Code', 'appsscript']);
+    expect(JSON.parse(api[2].opts.payload).deploymentConfig.versionNumber).toBe(7);
+    // same code again: nothing to do
+    expect(be.post({ action: 'serverUpdate', token: adm.token })).toMatchObject({ updated: false, upToDate: true });
+    expect(be.post({ action: 'status' }).serverVersion).toBeTruthy();
+  });
+});

@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.9.0 (2026-11-26)
+- Server self-update: hourly trigger (and Admin → Server → "Update now") pulls `apps-script/Code.gs` + `appsscript.json` from GitHub, updates the project through the Apps Script API, creates a version and redeploys the existing deployment (same URL). Sanity checks before installing; `status` returns `serverVersion`. One-time setup in `apps-script/README.md` (enable the Apps Script API, explicit manifest scopes).
+
 ## 3.8.0 (2026-11-26)
 - Friend challenges (Community → Challenges): metric (workouts, runs, healthy meals, full days, coins), 3–30 days, invite friends or share a code/link (`#duel-CODE`). Scores are computed on the server from each member's own data; finished challenges settle once and the winner(s) get 100 coins (ledger `duel:<id>`). Endpoints `duels`, `createDuel`, `respondDuel`, `joinDuel`, `leaveDuel`, `friends`.
 - Admin usage analytics: batched client event counts (`track`), aggregated per day in the `Analytics` sheet (counts + distinct users, no content); admin dashboard with DAU/WAU/MAU, daily active chart, top features and screens (7/30/90 days). Privacy policy updated. Removed with the account.

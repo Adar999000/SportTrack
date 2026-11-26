@@ -110,11 +110,22 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now } =
     },
     ScriptApp: {
       getProjectTriggers: () => triggers.map((h) => ({ getHandlerFunction: () => h })),
-      newTrigger: (h) => { const b = { timeBased: () => b, everyDays: () => b, atHour: () => b, create: () => triggers.push(h) }; return b; },
+      newTrigger: (h) => { const b = { timeBased: () => b, everyDays: () => b, everyHours: () => b, atHour: () => b, create: () => triggers.push(h) }; return b; },
+      getScriptId: () => 'script-123',
+      getOAuthToken: () => 'oauth-token',
     },
     UrlFetchApp: {
       fetch: (url, opts = {}) => {
         fetches.push({ url, opts });
+        // self-update: GitHub raw files come from this checkout; the Apps Script API answers with a version
+        if (url.startsWith('https://raw.githubusercontent.com/')) {
+          const name = url.split('/').pop().split('?')[0];
+          const text = readFileSync(new URL('../../apps-script/' + name, import.meta.url), 'utf8');
+          return { getResponseCode: () => 200, getContentText: () => text };
+        }
+        if (url.startsWith('https://script.googleapis.com/')) {
+          return { getResponseCode: () => 200, getContentText: () => JSON.stringify(url.endsWith('/versions') ? { versionNumber: 7 } : {}) };
+        }
         return {
           getResponseCode: () => 200,
           getContentText: () => {
