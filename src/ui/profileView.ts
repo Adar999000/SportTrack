@@ -10,6 +10,7 @@ import { confirmButton, fmtKg, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { menuItem } from './weekView';
 import { openAssistant } from './floatingChat';
+import { openAccessibility } from './a11yWidget';
 import { getRewards, levelLabel } from '../rewards';
 
 function age(birth?: string): number | null {
@@ -202,6 +203,7 @@ export function renderProfile(root: HTMLElement): void {
       menuItem('chat', t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),
       menuItem('info', t('פנייה למנהל'), t('שאלה, בעיה או הצעה'), () => openAssistant('support')),
       menuItem('mail', t('הזמנת חברים'), t('קישור אישי, ומטבעות לשניכם'), go(HASH.share)),
+      menuItem('access', t('נגישות'), t('גודל טקסט, ניגודיות, עצירת אנימציות'), () => openAccessibility()),
       menuItem('settings', t('הגדרות'), t('תצוגה, תזכורות, ייבוא וגיבוי'), go(HASH.settings)),
       isAdmin() && menuItem('admin', t('ניהול'), t('משתמשים, אנליטיקס ופניות'), go(HASH.admin)),
     ),

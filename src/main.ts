@@ -27,6 +27,7 @@ import { renderShare } from './ui/shareView';
 import { avatar } from './ui/avatar';
 import { renderTracker } from './ui/trackerView';
 import { renderWorkout, workoutsCard } from './ui/workoutView';
+import { progressBento } from './ui/bento';
 import { renderFeed } from './ui/feedView';
 import { dirtyDocCount, loadDocs, setDocsOwner } from './docs';
 import { initAnalytics, track } from './analytics';
@@ -192,7 +193,7 @@ function render() {
     case 'stats': {
       const a = h('div', { class: 'stack' }), b = h('div', { class: 'stack' });
       renderStats(a); renderHistory(b);
-      main.replaceChildren(workoutsCard(), a, b);
+      main.replaceChildren(progressBento(), workoutsCard(), a, b);
       break;
     }
     case 'settings': renderSettings(main); break;
@@ -248,35 +249,67 @@ const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').match
 /** Slide between tabs (in the direction of the tab bar), fade for other page changes. */
 function pageTransition(dir: number) {
   if (reducedMotion() || !main.animate) return;
-  const x = dir * (isRTL ? -28 : 28);
-  main.animate([{ opacity: 0, transform: `translateX(${x}px)` }, { opacity: 1, transform: 'none' }], { duration: dir ? 240 : 180, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  const x = swipeEnter ? -swipeEnter * innerWidth * 0.5 * -1 : dir * (isRTL ? -28 : 28);
+  swipeEnter = 0;
+  main.animate([{ opacity: 0, transform: `translateX(${x}px)` }, { opacity: 1, transform: 'none' }], { duration: dir ? 260 : 180, easing: 'cubic-bezier(.2,.8,.2,1)' });
   // cards rise in one after another
   main.classList.remove('stagger'); void main.offsetWidth; main.classList.add('stagger');
   setTimeout(() => main.classList.remove('stagger'), 900);
 }
 
-/** Phones: swipe sideways anywhere outside tables/scrollers to move between the tabs. */
+/** Phones: drag the page sideways (outside tables/scrollers) to move between tabs; it follows the finger. */
+let swipeEnter = 0;
 function initSwipeTabs() {
-  let sx = 0, sy = 0, st = 0, ok = false;
-  const SKIP = '.week-card, .table-wrap, .table-scroll, .shop-tabs, .tracker-bar, .chart-box, .seg, .chips, input, textarea, select, .sheet, .fab-panel, .tour-tip';
-  main.addEventListener('touchstart', (e) => {
-    const t0 = e.touches[0];
-    ok = e.touches.length === 1 && !(e.target as HTMLElement).closest(SKIP);
-    sx = t0.clientX; sy = t0.clientY; st = Date.now();
-  }, { passive: true });
-  main.addEventListener('touchend', (e) => {
-    if (!ok || nav.hidden) return;
-    const t1 = e.changedTouches[0];
-    const dx = t1.clientX - sx, dy = t1.clientY - sy;
-    if (Math.abs(dx) < 70 || Math.abs(dy) > 45 || Date.now() - st > 600) return;
+  let sx = 0, sy = 0, st = 0, ok = false, dragging = false, dx = 0;
+  const SKIP = '.week-card, .table-wrap, .table-scroll, .shop-tabs, .tracker-bar, .chart-box, .wo-map, .seg, .chips, input, textarea, select, .sheet, .fab-panel, .tour-tip';
+  const target = () => {
     const list = tabs();
     const cur = tabIndex(parseRoute(location.hash).name);
-    if (cur < 0) return;
-    // the tab bar runs right-to-left in Hebrew: a swipe toward the right reveals the next tab
+    if (cur < 0) return null;
+    // the tab bar runs right-to-left in Hebrew: dragging toward the right reveals the next tab
     const next = cur + ((dx > 0) === isRTL ? 1 : -1);
-    if (next < 0 || next >= list.length) return;
-    navigator.vibrate?.(8);
-    navigate(list[next].hash);
+    return next >= 0 && next < list.length ? list[next] : null;
+  };
+  main.addEventListener('touchstart', (e) => {
+    const t0 = e.touches[0];
+    ok = e.touches.length === 1 && !nav.hidden && !(e.target as HTMLElement).closest(SKIP);
+    sx = t0.clientX; sy = t0.clientY; st = Date.now(); dragging = false; dx = 0;
+  }, { passive: true });
+  main.addEventListener('touchmove', (e) => {
+    if (!ok) return;
+    const t1 = e.touches[0];
+    dx = t1.clientX - sx;
+    const dy = t1.clientY - sy;
+    if (!dragging) {
+      if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) { ok = false; return; } // vertical scroll
+      if (Math.abs(dx) < 12) return;
+      dragging = true;
+      main.style.transition = 'none';
+    }
+    if (reducedMotion()) return;
+    const resist = target() ? 1 : 0.25; // no tab that way: a little rubber band
+    main.style.transform = `translateX(${dx * resist}px)`;
+    main.style.opacity = String(1 - Math.min(0.35, Math.abs(dx) / innerWidth * 0.6));
+  }, { passive: true });
+  main.addEventListener('touchend', () => {
+    if (!ok || !dragging) return;
+    const fast = Math.abs(dx) > 50 && Date.now() - st < 300;
+    const go = (Math.abs(dx) > innerWidth * 0.28 || fast) ? target() : null;
+    main.style.transition = 'transform .2s cubic-bezier(.2,.8,.2,1), opacity .2s';
+    if (go && !reducedMotion()) {
+      main.style.transform = `translateX(${Math.sign(dx) * innerWidth}px)`;
+      main.style.opacity = '0';
+      navigator.vibrate?.(8);
+      setTimeout(() => {
+        main.style.transition = 'none'; main.style.transform = ''; main.style.opacity = '';
+        swipeEnter = -Math.sign(dx);
+        navigate(go.hash);
+      }, 190);
+    } else {
+      main.style.transform = ''; main.style.opacity = '';
+      if (go) navigate(go.hash);
+      setTimeout(() => { main.style.transition = ''; }, 220);
+    }
   }, { passive: true });
 }
 

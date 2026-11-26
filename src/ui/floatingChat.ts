@@ -75,7 +75,43 @@ export function mountFloatingChat(): { refresh: () => void } {
     window.visualViewport?.removeEventListener('scroll', fit);
     if (!fab.hidden) fab.focus();
   }
-  fab.addEventListener('click', () => (panel.hidden ? open() : close()));
+  // the button can be dragged anywhere on the screen; the place is remembered
+  const POS_KEY = 'mishmaat-fab-pos';
+  let dragged = false;
+  const place = (x: number, y: number) => {
+    const size = fab.offsetWidth || 58, m = 8;
+    const cx = Math.min(innerWidth - size - m, Math.max(m, x)), cy = Math.min(innerHeight - size - 70, Math.max(60, y));
+    fab.style.left = cx + 'px'; fab.style.top = cy + 'px'; fab.style.right = 'auto'; fab.style.bottom = 'auto'; fab.style.insetInlineEnd = 'auto';
+    return [cx, cy];
+  };
+  const restore = () => {
+    try { const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); if (p) place(p.x * innerWidth, p.y * innerHeight); } catch { /* ignore */ }
+  };
+  restore();
+  addEventListener('resize', restore);
+  fab.addEventListener('pointerdown', (e) => {
+    const sx = e.clientX, sy = e.clientY, r = fab.getBoundingClientRect();
+    const ox = sx - r.left, oy = sy - r.top;
+    dragged = false;
+    const move = (ev: PointerEvent) => {
+      if (!dragged && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8) return;
+      if (!dragged) { dragged = true; fab.classList.add('dragging'); try { fab.setPointerCapture(e.pointerId); } catch { /* ignore */ } }
+      place(ev.clientX - ox, ev.clientY - oy);
+    };
+    const up = () => {
+      removeEventListener('pointermove', move); removeEventListener('pointerup', up);
+      if (!dragged) return;
+      fab.classList.remove('dragging');
+      // snap to the nearest side
+      const rr = fab.getBoundingClientRect();
+      const left = rr.left + rr.width / 2 < innerWidth / 2;
+      const [cx, cy] = place(left ? 8 : innerWidth - rr.width - 8, rr.top);
+      try { localStorage.setItem(POS_KEY, JSON.stringify({ x: cx / innerWidth, y: cy / innerHeight })); } catch { /* ignore */ }
+      navigator.vibrate?.(6);
+    };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
+  });
+  fab.addEventListener('click', (e) => { if (dragged) { e.preventDefault(); e.stopImmediatePropagation(); dragged = false; return; } panel.hidden ? open() : close(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) close(); });
   // phones: tapping the dimmed page behind the sheet closes it
   document.addEventListener('click', (e) => { if (!panel.hidden && isPhone() && e.target === document.body) close(); });

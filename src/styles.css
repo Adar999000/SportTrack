@@ -1526,3 +1526,58 @@ body.scrolled .topbar { box-shadow: 0 1px 0 var(--line); }
 .leaflet-container { font: inherit; }
 .wo-head-btns { display: flex; gap: 6px; }
 .strava-btn { background: #fc4c02 !important; color: #fff !important; border-color: #fc4c02 !important; }
+
+/* draggable assistant button; hide ✕ on the accessibility button */
+.fab { touch-action: none; }
+.fab.dragging { transform: scale(1.1); box-shadow: 0 14px 30px -10px rgb(0 0 0 / .55); transition: none; cursor: grabbing; }
+.fab:not(.dragging) { transition: left .25s cubic-bezier(.2,.8,.2,1), top .25s cubic-bezier(.2,.8,.2,1), transform .1s; }
+.a11y-hide { position: fixed; z-index: 98; inset-inline-start: calc(max(16px, env(safe-area-inset-left, 0px)) + 32px); bottom: calc(76px + env(safe-area-inset-bottom) + 30px);
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); background: var(--text); color: var(--surface); font-size: 11px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.a11y-hide::before { content: ""; position: absolute; inset: -11px; } /* 44px touch target */
+@media (min-width: 900px) { .a11y-hide { bottom: calc(24px + env(safe-area-inset-bottom) + 30px); } }
+
+/* invite: real network glyphs in the app's colours */
+.share-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; }
+.share-btn { flex-direction: column; gap: 6px; min-height: 0; padding: 4px 0; border: none; background: none; font-size: 0.78rem; font-weight: 600; }
+.share-ico { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--accent-ink); transition: transform .12s ease; box-shadow: inset 0 -3px 0 rgb(0 0 0 / .15); }
+.share-ico svg { width: 26px; height: 26px; }
+.share-btn:hover .share-ico { transform: translateY(-2px); }
+.share-btn:active .share-ico { transform: scale(.92); }
+.share-name { color: var(--text); }
+
+/* ===== v5.4 premium: activity rings, bento, type scale ===== */
+:root { --ring-meals: #c6f432; --ring-sport: #ff5a36; --ring-week: #2ec5ff; }
+.rings-box { display: flex; align-items: center; gap: 10px; flex: none; }
+.rings { width: 92px; height: 92px; }
+.rings .ring-track { fill: none; stroke-width: 9; opacity: .18; }
+.rings .ring-val { fill: none; stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.2, .8, .2, 1); }
+.rings .r-meals { stroke: var(--ring-meals); } .rings .r-sport { stroke: var(--ring-sport); } .rings .r-week { stroke: var(--ring-week); }
+.rings.ring-intro .ring-val { animation: ring-draw 1s cubic-bezier(.2, .8, .2, 1); }
+.rings-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 0.72rem; color: var(--muted); }
+.rings-legend li { display: flex; align-items: baseline; gap: 5px; }
+.rings-legend li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; align-self: center; }
+.rings-legend .r-meals::before { background: var(--ring-meals); } .rings-legend .r-sport::before { background: var(--ring-sport); } .rings-legend .r-week::before { background: var(--ring-week); }
+.rings-legend b { color: var(--text); font-weight: 900; font-variant-numeric: tabular-nums; min-width: 2.2em; }
+:root:not([data-theme="dark"]) .rings .r-meals { stroke: #8fbf00; }
+@media (max-width: 420px) { .rings-legend { display: none; } }
+
+.bento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.bento-tile { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 2px; overflow: hidden; min-height: 96px; }
+:root:not([data-theme="dark"]) .bento-tile { box-shadow: 0 10px 24px -18px rgb(20 22 15 / .35); }
+.bento-tile.wide { grid-column: 1 / -1; }
+.bento-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+.bento-value { font-size: 2.3rem; font-weight: 900; line-height: 1.05; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.bento-sub { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.w-weight { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.w-weight .bento-label, .w-weight .bento-sub { color: inherit; opacity: .8; }
+.w-weight .spark { position: absolute; inset-inline-end: 12px; bottom: 12px; width: 46%; height: 52px; }
+.spark path { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.w-workouts .bento-value { color: var(--ring-sport); }
+.w-meals .bento-value { color: var(--v-ink); }
+.w-streak::after { content: "🔥"; position: absolute; inset-inline-end: 12px; top: 10px; font-size: 1.3rem; }
+.w-km { background: var(--surface-2); }
+
+/* type scale */
+.card-title { font-size: 1.1rem; }
+.week-title h2 { font-size: 1.15rem; }
+.greet { letter-spacing: .02em; }

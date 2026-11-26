@@ -3,7 +3,7 @@ import { DAY_NAMES, addDays, dayIndex, formatShort, sundayOf, todayISO, weekRang
 import { cycleMark, cycleSmoked, sportShort } from '../model';
 import { allWeeks, editWeek, getSettings, getWeek, setLock, subscribe } from '../store';
 import { lunchStreak, workoutsInWeek } from '../stats';
-import type { Day, Mark, MealKey } from '../types';
+import type { Day, Mark, MealKey, Week } from '../types';
 import { h, openSheet } from './dom';
 import { icon } from './icons';
 import { openSportSheet } from './sportSheet';
@@ -96,17 +96,28 @@ function smartChips(sunday: string): HTMLElement | '' {
   return h('div', { class: 'smart-chips' }, chips.map((c) => h('span', { class: 'smart-chip' }, c)));
 }
 
-function ring(done: number, total: number, size = 64): SVGSVGElement {
+/** Three activity rings: meals today, sport today, full days this week. */
+function activityRings(d: Day, w: Week): HTMLElement {
+  const meals = (['breakfast', 'lunch', 'dinner'] as const).filter((k) => d[k] === 'V').length;
+  const sport = d.sport.status === 'V' ? 1 : 0;
+  const fullDays = w.days.filter((x) => dayDone(x) >= 4).length;
   const NS = 'http://www.w3.org/2000/svg';
-  const r = 26, c = 2 * Math.PI * r;
   const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('width', String(size)); svg.setAttribute('height', String(size));
-  svg.setAttribute('class', 'ring' + (done >= total ? ' ring-full' : '') + (ringDrawn ? '' : ' ring-intro')); svg.setAttribute('aria-hidden', 'true');
-  svg.style.setProperty('--c', String(c));
+  svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('class', 'rings' + (ringDrawn ? '' : ' ring-intro')); svg.setAttribute('aria-hidden', 'true');
+  const rings: [number, number, string][] = [[42, meals / 3, 'r-meals'], [31, sport, 'r-sport'], [20, fullDays / 7, 'r-week']];
+  svg.innerHTML = rings.map(([r, p, cls]) => {
+    const c = 2 * Math.PI * r;
+    return `<circle cx="50" cy="50" r="${r}" class="ring-track ${cls}"/><circle cx="50" cy="50" r="${r}" class="ring-val ${cls}" style="--c:${c}" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - Math.min(1, p))}" transform="rotate(-90 50 50)"/>`;
+  }).join('');
   ringDrawn = true;
-  svg.innerHTML = `<circle cx="32" cy="32" r="${r}" class="ring-bg"/><circle cx="32" cy="32" r="${r}" class="ring-fg" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - done / total)}" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle" class="ring-text">${done >= total ? '🏆' : Math.round((done / total) * 100) + '%'}</text>`;
-  return svg;
+  return h('div', { class: 'rings-box', role: 'img', 'aria-label': tr`ארוחות ${meals}/3, ספורט ${sport}/1, ימים מלאים השבוע ${fullDays}/7` },
+    svg,
+    h('ul', { class: 'rings-legend', 'aria-hidden': 'true' },
+      h('li', { class: 'r-meals' }, h('b', null, `${meals}/3`), t('ארוחות')),
+      h('li', { class: 'r-sport' }, h('b', null, `${sport}/1`), t('ספורט')),
+      h('li', { class: 'r-week' }, h('b', null, `${fullDays}/7`), t('השבוע'))));
 }
+
 
 /** Big buttons for today's tasks. */
 /** The big buttons for one day (today's panel and the day sheet). */
@@ -166,7 +177,7 @@ function todayPanel(today: string): HTMLElement {
         h('p', { class: 'today-motto' }, done >= 4 ? t('יום מלא. אלוף/ה') : nextTask(d)),
         smartChips(sunday),
       ),
-      h('div', { class: 'today-ring', role: 'img', 'aria-label': tr`${done} מתוך 4 משימות היום` }, ring(done, 4, 72)),
+      activityRings(d, getWeek(sunday)),
     ),
     dayGrid(today),
     h('a', { class: 'start-wo', href: HASH.workout() }, h('span', { 'aria-hidden': 'true' }, '▶'), t('התחל אימון עם GPS')),

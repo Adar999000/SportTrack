@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.4.0 (2026-11-26)
+- Today: three activity rings (meals today, sport today, full days this week) instead of one.
+- Progress: a bento grid (weight with sparkline, workouts / healthy meals / full days in 30 days, week streak, km recorded).
+- Swipe between tabs follows the finger (rubber band at the ends) and slides the next screen in.
+- The floating assistant can be dragged anywhere and snaps to the nearest side (remembered). The accessibility button has a small ✕ to hide it; the menu stays in Me → Accessibility, and Settings can show the button again.
+- Invite friends: real network glyphs (Simple Icons, CC0) for WhatsApp, Telegram, Facebook, Messenger, X and Gmail, plus email and SMS, in the app's colours.
+
 ## 5.3.0 (2026-11-26)
 - Tap a day header in the table: a sheet with that day's big buttons; lock/unlock the day there, or the whole week under the table. Locks live in the week (`locked`, `lockedDays`) and the store refuses edits to locked days (also from the assistant).
 - GPS workout recorder (`#workout`): run/walk/hike/ride, live time, distance, pace or speed, estimated steps, Leaflet + OpenStreetMap route map, pause/resume, survives reloads, wake lock; saved as synced docs `wo:<id>`, marks the day's sport cell; history with route thumbnails and per-km splits on the Progress screen.

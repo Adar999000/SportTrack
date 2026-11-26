@@ -9,11 +9,32 @@ function wheelchair(size = 26): SVGSVGElement {
   return wrap.firstElementChild as SVGSVGElement;
 }
 
+const HIDE_KEY = 'mishmaat-a11y-hidden';
+let openA11yMenu: () => void = () => {};
+let showA11yButton: (on: boolean) => void = () => {};
+/** Open the accessibility menu from anywhere (works even when its button is hidden). */
+export const openAccessibility = () => openA11yMenu();
+export const setA11yButtonVisible = (on: boolean) => showA11yButton(on);
+export const a11yButtonVisible = () => { try { return localStorage.getItem(HIDE_KEY) !== '1'; } catch { return true; } };
+
 /** Accessibility menu: a fixed button on every screen (signed in or not). */
 export function mountA11yWidget(): void {
   const btn = h('button', { class: 'a11y-btn', type: 'button', 'data-track': 'a11y:open', 'aria-label': t('תפריט נגישות'), title: t('נגישות'), 'aria-expanded': 'false', 'aria-controls': 'a11y-panel' }, wheelchair());
   const panel = h('div', { class: 'a11y-panel', id: 'a11y-panel', role: 'dialog', 'aria-label': t('תפריט נגישות'), hidden: true });
-  document.body.append(btn, panel);
+  // a small ✕ hides the floating button (the menu stays available from "Me" / Settings)
+  const hide = h('button', { class: 'a11y-hide', type: 'button', 'aria-label': t('הסתר את כפתור הנגישות'), title: t('הסתר'), onclick: () => {
+    try { localStorage.setItem(HIDE_KEY, '1'); } catch { /* ignore */ }
+    sync();
+  } }, '✕');
+  const sync = () => {
+    let hidden = false;
+    try { hidden = localStorage.getItem(HIDE_KEY) === '1'; } catch { /* ignore */ }
+    btn.hidden = hide.hidden = hidden;
+  };
+  document.body.append(btn, hide, panel);
+  sync();
+  openA11yMenu = () => open();
+  showA11yButton = (on: boolean) => { try { if (on) localStorage.removeItem(HIDE_KEY); else localStorage.setItem(HIDE_KEY, '1'); } catch { /* ignore */ } sync(); };
 
   const draw = () => {
     const p = getA11y();
@@ -45,7 +66,7 @@ export function mountA11yWidget(): void {
     );
   };
   function open() { panel.hidden = false; btn.setAttribute('aria-expanded', 'true'); draw(); (panel.querySelector('.a11y-opt') as HTMLElement)?.focus(); }
-  function close() { panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); btn.focus(); }
+  function close() { panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (!btn.hidden) btn.focus(); }
   btn.addEventListener('click', () => (panel.hidden ? open() : close()));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) close(); });
 }

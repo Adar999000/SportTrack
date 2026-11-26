@@ -1,3 +1,5 @@
+import { brandIcon } from './brandIcons';
+import { icon } from './icons';
 import { myInvite } from '../rewards';
 import { currentUser } from '../session';
 import { h, toast } from './dom';
@@ -25,8 +27,8 @@ export function renderShare(root: HTMLElement): void {
     const copy = async () => {
       try { await navigator.clipboard.writeText(link); toast(t('הקישור הועתק')); } catch { input.select(); }
     };
-    const a = (label: string, href: string, color: string) =>
-      h('a', { class: 'share-btn', href, target: '_blank', rel: 'noopener' }, h('span', { class: 'dot', style: { background: color } }), label);
+    const a = (label: string, href: string, glyph: Node) =>
+      h('a', { class: 'share-btn', href, target: '_blank', rel: 'noopener', 'aria-label': tr`שתף ב-${label}` }, h('span', { class: 'share-ico' }, glyph), h('span', { class: 'share-name' }, label));
     box.replaceChildren(
       h('div', { class: 'invite-link' }, input, h('button', { class: 'btn', type: 'button', onclick: copy }, t('העתק'))),
       h('p', null, t('הקוד שלך: '), h('b', { dir: 'ltr', class: 'code-inline' }, inv.code)),
@@ -35,13 +37,14 @@ export function renderShare(root: HTMLElement): void {
         ? h('button', { class: 'btn btn-primary', type: 'button', onclick: () => navigator.share({ title: t('משמעת אישית'), text, url: link }).catch(() => {}) }, t('שתף…'))
         : '',
       h('div', { class: 'share-grid' },
-        a('WhatsApp', `https://wa.me/?text=${enc(msg)}`, '#25d366'),
-        a('Telegram', `https://t.me/share/url?url=${enc(link)}&text=${enc(text)}`, '#229ed9'),
-        a(t('מייל'), `mailto:?subject=${enc(t('הזמנה למשמעת אישית'))}&body=${enc(msg)}`, '#888'),
-        a('LinkedIn', `https://www.linkedin.com/sharing/share-offsite/?url=${enc(link)}`, '#0a66c2'),
-        a('Facebook', `https://www.facebook.com/sharer/sharer.php?u=${enc(link)}`, '#1877f2'),
-        a('X', `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(link)}`, '#111'),
-        a('SMS', `sms:?&body=${enc(msg)}`, '#4caf50'),
+        a('WhatsApp', `https://wa.me/?text=${enc(msg)}`, brandIcon('whatsapp')),
+        a('Telegram', `https://t.me/share/url?url=${enc(link)}&text=${enc(text)}`, brandIcon('telegram')),
+        a('Facebook', `https://www.facebook.com/sharer/sharer.php?u=${enc(link)}`, brandIcon('facebook')),
+        a('Messenger', `fb-messenger://share/?link=${enc(link)}`, brandIcon('messenger')),
+        a('X', `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(link)}`, brandIcon('x')),
+        a('Gmail', `https://mail.google.com/mail/?view=cm&su=${enc(t('הזמנה למשמעת אישית'))}&body=${enc(msg)}`, brandIcon('gmail')),
+        a(t('מייל'), `mailto:?subject=${enc(t('הזמנה למשמעת אישית'))}&body=${enc(msg)}`, icon('mail', 22)),
+        a('SMS', `sms:?&body=${enc(msg)}`, icon('chat', 22)),
       ),
     );
   }).catch((e) => box.replaceChildren(h('p', { class: 'form-error' }, e.message)));

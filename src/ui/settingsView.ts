@@ -13,6 +13,7 @@ import { APP_VERSION, CHANGELOG } from '../version';
 import { showDocxPreview } from './importPreview';
 import { installButton } from './installButton';
 import { MASCOTS, mascot, ownsMascot } from './mascot';
+import { a11yButtonVisible, setA11yButtonVisible } from './a11yWidget';
 import { resetTours } from './tour';
 import { IS_DEMO } from '../env';
 import { clearDemo } from '../demo';
@@ -122,6 +123,7 @@ export function renderSettings(root: HTMLElement): void {
           sel.addEventListener('change', () => updateSettings({ skin: sel.value }));
           return sel;
         })()),
+      toggle(t('כפתור נגישות צף'), a11yButtonVisible(), (v) => setA11yButtonVisible(v), t('התפריט זמין תמיד גם במסך "אני"')),
       hasBackend() && toggle(t('כפתור עוזר AI צף'), st.showFab !== false, (v) => updateSettings({ showFab: v }), t('גם כשהוא כבוי, העוזר זמין במסך "אני"')),
       hasBackend() && ['confetti', 'stars', 'fireworks'].some((k) => owns('effect:' + k)) && toggle(t('חגיגה ביום מלא'), !!st.effects, (v) => updateSettings({ effects: v })),
       h('div', { class: 'setting setting-col' },

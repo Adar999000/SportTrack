@@ -6,6 +6,7 @@ const P: Record<string, string> = {
   stats: '<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>',
   chat: '<path d="M12 3.5l1.8 4.7 4.7 1.8-4.7 1.8L12 16.5l-1.8-4.7L5.5 10l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
   feed: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.2 3.2-5 6.5-5s5.9 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.7.1 4.6 1.6 5 4.3"/>',
+  access: '<circle cx="12.5" cy="4" r="2"/><path d="M11.5 7.5l-.6 6h5.1l1.6 6"/><path d="M11 10.5h5"/><path d="M8.6 11a5.2 5.2 0 1 0 6.6 7.2"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>',
   profile: '<circle cx="12" cy="8" r="4"/><path d="M4 20.5c.8-3.6 4-5.5 8-5.5s7.2 1.9 8 5.5"/>',
   admin: '<path d="M12 3l8 3v6c0 4.8-3.4 7.9-8 9-4.6-1.1-8-4.2-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
