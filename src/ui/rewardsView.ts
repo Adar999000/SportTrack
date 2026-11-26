@@ -1,6 +1,6 @@
 import { addDays, formatShort, sundayOf, todayISO } from '../dates';
 import { currentUser } from '../session';
-import { BADGES, levelLabel, getRewards, leaderboard, refreshRewards, spend, type Leader, type Rewards } from '../rewards';
+import { BADGES, levelLabel, getRewards, leaderboard, refreshRewards, rewardsError, spend, type Leader, type Rewards } from '../rewards';
 import { avatar } from './avatar';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
@@ -19,6 +19,7 @@ const EARN_RULES: [string, string][] = [
   ['שקילה שבועית', '5'],
   ['7 ימים רצופים עם צהריים V', '20'],
   ['4 שבועות רצופים עם 3+ אימונים', '50'],
+  ['אתגר יומי: 3 ארוחות בריאות', '15'],
   ['אתגר שבועי / חודשי / שנתי', '30 / 100 / 500'],
   ['כל ק"ג בדרך למשקל היעד (עד אחד בשבוע)', '20'],
   ['הגעה למשקל היעד', '200'],
@@ -47,7 +48,7 @@ function levelCard(r: Rewards): HTMLElement {
 }
 
 function challengesCard(r: Rewards): HTMLElement {
-  const label = { week: 'שבועי', month: 'חודשי', year: 'שנתי' } as const;
+  const label = { day: 'יומי', week: 'שבועי', month: 'חודשי', year: 'שנתי' } as const;
   return h('section', { class: 'card' },
     h('h2', { class: 'card-title' }, t('אתגרים')),
     ...r.challenges.map((c) => {
@@ -168,7 +169,16 @@ export function renderRewards(root: HTMLElement): void {
   const r = getRewards();
   const draw = (rw: Rewards | null) => {
     if (!rw) {
-      root.replaceChildren(h('section', { class: 'card' }, h('p', { class: 'muted' }, t('טוען…'))));
+      const err = rewardsError();
+      const notDeployed = /לא מוכרת|Unknown action|נדרשת התחברות|Sign-in required/.test(err);
+      root.replaceChildren(h('section', { class: 'card stack' },
+        err
+          ? h('p', null, notDeployed
+              ? t('המטבעות, הדירוג והאתגרים עוד לא הופעלו בשרת. הם יופיעו כאן אחרי שמנהל האפליקציה יעדכן את קוד השרת.')
+              : err)
+          : h('p', { class: 'muted' }, t('טוען…')),
+        err && h('button', { class: 'btn', type: 'button', onclick: () => refreshRewards().then(() => draw(getRewards())) }, t('נסה שוב')),
+      ));
       return;
     }
     root.replaceChildren(

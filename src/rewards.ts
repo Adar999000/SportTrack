@@ -11,7 +11,7 @@ export function levelLabel(name: string): string {
 }
 
 export interface RewardItem { date: string; amount: number; kind: string; label: string }
-export interface Challenge { id: string; period: 'week' | 'month' | 'year'; title: string; progress: number; target: number; reward: number; unit?: string; cells?: number; minCells?: number }
+export interface Challenge { id: string; period: 'day' | 'week' | 'month' | 'year'; title: string; progress: number; target: number; reward: number; unit?: string; cells?: number; minCells?: number }
 export interface Rewards {
   start: string;
   balance: number;
@@ -32,6 +32,8 @@ export interface Rewards {
 export interface Leader { userId: string; name: string; photoId: string | null; level: number; levelName: string; week: number; month: number; lifetime: number }
 
 let current: Rewards | null = null;
+let lastError = '';
+export const rewardsError = () => lastError;
 const listeners = new Set<() => void>();
 export const getRewards = () => current;
 export const onRewards = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
@@ -53,8 +55,8 @@ let inflight: Promise<void> | null = null;
 export function refreshRewards(): Promise<void> {
   if (!hasBackend() || !currentUser()) return Promise.resolve();
   inflight ??= call<{ rewards: Rewards }>('rewards')
-    .then((r) => set(r.rewards))
-    .catch(() => {})
+    .then((r) => { lastError = ''; set(r.rewards); })
+    .catch((e) => { lastError = String(e?.message ?? e); listeners.forEach((l) => l()); })
     .finally(() => (inflight = null));
   return inflight;
 }
@@ -68,6 +70,7 @@ export const leaderboard = (period: 'week' | 'month' | 'all') => call<{ leaders:
 export const myInvite = () => call<{ code: string | null; used: number; left: number | null }>('myInvite');
 
 export const BADGES: Record<string, { name: string; icon: string }> = {
+  day3: { name: 'יום מושלם', icon: '⭐' },
   week3: { name: 'שבוע ספורטיבי', icon: '🏃' },
   month12: { name: 'חודש של אימונים', icon: '🏋️' },
   month80: { name: 'חודש של ארוחות בריאות', icon: '🥗' },

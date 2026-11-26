@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.0 (2026-11-26)
+- Daily challenge: all three meals V on a day earns 15 coins and a "Perfect day" badge; today's progress is shown with the other challenges.
+- The coins page explains when the server hasn't been updated yet instead of loading forever.
+
 ## 2.2.0 (2026-11-26)
 - Landing page for signed-out visitors: hero with an interactive weekly-table demo, features, how to start, the "you don't drown by falling" quote, privacy note, and sign-in / sign-up buttons. `#login` and `#signup` open the forms directly; invite links still go straight to sign-up.
 - Open Graph / Twitter tags and a 1200×630 preview image (`public/og.png`) for shared links.

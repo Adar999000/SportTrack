@@ -645,6 +645,10 @@ function rewardsFor(userRow, cache) {
     const d = dayMap[date];
     if (isFullDay(d)) add(date, 5, 'day', 'יום מלא בטבלה');
     if (isWorkout(d)) add(date, 10, 'workout', 'אימון');
+    if (d.breakfast === 'V' && d.lunch === 'V' && d.dinner === 'V') {
+      add(date, 15, 'challenge', 'אתגר יומי: 3 ארוחות בריאות');
+      badges.day3 = (badges.day3 || 0) + 1;
+    }
   });
 
   // weekly weigh-in + weekly challenge + 4-week workout streak
@@ -760,6 +764,8 @@ function rewardsFor(userRow, cache) {
   const earnedSince = (d0) => items.filter((x) => x.amount > 0 && x.date >= d0).reduce((s, x) => s + x.amount, 0);
 
   // current challenge progress
+  const td = dayMap[today] || {};
+  const mealsToday = ['breakfast', 'lunch', 'dinner'].filter((k) => td[k] === 'V').length;
   const cw = weekMap[weekStart];
   let weekWo = 0;
   if (cw) cw.data.days.forEach((d, i) => { if (addDaysStr(weekStart, i) <= today && isWorkout(d)) weekWo++; });
@@ -775,6 +781,7 @@ function rewardsFor(userRow, cache) {
     month: earnedSince(monthStart),
     level: levelFor(lifetime),
     challenges: [
+      { id: 'day3', period: 'day', title: '3 ארוחות בריאות היום', progress: mealsToday, target: 3, reward: 15 },
       { id: 'week3', period: 'week', title: '3 אימונים השבוע', progress: weekWo, target: 3, reward: 30 },
       { id: 'month12', period: 'month', title: '12 אימונים החודש', progress: cm.wo, target: 12, reward: 100 },
       { id: 'month80', period: 'month', title: '80% ארוחות בריאות החודש', progress: mealsPct, target: 80, reward: 100, unit: '%', cells: cm.v + cm.x, minCells: 40 },

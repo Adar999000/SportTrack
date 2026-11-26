@@ -1,5 +1,12 @@
 /** English UI strings. Keys are the Hebrew originals (see scripts/i18n-keys.mjs). */
 export const EN: Record<string, string> = {
+  "אתגר יומי: 3 ארוחות בריאות ביום שוות 15 מטבעות ותג \"יום מושלם\"": "Daily challenge: 3 healthy meals in a day earns 15 coins and a \"Perfect day\" badge",
+  "המטבעות, הדירוג והאתגרים עוד לא הופעלו בשרת. הם יופיעו כאן אחרי שמנהל האפליקציה יעדכן את קוד השרת.": "Coins, the leaderboard and challenges aren't turned on in the server yet. They'll show up here once the app admin updates the server code.",
+  "נסה שוב": "Try again",
+  "3 ארוחות בריאות היום": "3 healthy meals today",
+  "אתגר יומי: 3 ארוחות בריאות": "Daily challenge: 3 healthy meals",
+  "יום מושלם": "Perfect day",
+  "יומי": "Daily",
   "דף בית למבקרים עם הדגמה, תכונות וכפתורי כניסה והרשמה, ותמונת תצוגה לשיתוף קישורים": "A landing page for visitors with a demo, features and sign-in/sign-up buttons, plus a preview image for shared links",
   "V, X או \"-\" בכל שורה. שקילה פעם בשבוע ביום ראשון.": "V, X or \"-\" in each row. Weigh in once a week, on Sunday.",
   "איך מתחילים": "How to start",

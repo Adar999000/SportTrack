@@ -33,8 +33,9 @@ describe('rewards', () => {
     // week of Sun 6/12: Sun–Wed filled, 3 workouts
     be.post({ action: 'putWeeks', token: t, weeks: [wk('2026-12-06', [full(true), full(true), full(false), full(true), day(), day(), day()], 100)] });
     const r = be.post({ action: 'rewards', token: t }).rewards;
-    // 4 full days ×5 + 3 workouts ×10 + weigh-in 5 + weekly challenge 30
+    // 4 full days ×5 + 3 workouts ×10 + weigh-in 5 + weekly challenge 30 (no day had all 3 meals V)
     expect(r.balance).toBe(20 + 30 + 5 + 30);
+    expect(r.challenges[0]).toMatchObject({ id: 'day3', period: 'day', target: 3 });
     expect(r.challenges.find((c: any) => c.id === 'week3')).toMatchObject({ progress: 3, target: 3 });
     expect(r.badges.week3).toBe(1);
     expect(r.level).toMatchObject({ n: 1, name: 'מתחיל' });
@@ -130,5 +131,16 @@ describe('rewards', () => {
     expect(leaders[0].name).toBe('נועה');
     expect(leaders[0].week).toBeGreaterThan(0);
     expect(Object.keys(leaders[0])).not.toContain('email');
+  });
+
+  it('daily challenge: all three meals V pays 15 and counts a "perfect day" badge', () => {
+    const { be, t } = setup();
+    const perfect = day({ breakfast: 'V', lunch: 'V', dinner: 'V', sport: { status: '-', countsAsWorkout: false } });
+    be.post({ action: 'putWeeks', token: t, weeks: [wk('2026-12-06', [perfect, perfect, day(), perfect, day(), day(), day()])] });
+    const r = be.post({ action: 'rewards', token: t }).rewards;
+    expect(r.items.filter((x: any) => x.label.startsWith('אתגר יומי'))).toHaveLength(3);
+    expect(r.badges.day3).toBe(3);
+    // today (Wednesday) is perfect → today's challenge shows 3/3
+    expect(r.challenges.find((c: any) => c.id === 'day3').progress).toBe(3);
   });
 });
