@@ -1912,8 +1912,6 @@ export const EN: Record<string, string> = {
   "הכפתורים מתחת לטבלה (הערה, תמונה, נעילת שבוע, התאמה) עם אייקונים ברורים במקום טקסט ואימוג׳י": "The buttons under the table (note, photo, lock week, customize) now have clear icons instead of text and emoji",
   "התאמה": "Customize",
   "לוח תוכן של הצוות: כרטיס טיפ חדש בפיד כל 3 ימים (מתיחות, חלבון, צעדים, סוף שבוע, חימום, אכילה מודעת)": "Team content calendar: a new tip card in the feed every 3 days (stretching, protein, steps, weekends, warm-up, mindful eating)",
-  "מטבעות קונים סקינים, צבעים ודמויות בחנות": "Coins buy skins, colors and characters in the store",
-  "ארוחות + ספורט ביום אחד": "Meals + sport in one day",
   // training plans
   "5 ק\"מ ב-8 שבועות, כוח בבית ועוד": "5 km in 8 weeks, home strength and more",
   "{0} מתוך {1} אימונים": "{0} of {1} workouts",
@@ -1981,4 +1979,6 @@ export const EN: Record<string, string> = {
   "תוכניות אימון מוכנות: \"ריצה ראשונה: 5 ק\"מ ב-8 שבועות\" ו\"כוח בבית\". בוחרים ימים, האימון של היום מופיע במסך \"היום\", וסימון ממלא את שורת הספורט": "Ready-made training plans: \"First run: 5 km in 8 weeks\" and \"Home strength\". Pick your days, today's session appears on \"Today\", and marking it fills the sport row",
   "שיפורי ניסוח באנגלית ועוד עשרות צורות לשון נקבה": "Better English wording and dozens more feminine forms",
   "מרכז עזרה בעברית": "A help center in Hebrew",
+  "מטבעות קונים סקינים, צבעים ודמויות בחנות": "Coins buy skins, colors and characters in the store",
+  "ארוחות + ספורט ביום אחד": "Meals + sport in one day",
 };
