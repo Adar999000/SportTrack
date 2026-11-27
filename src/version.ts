@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '5.9.1',
+    date: '2026-11-27',
+    items: ['פוסטים רשמיים של הצוות עם תמונות: טיפים לריצה, צהריים בריא, אתגר השבוע, שתייה, שינה וחידושים באפליקציה'],
+  },
+  {
     version: '5.9.0',
     date: '2026-11-27',
     items: [

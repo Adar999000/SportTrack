@@ -9,7 +9,7 @@ describe('custom trackers, feed and events', () => {
 
   beforeEach(() => {
     be = createBackend();
-    be.properties.set('TEAM_SEEDED', '1'); // keep the team's welcome posts out of these counts
+    be.properties.set('TEAM_SEEDED', '1'); be.properties.set('TEAM_SEEDED2', '1'); // keep the team's welcome posts out of these counts
     admin = reg('adm@x.com', 'מנהל');
     a = reg('a@x.com', 'אלף');
     const { code } = be.post({ action: 'myInvite', token: a.token });
@@ -203,9 +203,12 @@ describe('meetups, team posts and challenge chat', () => {
     const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
     const v = be.post({ action: 'register', email: 'v@x.com', password: 'secret12', name: 'יוסי' });
     let posts = be.post({ action: 'feed', token: u.token }).posts;
-    expect(posts.filter((p: any) => p.author.team)).toHaveLength(3);
+    expect(posts.filter((p: any) => p.author.team)).toHaveLength(9);
+    expect(posts.filter((p: any) => p.data?.image).map((p: any) => p.data.image)).toContain('team/run.webp');
     be.post({ action: 'feed', token: u.token });
-    expect(be.post({ action: 'feed', token: u.token }).posts.filter((p: any) => p.author.team)).toHaveLength(3); // only once
+    expect(be.post({ action: 'feed', token: u.token }).posts.filter((p: any) => p.author.team)).toHaveLength(9); // only once
+    // nobody else can attach an image URL
+    expect(be.post({ action: 'createPost', token: u.token, text: 'x', data: { image: 'https://evil.example/x.png' } }).post.data).toEqual({});
     // only admins can post as the team
     expect(be.post({ action: 'createPost', token: u.token, text: 'x', asTeam: true }).post.author.team).toBe(false);
     expect(be.post({ action: 'createPost', token: adm.token, text: 'עדכון מהצוות', asTeam: true }).post.author).toMatchObject({ team: true, name: 'צוות משמעת אישית' });
@@ -242,7 +245,7 @@ describe('stories, goals and music settings', () => {
   it('posts 24h stories outside the feed, counts views for the owner only, and expires them', () => {
     let clock = Date.parse('2026-11-20T10:00:00Z');
     const be = createBackend({ now: () => clock });
-    be.properties.set('TEAM_SEEDED', '1');
+    be.properties.set('TEAM_SEEDED', '1'); be.properties.set('TEAM_SEEDED2', '1');
     be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
     const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
     const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });
@@ -284,7 +287,7 @@ describe('stories, goals and music settings', () => {
 describe('leagues and story replies', () => {
   it('keeps story replies private and puts people in a weekly league', () => {
     const be = createBackend();
-    be.properties.set('TEAM_SEEDED', '1');
+    be.properties.set('TEAM_SEEDED', '1'); be.properties.set('TEAM_SEEDED2', '1');
     be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
     const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
     const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });
@@ -307,7 +310,7 @@ describe('leagues and story replies', () => {
 describe('photo posts', () => {
   it('saves up to 4 photos per post, lets viewers load each, and trashes them all on delete', () => {
     const be = createBackend();
-    be.properties.set('TEAM_SEEDED', '1');
+    be.properties.set('TEAM_SEEDED', '1'); be.properties.set('TEAM_SEEDED2', '1');
     be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
     const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
     const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });
@@ -329,7 +332,7 @@ describe('photo posts', () => {
 describe('blocking, first-week quest and group challenges', () => {
   it('hides blocked people both ways in feed, stories, comments and chat', () => {
     const be = createBackend();
-    be.properties.set('TEAM_SEEDED', '1');
+    be.properties.set('TEAM_SEEDED', '1'); be.properties.set('TEAM_SEEDED2', '1');
     be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
     const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
     const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });

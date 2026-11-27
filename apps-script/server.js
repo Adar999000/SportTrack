@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.9.0';
+const SERVER_VERSION = '5.9.1';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -1894,7 +1894,26 @@ function peopleIndex() {
 }
 
 /** A few welcome posts from the team, written once, so the feed explains itself. */
+const TEAM_IMAGE_POSTS = [
+  ['run', 'ריצה ראשונה? 5 טיפים מהצוות 🏃 מתחילים לאט, ו-20 דקות זה מספיק. מקליטים עם GPS במסך "התקדמות" ורואים איך משתפרים משבוע לשבוע.'],
+  ['lunch', 'צהריים בריא ב-10 דקות 🥗 חצי צלחת ירקות, רבע חלבון, רבע פחמימה מלאה. ואחרי זה V בטבלה.'],
+  ['challenge', 'אתגר השבוע: 3 אימונים 🏆 כל אימון נחשב. רוצים לעשות את זה ביחד? בקהילה ← אתגרים ← "יעד קבוצתי".'],
+  ['water', 'שותים מספיק? 💧 8 כוסות ביום. טריק: כוס מים מיד כשקמים. אפשר להוסיף מעקב "גוף ונפש" בהתאמה אישית של הטבלה.'],
+  ['sleep', 'שינה היא חלק מהאימון 😴 7 שעות ומעלה, שעה קבועה, ומסכים כבויים חצי שעה לפני.'],
+  ['new', 'חדש באפליקציה ✨ סטורי מהגלריה עם נתוני האימון, יעד קבוצתי, Spotify בזמן אימון ומשימות לשבוע הראשון. ספרו לנו מה אהבתם!'],
+];
+
+/** A second batch of team posts, each with a designed image shipped with the app (team/<id>.webp). */
+function ensureTeamImagePosts() {
+  if (props().getProperty('TEAM_SEEDED2')) return;
+  props().setProperty('TEAM_SEEDED2', '1');
+  const now = Date.now();
+  const rowsNew = TEAM_IMAGE_POSTS.map((x, i) => [Utilities.getUuid().slice(0, 10), TEAM_ID, new Date(now - (TEAM_IMAGE_POSTS.length - i) * 60000).toISOString(), 'all', 'text', x[1], JSON.stringify({ image: 'team/' + x[0] + '.webp' }), '', '[]', '[]', '[]', 'ok']);
+  withLock(() => appendRows(postsSheet(), rowsNew));
+}
+
 function ensureTeamPosts() {
+  ensureTeamImagePosts();
   if (props().getProperty('TEAM_SEEDED')) return;
   props().setProperty('TEAM_SEEDED', '1');
   const now = Date.now();
@@ -1996,6 +2015,7 @@ function createPost(me, req) {
     dataObj = { title: String(m.title).trim().slice(0, 80), when: when.slice(0, 16), location: String(m.location || '').trim().slice(0, 120),
       sport: EVENT_TYPES.indexOf(m.sport) >= 0 ? m.sport : 'other', going: [me.r[U.id]] };
   }
+  if (dataObj && dataObj.image !== undefined) { dataObj = Object.assign({}, dataObj); delete dataObj.image; } // only the team's shipped images
   if (kind === 'story') dataObj = cleanStory(dataObj || {});
   let data = dataObj ? JSON.stringify(dataObj) : '';
   const asTeam = !!req.asTeam && me.r[U.role] === 'admin';

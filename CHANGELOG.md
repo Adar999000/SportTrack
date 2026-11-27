@@ -1,5 +1,8 @@
 # Changelog
 
+## 5.9.1 (2026-11-27)
+- Six team posts with designed images shipped in `public/team/` (seeded once, `TEAM_SEEDED2`); only team posts may show a `data.image`, and only from `team/*.webp`.
+
 ## 5.9.0 (2026-11-27)
 - Blocking (`blockUser`, `myBlocks`, `hiddenFor`): hides posts, stories, comments and challenge chat both ways; blocked users can't comment on your posts. Report and block from a story's ⋯; reported stories in the admin queue with their photo.
 - First-week quest (`questStatus`, `claimQuest`): meal, weigh-in, workout, full day within 14 days of joining pays 100 coins once, verified on the server.

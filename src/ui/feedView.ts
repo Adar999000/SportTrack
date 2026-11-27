@@ -107,7 +107,9 @@ function postCard(p: Post, reload: () => void): HTMLElement {
     p.kind === 'achievement' && p.data && cardPreview(p.data as Achievement),
     p.kind === 'event' && p.data && eventMini(p.data as CompEvent),
     p.kind === 'meetup' && p.data && meetupCard(p),
-    p.data?.photos?.length > 1 ? postGallery(p.data.photos as string[]) : p.photoId && postPhoto(p.photoId),
+    p.author.team && typeof p.data?.image === 'string' && /^team\/[a-z0-9-]+\.webp$/.test(p.data.image)
+      ? h('img', { class: 'post-photo team-photo', src: p.data.image, alt: p.text.split('\n')[0].slice(0, 120), loading: 'lazy', width: 720, height: 900 })
+      : p.data?.photos?.length > 1 ? postGallery(p.data.photos as string[]) : p.photoId && postPhoto(p.photoId),
     h('footer', { class: 'post-actions' },
       likeBtn,
       h('button', { class: 'post-act', type: 'button', 'aria-label': tr`תגובות (${p.comments.length})`, onclick: () => { comments.hidden = !comments.hidden; if (!comments.hidden) (comments.querySelector('input') as HTMLInputElement)?.focus(); } }, '💬 ', String(p.comments.length)),

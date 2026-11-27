@@ -1877,3 +1877,4 @@ body:not(.is-landing):not(.a11y-inapp) .a11y-btn, body:not(.is-landing):not(.a11
 .team-goal .row-between { gap: 12px; flex-wrap: wrap; }
 .team-bar { background: var(--surface) !important; }
 .team-bar > span { background: var(--accent); }
+.team-photo { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 14px; display: block; }

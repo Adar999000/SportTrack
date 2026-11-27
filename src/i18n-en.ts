@@ -1785,4 +1785,5 @@ export const EN: Record<string, string> = {
   "✉️ פניות": "✉️ Messages",
   "👥 משתמשים": "👥 Users",
   "ביחד: ": "Together: ",
+  "פוסטים רשמיים של הצוות עם תמונות: טיפים לריצה, צהריים בריא, אתגר השבוע, שתייה, שינה וחידושים באפליקציה": "Official team posts with images: running tips, a healthy lunch, the weekly challenge, water, sleep and app news",
 };
