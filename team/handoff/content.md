@@ -30,3 +30,15 @@
   - "ארוחות + ספורט ביום אחד" → "Meals + sport in one day" (F12 proposed label for step 4).
 - Quest step labels that are in code (infinitives, neutral, no feminine form needed): "לסמן ארוחה ראשונה", "להזין משקל התחלתי", "לסמן אימון ראשון", "לסגור יום מלא".
 - Request to frontend (owns `src/ui/questCard.ts`): add the coin line under the claim button, and use the step-4 label above if F12 is applied.
+
+## Chief answers applied (6.3.0 merge)
+- "חד"כ" → "Gym" (chief confirmed; already in the merged file).
+- Password minimum is 8 (MIN_PASSWORD). EN values for the 6-character keys now read "8 characters". Those Hebrew keys are no longer used in code; only the English values changed.
+- "כובה אימות דו-שלבי" keeps its key; the English value reads "Two-step verification turned off".
+
+## T27 (help center as Q&A, bilingual)
+- Merged the release branch into `team/content` (conflict in `src/i18n-en.ts` resolved; the two new entries are kept once).
+- `docs/help.md` rewritten as Q&A: question as a `###` heading, 1–3 sentence answer. Sections match the app's tabs.
+- `docs/help.en.md` added: natural English version with the same questions and order.
+- Claims checked against code: training plans (`src/plans.ts`: run5k and home3, 8 weeks, 3 sessions a week; a missed day waits for the next training day), email verification gate (`apps-script/server.js` `requireVerified`, on by default, admin can switch off), blocking (`blockUser`), offline posts (`src/outbox.ts`: queued in IndexedDB, max 20, sent when back online or on next open).
+- For frontend later: render the Q&A from these files (one `###` per item).
