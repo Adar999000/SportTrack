@@ -21,3 +21,12 @@
 - Lowercase English values are intentional where they are used mid-sentence or as units ("cleared", "empty", "locked", "hours", "steps", "glasses", "workouts", "runs", "meals", "days", "posted a story: 8.1 km" after a name). Do not capitalize them.
 - The Hebrew key "שפה / Language" keeps its bilingual value on purpose.
 - Feminine forms only apply when the user picked "אישה" in the profile. Some admin-only strings (e.g., "שאל את העוזר...", "אשר", "עדכני את השרת") got feminine forms too; harmless for admins of any gender.
+
+## T16 (quest and onboarding copy)
+- Merged `origin/claude/personal-discipline-pwa-13qhdk` into `team/content` first.
+- Only one new Hebrew key came in with the merge ("התאמה"), already covered. The T8–T12 and T14 strings are not in the code yet, so there was nothing new to translate.
+- Added EN entries (not yet used in code, so the missing check is unaffected):
+  - "מטבעות קונים סקינים, צבעים ודמויות בחנות" → "Coins buy skins, colors and characters in the store" (6 Hebrew words, F14 coin line; put it under the quest claim button in `src/ui/questCard.ts`).
+  - "ארוחות + ספורט ביום אחד" → "Meals + sport in one day" (F12 proposed label for step 4).
+- Quest step labels that are in code (infinitives, neutral, no feminine form needed): "לסמן ארוחה ראשונה", "להזין משקל התחלתי", "לסמן אימון ראשון", "לסגור יום מלא".
+- Request to frontend (owns `src/ui/questCard.ts`): add the coin line under the claim button, and use the step-4 label above if F12 is applied.

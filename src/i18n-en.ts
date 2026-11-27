@@ -1912,4 +1912,6 @@ export const EN: Record<string, string> = {
   "הכפתורים מתחת לטבלה (הערה, תמונה, נעילת שבוע, התאמה) עם אייקונים ברורים במקום טקסט ואימוג׳י": "The buttons under the table (note, photo, lock week, customize) now have clear icons instead of text and emoji",
   "התאמה": "Customize",
   "לוח תוכן של הצוות: כרטיס טיפ חדש בפיד כל 3 ימים (מתיחות, חלבון, צעדים, סוף שבוע, חימום, אכילה מודעת)": "Team content calendar: a new tip card in the feed every 3 days (stretching, protein, steps, weekends, warm-up, mindful eating)",
+  "מטבעות קונים סקינים, צבעים ודמויות בחנות": "Coins buy skins, colors and characters in the store",
+  "ארוחות + ספורט ביום אחד": "Meals + sport in one day",
 };
