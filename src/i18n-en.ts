@@ -1909,4 +1909,6 @@ export const EN: Record<string, string> = {
   "דף הנחיתה מעודכן לאפליקציה של היום: הדגמה חיה של מסך \"היום\", החנות והרמות הנכונות, שלושת הצעדים מההרשמה, וקהילה בטוחה": "The landing page now matches today's app: a live demo of the \"Today\" screen, the right store and levels, the three sign-up steps, and a safe community",
   "קישור קבוע לדף ההסבר: /#about, גם למי שמחובר (וב\"אני\" ← \"על האפליקציה\")": "A permanent link to the explainer page: /#about, also when signed in (and under \"Me\" → \"About the app\")",
   "הכפתור של העוזר נשאר בדיוק איפה שמשאירים אותו, ולא קופץ לצד ימין": "The assistant button stays exactly where you leave it and no longer jumps to the side",
+  "הכפתורים מתחת לטבלה (הערה, תמונה, נעילת שבוע, התאמה) עם אייקונים ברורים במקום טקסט ואימוג׳י": "The buttons under the table (note, photo, lock week, customize) now have clear icons instead of text and emoji",
+  "התאמה": "Customize",
 };

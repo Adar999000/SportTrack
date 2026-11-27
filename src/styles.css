@@ -1914,3 +1914,13 @@ body:not(.is-landing):not(.a11y-inapp) .a11y-btn, body:not(.is-landing):not(.a11
 .mock-story > span:nth-child(2) { flex: 1; }
 .mock-five { font-size: 18px; }
 .hero-visual .chip-b { bottom: auto; top: 44%; }
+/* actions under the week table: icon buttons, not text links */
+.mini-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 8px; margin-top: 14px; }
+.mini-actions .inline-photo { display: contents; }
+.mini-act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 60px; padding: 8px 6px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); color: var(--text); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; transition: transform .1s, background .15s; }
+.mini-act svg { width: 20px; height: 20px; }
+.mini-act:hover { border-color: var(--accent); }
+.mini-act:active { transform: scale(.96); }
+.mini-act.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.mini-act span { line-height: 1.2; text-align: center; }

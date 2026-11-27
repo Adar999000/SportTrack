@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.1.3 (2026-11-27)
+- Week actions under the table are icon buttons (note, photo, lock/unlock with pressed state, customize) instead of text links and a lock emoji.
+
 ## 6.1.2 (2026-11-27)
 - Fix: the floating assistant button jumped to the right after dragging (in RTL, resetting `inset-inline-end` after setting `left` cleared it). No more snapping to a side; a spot the user chose is never auto-tucked.
 
