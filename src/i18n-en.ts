@@ -511,7 +511,7 @@ export const EN: Record<string, string> = {
   "חבר הצטרף": "A friend joined",
   "חבר השלים שבוע ראשון": "A friend completed a first week",
   "חבר נרשם בקישור שלך · משלים שבוע ראשון": "A friend signs up with your link · completes a first week",
-  "חד\"כ": "Functional training",
+  "חד\"כ": "Gym",
   "חדש": "New",
   "חודש": "Month",
   "חודש של אימונים": "Month of workouts",
@@ -1976,4 +1976,7 @@ export const EN: Record<string, string> = {
   "שכיבות סמיכה (אפשר על הברכיים)": "Push-ups (on your knees is fine)",
   "תוכניות אימון": "Training plans",
   "תוכנית האימון שלי": "My training plan",
+  "תוכניות אימון מוכנות: \"ריצה ראשונה: 5 ק\"מ ב-8 שבועות\" ו\"כוח בבית\". בוחרים ימים, האימון של היום מופיע במסך \"היום\", וסימון ממלא את שורת הספורט": "Ready-made training plans: \"First run: 5 km in 8 weeks\" and \"Home strength\". Pick your days, today's session appears on \"Today\", and marking it fills the sport row",
+  "שיפורי ניסוח באנגלית ועוד עשרות צורות לשון נקבה": "Better English wording and dozens more feminine forms",
+  "מרכז עזרה בעברית": "A help center in Hebrew",
 };
