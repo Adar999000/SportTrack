@@ -232,7 +232,7 @@ export function renderSettings(root: HTMLElement): void {
         h('label', null, t('מדריכי היכרות')),
         h('button', { class: 'btn', type: 'button', onclick: () => { resetTours(); toast(t('המדריכים יוצגו שוב בכל מסך')); location.hash = '#week'; } }, t('הצג שוב')),
       ),
-      h('p', { class: 'credit' }, h('a', { href: '#accessibility' }, t('הצהרת נגישות')), ' · ', h('a', { href: '#privacy' }, t('מדיניות פרטיות'))),
+      h('p', { class: 'credit' }, h('a', { href: '#accessibility' }, t('הצהרת נגישות')), ' · ', h('a', { href: '#privacy' }, t('מדיניות פרטיות')), ' · ', h('a', { href: '#terms' }, t('תנאי שימוש'))),
       h('p', { class: 'credit' }, t('פותח על ידי'), ' ', h('strong', null, 'AZ Creative')),
     ),
   );

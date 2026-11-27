@@ -237,7 +237,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
     h('footer', { class: 'landing-foot' },
       h('div', null, `${t('משמעת אישית')} · v${APP_VERSION}`),
       h('nav', { class: 'foot-links', 'aria-label': t('מידע משפטי') },
-        h('a', { href: '#accessibility' }, t('הצהרת נגישות')), ' · ', h('a', { href: '#privacy' }, t('מדיניות פרטיות'))),
+        h('a', { href: '#accessibility' }, t('הצהרת נגישות')), ' · ', h('a', { href: '#privacy' }, t('מדיניות פרטיות')), ' · ', h('a', { href: '#terms' }, t('תנאי שימוש'))),
       h('div', { class: 'credit' }, t('פותח על ידי'), ' ', h('strong', null, 'AZ Creative')),
     ),
     sticky,

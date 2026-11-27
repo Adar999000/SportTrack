@@ -111,7 +111,8 @@ function openDuelChat(d: Duel): void {
   const body = h('div', { class: 'stack duel-chat' }, log, form);
   draw();
   load();
-  const timer = setInterval(() => { if (!body.isConnected) clearInterval(timer); else load(); }, 8000);
+  // every 8 s while the chat is open and visible; nothing in the background (keeps the server light)
+  const timer = setInterval(() => { if (!body.isConnected) clearInterval(timer); else if (!document.hidden) load(); }, 8000);
   openSheet(tr`צ'אט: ${d.title}`, body);
   setTimeout(() => input.focus(), 100);
 }

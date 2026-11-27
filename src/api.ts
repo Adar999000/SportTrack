@@ -21,6 +21,7 @@ export interface User {
   photoId: string | null;
   profile: UserProfile;
   twoFactor?: boolean;
+  emailVerified?: boolean;
 }
 
 export interface AdminUserRow extends Omit<User, 'profile'> {
@@ -61,6 +62,7 @@ export class AuthError extends Error {}
 
 let token: string | null = null;
 export const setToken = (t: string | null) => (token = t);
+export const getToken = () => token;
 export const hasBackend = () => !!API_URL;
 
 /** POST as text/plain so the browser sends a "simple" request (no CORS preflight). */
@@ -84,6 +86,7 @@ export async function call<T = any>(action: string, payload: Record<string, unkn
   if (data?.error) {
     const msg = tServer(String(data.error));
     if (String(data.error).startsWith('AUTH:')) throw new AuthError(tServer(String(data.error).slice(5).trim()));
+    if (String(data.error).startsWith('VERIFY:')) { dispatchEvent(new Event('need-verify')); throw new Error(tServer(String(data.error).slice(7).trim())); }
     throw new Error(msg);
   }
   return data as T;

@@ -211,6 +211,26 @@ interface AdminSettings {
   config: { a11yName: string; a11yPhone: string; a11yEmail: string; spotifyClientId?: string };
   ai: { month: string; spend: number; budget: number };
   backups: { id: string; name: string; at: string }[];
+  mail?: { left: number; reserve: number; skippedToday: number };
+  verifyPosting?: boolean;
+}
+
+interface ErrGroup { message: string; count: number; last: string; versions: string[]; screens: string[]; users: number; stack: string; agent: string }
+/** Errors users hit on their devices in the last 14 days, grouped by message. */
+function errorsCard(): HTMLElement {
+  const body = h('div', { class: 'stack' }, h('p', { class: 'muted' }, t('טוען…')));
+  const det = h('details', { class: 'admin-errors' }, h('summary', { class: 'card-title' }, t('תקלות אצל משתמשים (14 ימים)')), body);
+  let loaded = false;
+  det.addEventListener('toggle', () => {
+    if (!det.open || loaded) return;
+    loaded = true;
+    call<{ errors: ErrGroup[] }>('adminErrors').then(({ errors }) => body.replaceChildren(...(errors.length ? errors.map((e) => h('details', { class: 'err-row' },
+      h('summary', null, h('strong', null, `${e.count}×`), ' ', e.message, h('span', { class: 'muted small' }, ` · ${e.users} ${t('משתמשים')} · ${String(e.last).replace('T', ' ').slice(0, 16)}`)),
+      h('p', { class: 'muted small', dir: 'ltr' }, `v${e.versions.join(', ')} · ${e.screens.join(', ')}`),
+      h('pre', { class: 'err-stack', dir: 'ltr' }, e.stack), h('p', { class: 'muted small', dir: 'ltr' }, e.agent)))
+      : [h('p', { class: 'muted' }, t('אין תקלות. 🎉'))]))).catch((er) => body.replaceChildren(h('p', { class: 'form-error' }, er.message)));
+  });
+  return h('section', { class: 'card' }, det);
 }
 
 function settingsCard(): HTMLElement {
@@ -227,6 +247,12 @@ function settingsCard(): HTMLElement {
       h('h3', { class: 'section-title' }, t('מוזיקה (Spotify)')),
       f('spotify-id', t('Client ID של אפליקציית Spotify'), s.config.spotifyClientId ?? '', { dir: 'ltr', autocomplete: 'off', spellcheck: false }),
       h('p', { class: 'hint' }, t('יוצרים אפליקציה ב-developer.spotify.com, מוסיפים Redirect URI זהה לכתובת האתר, ומדביקים כאן את ה-Client ID (לא את ה-Secret).')),
+      h('h3', { class: 'section-title' }, t('הגנה מספאם')),
+      h('label', { class: 'consent' }, h('input', { type: 'checkbox', id: 'verify-posting', checked: s.verifyPosting !== false }), h('span', null, t('לדרוש אימות מייל לפני פרסום, תגובות ואתגרים (מומלץ)'))),
+      s.mail ? h('div', { class: 'mail-quota' + (s.mail.left >= 0 && s.mail.left <= s.mail.reserve ? ' low' : '') },
+        h('strong', null, t('מיילים שנשארו היום: ')), s.mail.left < 0 ? t('לא ידוע') : String(s.mail.left),
+        s.mail.skippedToday ? h('span', { class: 'muted small' }, ' · ', tr`${s.mail.skippedToday} לא נשלחו היום`) : '',
+        h('p', { class: 'hint' }, t('בחשבון Gmail רגיל אפשר כ-100 מיילים ביום. כשנשארים 20, נשלחים רק קודי כניסה, איפוס ואימות.'))) : '',
       h('h3', { class: 'section-title' }, t('תקציב עוזר AI לחודש')),
       h('div', { class: 'bar', role: 'progressbar', 'aria-label': t('ניצול התקציב החודשי'), 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { style: { width: pct + '%' } })),
       h('p', { class: 'hint' }, t('נוצלו ${0} מתוך ${1} ב-{2}. כשמגיעים לתקרה העוזר נעצר עד החודש הבא.').replace('{0}', s.ai.spend.toFixed(2)).replace('{1}', String(s.ai.budget)).replace('{2}', s.ai.month)),
@@ -237,7 +263,7 @@ function settingsCard(): HTMLElement {
       e.preventDefault();
       const v = (id: string) => (form.querySelector('#' + id) as HTMLInputElement).value;
       try {
-        draw(await call<AdminSettings>('setSiteConfig', { a11yName: v('a11y-name'), a11yPhone: v('a11y-phone'), a11yEmail: v('a11y-email'), spotifyClientId: v('spotify-id'), aiBudget: Number(v('ai-budget')) }));
+        draw(await call<AdminSettings>('setSiteConfig', { a11yName: v('a11y-name'), a11yPhone: v('a11y-phone'), a11yEmail: v('a11y-email'), spotifyClientId: v('spotify-id'), verifyPosting: (form.querySelector('#verify-posting') as HTMLInputElement).checked, aiBudget: Number(v('ai-budget')) }));
         toast(t('נשמר'));
       } catch (ex: any) { toast(ex.message); }
     });
@@ -332,6 +358,7 @@ export function renderAdmin(root: HTMLElement): void {
     analyticsCard(),
     serverCard(),
     settingsCard(),
+    errorsCard(),
     communityCard(),
     auditCard(Object.fromEntries((usersCache ?? []).map((u) => [u.userId, u.name]))),
     h('section', { class: 'card stack' },

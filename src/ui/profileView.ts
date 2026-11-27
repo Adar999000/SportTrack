@@ -23,6 +23,30 @@ function age(birth?: string): number | null {
 }
 
 /** First-time setup and later edits of name, photo and personal details. */
+/** Verify the email with a 6-digit code (needed to post in the community). */
+function verifyCard(): HTMLElement | '' {
+  const u = currentUser();
+  if (!u || u.emailVerified !== false) return '';
+  const body = h('div', { class: 'stack' });
+  const askCode = () => {
+    const input = h('input', { class: 'input', id: 'verify-code', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, dir: 'ltr', placeholder: '123456' }) as HTMLInputElement;
+    body.replaceChildren(
+      h('p', { class: 'muted' }, tr`שלחנו קוד בן 6 ספרות ל-${u.email}. אם לא הגיע, בדקו בספאם.`),
+      h('div', { class: 'field' }, h('label', { for: 'verify-code' }, t('קוד אימות')), input),
+      h('div', { class: 'row-btns two' },
+        h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
+          try { const r = await call<{ user: User }>('verifyEmail', { code: input.value }); await setUser(r.user); toast(t('המייל אומת ✓')); navigate(HASH.profile); } catch (e: any) { toast(e.message); }
+        } }, t('אימות')),
+        h('button', { class: 'btn', type: 'button', onclick: send }, t('שליחה מחדש'))));
+    input.focus();
+  };
+  const send = async () => { try { await call('sendVerifyCode'); askCode(); } catch (e: any) { toast(e.message); } };
+  body.replaceChildren(
+    h('p', null, t('כדי לפרסם בקהילה, להגיב ולפתוח אתגרים צריך לאמת את כתובת המייל. זה לוקח 20 שניות ושומר על הקהילה בלי חשבונות מזויפים.')),
+    h('button', { class: 'btn btn-primary', type: 'button', onclick: send }, t('שליחת קוד למייל')));
+  return h('section', { class: 'card verify-card', 'aria-label': t('אימות מייל') }, h('h2', { class: 'card-title' }, '✉️ ', t('אימות מייל')), body);
+}
+
 export function renderProfileForm(root: HTMLElement, onboarding: boolean): void {
   const u = currentUser()!;
   const p = u.profile ?? {};
@@ -206,13 +230,14 @@ export function renderProfile(root: HTMLElement): void {
       ),
       h('button', { class: 'btn', onclick: go(HASH.profileEdit) }, t('עריכה')),
     ),
+    verifyCard(),
     h('section', { class: 'card menu-list' },
       menuItem('coin', t('מטבעות וחנות'), t('אתגרים אישיים, רמות וחנות'), go(HASH.rewards)),
       menuItem('feed', t('קהילה ואתגרים'), t('פיד, אתגרים עם חברים ותחרויות'), go(HASH.feed)),
       menuItem('music', t('מוזיקה'), t('Spotify ו-Apple Music לאימונים'), go(HASH.music)),
       menuItem('star', t('המטרות שלי'), t('מה חשוב לך, והאפליקציה מתאימה את עצמה'), go(HASH.goals)),
       menuItem(mascot(34, 'mi-mascot'), t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),
-      menuItem('info', t('פנייה למנהל'), t('שאלה, בעיה או הצעה'), () => openAssistant('support')),
+      menuItem('info', t('מצאתי באג / יש לי רעיון'), t('אנחנו בבטא: כל הערה עוזרת ומגיעה ישר למנהל'), () => openAssistant('support')),
       menuItem('mail', t('הזמנת חברים'), t('קישור אישי, ומטבעות לשניכם'), go(HASH.share)),
       menuItem('access', t('נגישות'), t('גודל טקסט, ניגודיות, עצירת אנימציות'), () => openAccessibility()),
       menuItem('settings', t('הגדרות'), t('תצוגה, תזכורות, ייבוא וגיבוי'), go(HASH.settings)),

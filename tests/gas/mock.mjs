@@ -55,6 +55,7 @@ export function createBackend({ openaiReply = 'תשובה לדוגמה', now, lo
   };
   const files = new Map();
   const properties = new Map();
+  properties.set('VERIFY_POSTING', '0'); // tests opt in to email verification explicitly
   const cache = new Map();
   const fetches = [];
   const backups = [];

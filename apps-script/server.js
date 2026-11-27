@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '6.0.0';
+const SERVER_VERSION = '6.1.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -31,6 +31,7 @@ const W = { user: 0, sunday: 1, weight: 2, workouts: 3, meals: 4, photo: 5, upda
 // ------------------------------------------------------------------ entry points
 
 function doPost(e) {
+  if (!props().getProperty('VERIFY_SINCE')) props().setProperty('VERIFY_SINCE', new Date().toISOString()); // accounts before this are grandfathered
   let out;
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
@@ -59,6 +60,7 @@ function route(req) {
   if (a === 'status') return { ok: true, hasUsers: sheet('Users').getLastRow() > 1, serverVersion: SERVER_VERSION };
   if (a === 'requestReset') return requestReset(req);
   if (a === 'confirmReset') return confirmReset(req);
+  if (a === 'clientError') { let who = null; try { who = req.token ? auth(req.token) : null; } catch (e) { /* signed out */ } return clientError(req, who); }
 
   const me = auth(req.token);
   touch(me);
@@ -72,6 +74,7 @@ function route(req) {
     case 'deleteAccount': return deleteAccount(me, req);
     case 'adminSettings': requireAdmin(me); return adminSettings();
     case 'setSiteConfig': requireAdmin(me); return setSiteConfig(me, req);
+    case 'adminErrors': requireAdmin(me); return adminErrors();
     case 'backupNow': requireAdmin(me); return { backup: backupNow() };
     case 'getWeeks': return { weeks: weeksOf(me.r[U.id], Number(req.since) || 0) };
     case 'putWeeks': return putWeeks(me, req.weeks || []);
@@ -90,6 +93,8 @@ function route(req) {
     case 'createPost': return createPost(me, req);
     case 'stories': return stories(me);
     case 'league': return league(me);
+    case 'sendVerifyCode': return sendVerifyCode(me);
+    case 'verifyEmail': return verifyEmail(me, req);
     case 'blockUser': return blockUser(me, req);
     case 'questStatus': return questStatus(me);
     case 'claimQuest': return claimQuest(me);
@@ -292,7 +297,82 @@ function publicUser(u) {
     createdAt: u.r[U.created], lastSeen: u.r[U.seen], photoId: u.r[U.photo] || null,
     profile: parseJSON(u.r[U.profile], {}),
     twoFactor: twoFactorOn(u.r),
+    emailVerified: emailVerified(u.r),
   };
+}
+
+/** Accounts from before verification existed count as verified. */
+function emailVerified(r) {
+  const x = extraOf(r);
+  if (x.emailVerified) return true;
+  const since = props().getProperty('VERIFY_SINCE');
+  return !!since && String(r[U.created]) < since;
+}
+function verifyRequired() { return props().getProperty('VERIFY_POSTING') !== '0'; }
+/** Community actions need a verified email (spam and fake accounts). Admins are exempt. */
+function requireVerified(me) {
+  if (!verifyRequired() || me.r[U.role] === 'admin' || emailVerified(me.r)) return;
+  throw new Error('VERIFY: כדי לפרסם בקהילה צריך לאמת את כתובת המייל. שלחנו קוד במסך "אני".');
+}
+
+function sendVerifyCode(me) {
+  if (emailVerified(me.r)) return { ok: true, verified: true };
+  const cache = CacheService.getScriptCache();
+  const key = 'ver-' + me.r[U.id];
+  const prev = parseJSON(cache.get(key), null);
+  if (prev && Date.now() - prev.sent < 60 * 1000) return { ok: true };
+  dailyCount('ver-mail-' + me.r[U.id], 5, 'נשלחו כבר 5 קודים היום. נסו שוב מחר.');
+  const code = (Utilities.getUuid().replace(/\D/g, '') + String(Math.random()).slice(2)).slice(0, 6);
+  const salt = Utilities.getUuid();
+  cache.put(key, JSON.stringify({ h: hashPassword(code, salt), salt: salt, sent: Date.now(), tries: 0 }), 30 * 60);
+  if (!safeMail(me.r[U.email], 'קוד אימות · משמעת אישית', 'שלום ' + me.r[U.name] + ',\n\nקוד האימות שלך: ' + code + '\n\nהקוד בתוקף ל-30 דקות.', true)) throw new Error('לא הצלחנו לשלוח מייל כרגע. נסו שוב מאוחר יותר.');
+  return { ok: true };
+}
+
+function verifyEmail(me, req) {
+  const cache = CacheService.getScriptCache();
+  const key = 'ver-' + me.r[U.id];
+  const v = parseJSON(cache.get(key), null);
+  if (!v) throw new Error('הקוד פג. שלחו קוד חדש.');
+  if (v.tries >= 5) { cache.remove(key); throw new Error('יותר מדי ניסיונות. שלחו קוד חדש.'); }
+  if (hashPassword(String(req.code || '').trim(), v.salt) !== v.h) {
+    v.tries++; cache.put(key, JSON.stringify(v), 30 * 60);
+    throw new Error('הקוד לא נכון');
+  }
+  cache.remove(key);
+  setExtra(me, { emailVerified: true });
+  audit(me.r[U.id], 'email_verified', '');
+  return { user: publicUser(me) };
+}
+
+// ------------------------------------------------------------------ client errors (no personal data)
+
+function errorsSheet() { return lazySheet('Errors', ['at', 'version', 'screen', 'message', 'stack', 'agent', 'userId']); }
+function clientError(req, me) {
+  const cache = CacheService.getScriptCache();
+  const hour = 'err-' + new Date().toISOString().slice(0, 13);
+  const n = Number(cache.get(hour)) || 0;
+  if (n >= 500) return { ok: true }; // a flood: keep the sheet small
+  cache.put(hour, String(n + 1), 3700);
+  const clip = (x, k) => String(x || '').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]').slice(0, k);
+  withLock(() => {
+    const sh = errorsSheet();
+    appendRows(sh, [[new Date().toISOString(), clip(req.version, 20), clip(req.screen, 40), clip(req.message, 300), clip(req.stack, 900), clip(req.agent, 160), me ? me.r[U.id] : '']]);
+    if (sh.getLastRow() > 3000) sh.deleteRows(2, 1000);
+  });
+  return { ok: true };
+}
+function adminErrors() {
+  const since = new Date(Date.now() - 14 * 864e5).toISOString();
+  const groups = {};
+  allRows(errorsSheet(), 7).filter((r) => String(r[0]) >= since).forEach((r) => {
+    const k = String(r[3]);
+    const g = groups[k] || (groups[k] = { message: k, count: 0, last: '', versions: {}, screens: {}, users: {}, stack: String(r[4]), agent: String(r[5]) });
+    g.count++; if (String(r[0]) > g.last) g.last = String(r[0]);
+    g.versions[r[1]] = 1; g.screens[r[2]] = 1; if (r[6]) g.users[r[6]] = 1;
+  });
+  return { errors: Object.keys(groups).map((k) => groups[k]).map((g) => Object.assign(g, { versions: Object.keys(g.versions), screens: Object.keys(g.screens), users: Object.keys(g.users).length }))
+    .sort((a, b) => b.last.localeCompare(a.last)).slice(0, 50) };
 }
 
 function touch(u) {
@@ -336,7 +416,7 @@ function register(req) {
   const cacheR = CacheService.getScriptCache();
   const hourKey = 'reg-' + new Date().toISOString().slice(0, 13);
   const regs = Number(cacheR.get(hourKey)) || 0;
-  if (regs >= 30) throw new Error('יותר מדי הרשמות בשעה האחרונה. נסו שוב מאוחר יותר.');
+  if (regs >= (Number(props().getProperty('REG_PER_HOUR')) || 300)) throw new Error('יותר מדי הרשמות בשעה האחרונה. נסו שוב מאוחר יותר.');
   cacheR.put(hourKey, String(regs + 1), 3700);
 
   return withLock(() => {
@@ -362,7 +442,7 @@ function register(req) {
     const salt = Utilities.getUuid();
     const now = new Date().toISOString();
     appendRows(sheet('Users'), [[id, email, name, first ? 'admin' : 'user', 'v2$' + hashPassword(password, salt, HASH_ROUNDS_V2), salt, now, now, '', '{}',
-      JSON.stringify(invitedBy ? { invitedBy: invitedBy } : {})]]);
+      JSON.stringify(Object.assign(invitedBy ? { invitedBy: invitedBy } : {}, req.terms ? { consentAt: new Date().toISOString(), consent: 'terms+age16' } : {}))]]);
     if (inviteRow) sheet('Invites').getRange(inviteRow, 3, 1, 2).setValues([[email, now]]);
     const u = findUser((r) => r[U.id] === id);
     audit(id, 'register', invitedBy ? 'invited' : '');
@@ -399,10 +479,7 @@ function login(req) {
     const challenge = Utilities.getUuid();
     const salt = Utilities.getUuid();
     cache.put('2fa-' + challenge, JSON.stringify({ uid: u.r[U.id], h: hashPassword(code, salt), salt: salt, tries: 0 }), 600);
-    MailApp.sendEmail({
-      to: email, name: 'משמעת אישית', subject: 'קוד כניסה · משמעת אישית',
-      body: 'קוד הכניסה שלך: ' + code + '\n\nהקוד בתוקף ל-10 דקות. אם לא ניסית להיכנס, מומלץ להחליף סיסמה.',
-    });
+    if (!safeMail(email, 'קוד כניסה · משמעת אישית', 'קוד הכניסה שלך: ' + code + '\n\nהקוד בתוקף ל-10 דקות. אם לא ניסית להיכנס, מומלץ להחליף סיסמה.', true)) throw new Error('לא הצלחנו לשלוח את קוד הכניסה כרגע. נסו שוב בעוד כמה דקות.');
     audit(u.r[U.id], '2fa_sent', '');
     return { needCode: true, challenge: challenge, email: email.replace(/^(.).*(@.*)$/, '$1***$2') };
   }
@@ -494,6 +571,7 @@ function requestReset(req) {
   const salt = Utilities.getUuid();
   cache.put(key, JSON.stringify({ h: hashPassword(code, salt), salt: salt, sent: Date.now(), tries: 0 }), RESET_MINUTES * 60);
   audit(u.r[U.id], 'reset_request', '');
+  try { if (MailApp.getRemainingDailyQuota() <= 0) throw new Error('quota'); } catch (e) { bumpMailSkipped(); throw new Error('לא הצלחנו לשלוח מייל כרגע (מכסת המיילים היומית נגמרה). נסו שוב מחר או פנו למנהל.'); }
   MailApp.sendEmail({
     to: email,
     subject: 'קוד לאיפוס סיסמה · משמעת אישית',
@@ -1280,8 +1358,27 @@ function msgOut(r) {
   return { id: r[M.id], at: r[M.at], from: r[M.from], subject: r[M.subject], text: r[M.text], status: r[M.status] };
 }
 
-function safeMail(to, subject, body) {
-  try { MailApp.sendEmail({ to: to, subject: subject, body: body, name: 'משמעת אישית' }); } catch (e) { /* quota or permission: the message is still saved */ }
+/**
+ * Gmail sends ~100 script emails a day on a free account. Codes (sign-in, password reset, verification)
+ * are critical and always try; everything else stops when 20 are left, so codes still get through.
+ */
+const MAIL_RESERVE = 20;
+function safeMail(to, subject, body, critical) {
+  try {
+    const left = MailApp.getRemainingDailyQuota();
+    if (left <= 0 || (!critical && left <= MAIL_RESERVE)) { bumpMailSkipped(); return false; }
+    MailApp.sendEmail({ to: to, subject: subject, body: body, name: 'משמעת אישית' });
+    return true;
+  } catch (e) { bumpMailSkipped(); return false; }
+}
+function bumpMailSkipped() {
+  const k = 'MAIL_SKIPPED_' + new Date().toISOString().slice(0, 10);
+  props().setProperty(k, String((Number(props().getProperty(k)) || 0) + 1));
+}
+function mailStatus() {
+  let left = -1;
+  try { left = MailApp.getRemainingDailyQuota(); } catch (e) { /* no permission yet */ }
+  return { left: left, reserve: MAIL_RESERVE, skippedToday: Number(props().getProperty('MAIL_SKIPPED_' + new Date().toISOString().slice(0, 10))) || 0 };
 }
 
 /** A user's question or request to the admin. The admin gets an email. */
@@ -1364,6 +1461,7 @@ function publicSiteConfig() {
 function setSiteConfig(me, req) {
   const c = siteConfig();
   ['a11yName', 'a11yPhone', 'a11yEmail'].forEach((k) => { if (typeof req[k] === 'string') c[k] = req[k].trim().slice(0, 120); });
+  if (typeof req.verifyPosting === 'boolean') props().setProperty('VERIFY_POSTING', req.verifyPosting ? '1' : '0');
   if (typeof req.spotifyClientId === 'string') {
     const id = req.spotifyClientId.trim();
     if (id && !/^[a-f0-9]{32}$/.test(id)) throw new Error('מזהה Spotify צריך להיות 32 תווים (Client ID)');
@@ -1384,6 +1482,8 @@ function adminSettings() {
     config: publicSiteConfig(),
     ai: { month: new Date().toISOString().slice(0, 7), spend: Math.round(aiSpend() * 10000) / 10000, budget: aiBudget() },
     backups: listBackups().slice(0, 5),
+    mail: mailStatus(),
+    verifyPosting: verifyRequired(),
   };
 }
 
@@ -1748,6 +1848,14 @@ function lazySheet(name, header) {
   return sh;
 }
 
+/** Only the newest `max` rows: the feed and stories never need older posts, and reading less keeps big sheets fast. */
+function tailRows(sh, width, max) {
+  const n = sh.getLastRow();
+  if (n < 2) return [];
+  const from = Math.max(2, n - max + 1);
+  return sh.getRange(from, 1, n - from + 1, width).getValues().map((r) => r.map(cell));
+}
+
 function allRows(sh, width) {
   const n = sh.getLastRow();
   return n < 2 ? [] : sh.getRange(2, 1, n - 1, width).getValues().map((r) => r.map(cell));
@@ -1957,7 +2065,7 @@ function stories(me) {
   const friends = friendsOf(uid, users);
   const hidden = hiddenFor(uid, users);
   const since = new Date(Date.now() - STORY_MS).toISOString();
-  const live = allRows(postsSheet(), POST_W)
+  const live = tailRows(postsSheet(), POST_W, 1500)
     .filter((r) => r[P.kind] === 'story' && !hidden[r[P.user]] && String(r[P.at]) >= since && canSeePost(uid, r, friends))
     .sort((a, b) => String(a[P.at]).localeCompare(String(b[P.at])));
   const people = peopleIndex();
@@ -1994,7 +2102,7 @@ function feed(me, req) {
   const hidden = hiddenFor(uid, users);
   const before = String(req.before || '9999');
   const only = String(req.only || '');
-  const list = allRows(postsSheet(), POST_W)
+  const list = tailRows(postsSheet(), POST_W, 4000)
     .filter((r) => r[P.kind] !== 'story' && !hidden[r[P.user]] && String(r[P.at]) < before && canSeePost(uid, r, friends))
     .filter((r) => (only === 'mine' ? r[P.user] === uid : only === 'friends' ? !!friends[r[P.user]] || r[P.user] === uid : true))
     .sort((a, b) => String(b[P.at]).localeCompare(String(a[P.at])))
@@ -2004,6 +2112,7 @@ function feed(me, req) {
 }
 
 function createPost(me, req) {
+  requireVerified(me);
   const text = String(req.text || '').trim().slice(0, 1000);
   const kind = ['text', 'achievement', 'tracker', 'event', 'meetup', 'story'].indexOf(req.kind) >= 0 ? req.kind : 'text';
   let dataObj = req.data && typeof req.data === 'object' ? req.data : null;
@@ -2058,6 +2167,7 @@ function likePost(me, req) {
 }
 
 function commentPost(me, req) {
+  requireVerified(me);
   const text = String(req.text || '').trim().slice(0, 500);
   if (!text) throw new Error('נא לכתוב תגובה');
   dailyCount('cmt-' + me.r[U.id], 60, 'אפשר להגיב עד 60 פעמים ביום');
@@ -2302,6 +2412,7 @@ function myDuels(me) {
 }
 
 function createDuel(me, req) {
+  requireVerified(me);
   let metric = DUEL_METRICS[req.metric] ? req.metric : '';
   if (!metric) throw new Error('נא לבחור על מה מתחרים');
   if (req.team) {
@@ -2581,6 +2692,7 @@ function duelChat(me, id, after) {
 }
 
 function duelSay(me, req) {
+  requireVerified(me);
   const id = String(req.id || '');
   const text = String(req.text || '').trim().slice(0, 500);
   if (!text) throw new Error('נא לכתוב הודעה');

@@ -391,3 +391,33 @@ describe('blocking, first-week quest and group challenges', () => {
     expect(be.post({ action: 'rewards', token: a.token }).rewards.balance).toBe(ba + 50);
   });
 });
+
+describe('launch hardening', () => {
+  it('asks new accounts to verify their email before posting, and lets them verify with a code', () => {
+    const be = createBackend();
+    be.properties.set('TEAM_SEEDED', '1'); be.properties.set('TEAM_SEEDED2', '1');
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    be.properties.set('VERIFY_POSTING', '1');
+    be.properties.set('VERIFY_SINCE', '2000-01-01T00:00:00.000Z');
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה', terms: true });
+    expect(u.user.emailVerified).toBe(false);
+    expect(be.post({ action: 'createPost', token: u.token, text: 'שלום' }).error).toMatch(/^VERIFY:/);
+    be.post({ action: 'sendVerifyCode', token: u.token });
+    const mail = be.mails[be.mails.length - 1];
+    const code = /(\d{6})/.exec(mail.body)![1];
+    expect(be.post({ action: 'verifyEmail', token: u.token, code: '000000' }).error).toMatch(/לא נכון/);
+    expect(be.post({ action: 'verifyEmail', token: u.token, code }).user.emailVerified).toBe(true);
+    expect(be.post({ action: 'createPost', token: u.token, text: 'שלום' }).post.text).toBe('שלום');
+  });
+
+  it('logs client errors without emails and groups them for the admin', () => {
+    const be = createBackend();
+    const adm = be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
+    for (let i = 0; i < 3; i++) be.post({ action: 'clientError', token: u.token, message: 'x is undefined for dana@mail.com', stack: 'at a', version: '6.1.0', screen: '#feed', agent: 'iPhone' });
+    be.post({ action: 'clientError', message: 'other', version: '6.1.0', screen: '#', agent: 'Android' }); // signed out
+    const { errors } = be.post({ action: 'adminErrors', token: adm.token });
+    expect(errors[0].message === 'other' ? errors[1] : errors[0]).toMatchObject({ count: 3, users: 1, message: 'x is undefined for [email]' });
+    expect(be.post({ action: 'adminErrors', token: u.token }).error).toBeTruthy();
+  });
+});

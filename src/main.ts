@@ -33,7 +33,7 @@ import { renderLanding } from './ui/landingView';
 import { initInstall } from './install';
 import { applyA11y } from './a11y';
 import { mountA11yWidget } from './ui/a11yWidget';
-import { renderAccessibility, renderPrivacy } from './ui/legalPages';
+import { renderAccessibility, renderPrivacy, renderTerms } from './ui/legalPages';
 import { mountFloatingChat } from './ui/floatingChat';
 import { maybeStartTour } from './ui/tour';
 import { BADGES, getRewards, levelLabel, loadCachedRewards, onRewards, owns, refreshRewards } from './rewards';
@@ -43,6 +43,7 @@ import { renderMusic } from './ui/musicView';
 import { renderGoals } from './ui/goalsView';
 import { handleSpotifyRedirect } from './music';
 import { initOutbox } from './outbox';
+import { initErrorReporting } from './errorReport';
 setLockedHandler((whole) => toast(whole ? t('השבוע נעול. אפשר לשחרר אותו מתחת לטבלה.') : t('היום נעול. לחיצה על היום בטבלה פותחת אותו לשחרור.')));
 setDayCompleteHandler(() => {
   const today = todayISO();
@@ -147,10 +148,10 @@ function render() {
   const route = parseRoute(location.hash);
 
   const key = location.hash;
-  if (route.name === 'accessibility' || route.name === 'privacy') {
+  if (route.name === 'accessibility' || route.name === 'privacy' || route.name === 'terms') {
     nav.hidden = !currentUser();
     document.body.classList.remove('is-landing');
-    if (key !== lastRoute) { route.name === 'accessibility' ? renderAccessibility(main) : renderPrivacy(main); window.scrollTo(0, 0); lastRoute = key; }
+    if (key !== lastRoute) { route.name === 'accessibility' ? renderAccessibility(main) : route.name === 'terms' ? renderTerms(main) : renderPrivacy(main); window.scrollTo(0, 0); lastRoute = key; }
     return;
   }
   if (hasBackend() && !currentUser()) {
@@ -182,7 +183,7 @@ function render() {
       h('a', { href: tab.hash, class: 'tab', 'aria-current': tab.names.includes(route.name) ? 'page' : undefined },
         h('span', { class: 'tab-icon' }, icon(tab.icon)), h('span', null, t(tab.label))),
     ),
-    h('div', { class: 'nav-version' }, `v${APP_VERSION}`),
+    h('div', { class: 'nav-version' }, `v${APP_VERSION} · `, h('span', { class: 'beta-tag' }, t('בטא'))),
   );
   nav.style.setProperty('--tabs', String(tabs().length));
 
@@ -386,6 +387,8 @@ async function boot() {
   initSwipeTabs();
   initPeeks();
   initOutbox();
+  initErrorReporting();
+  addEventListener('need-verify', () => { if (parseRoute(location.hash).name !== 'profile') setTimeout(() => navigate(HASH.profile), 1200); });
   addEventListener('scroll', () => document.body.classList.toggle('scrolled', scrollY > 4), { passive: true });
   await loadStore();
   await loadDocs();

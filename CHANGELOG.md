@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.1.0 (2026-11-27)
+- Terms of use page (`#terms`) with health disclaimer and minimum age 16; consent checkbox at sign-up, stored as `consentAt` on the account.
+- Email verification (`sendVerifyCode`, `verifyEmail`, `emailVerified` on the user): posting, comments, challenges and challenge chat need a verified email (`VERIFY_POSTING`, admin toggle); accounts created before the first request of this version are grandfathered (`VERIFY_SINCE`).
+- Client error reporting (`clientError`, `adminErrors`, `Errors` sheet capped at 3000 rows, emails masked) with an admin card grouped by message.
+- Mail quota: `safeMail` keeps the last 20 daily emails for codes (sign-in, reset, verification); admin sees emails left and skipped.
+- Scale: feed/stories read only the newest rows (`tailRows`), registration cap raised to 300/hour (`REG_PER_HOUR`), challenge chat polls only while visible. `scripts/load-test.mjs` and `docs/SCALING.md` (Supabase migration plan).
+
 ## 6.0.0 (2026-11-27)
 - Landing: new hero copy, six new feature tiles, a 12-second demo video (pausable, no autoplay with reduced motion, plays only in view), new FAQ entries; new `og.jpg` share image, canonical, `og:locale`, JSON-LD WebApplication.
 - Offline outbox (`src/outbox.ts`): posts and stories created without a connection are kept in IndexedDB and sent on `online` / next launch (`NetworkError` from `call`).

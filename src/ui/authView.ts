@@ -92,6 +92,8 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode =
     field('auth-email', t('אימייל'), { type: 'email', autocomplete: 'email', inputmode: 'email', dir: 'ltr', required: true }),
     field('auth-pass', mode === 'login' ? t('סיסמה') : t('סיסמה (8 תווים לפחות)'), { type: 'password', autocomplete: mode === 'login' ? 'current-password' : 'new-password', minlength: mode === 'login' ? 1 : 8, required: true }),
     mode === 'register' && h('div', { id: 'invite-wrap' }, field('reg-invite', t('קוד הזמנה (לא חובה)'), { type: 'text', autocapitalize: 'characters', dir: 'ltr', value: inviteCode, placeholder: t('אם קיבלתם מחבר') }), h('small', { class: 'hint' }, t('עם קוד הזמנה תקבלו 50 מטבעות, וגם החבר שהזמין.'))),
+    mode === 'register' && h('label', { class: 'consent' }, h('input', { type: 'checkbox', id: 'reg-terms', required: true }),
+      h('span', null, t('קראתי ואני מסכים/ה ל'), h('a', { href: '#terms', target: '_blank' }, t('תנאי השימוש')), t(' ול'), h('a', { href: '#privacy', target: '_blank' }, t('מדיניות הפרטיות')), t(', ואני בן/בת 16 ומעלה (או משתמש/ת באישור הורה).'))),
     mode === 'register' && h('p', { class: 'hint' }, t('הנתונים שלך נשמרים בגיליון בגוגל דרייב של מנהל האפליקציה. באפליקציה המנהל רואה רק סיכומים סטטיסטיים (אימונים, ארוחות, שינוי משקל ופעילות), לא הערות, תמונות שבועיות או פרטים אישיים.')),
     err,
     h('button', { class: 'btn btn-primary', type: 'submit' }, mode === 'login' ? t('כניסה') : t('הרשמה')),
@@ -114,6 +116,11 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode =
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     err.hidden = true;
+    if (mode === 'register' && !(form.querySelector('#reg-terms') as HTMLInputElement)?.checked) {
+      err.textContent = t('כדי להירשם צריך לאשר את תנאי השימוש');
+      err.hidden = false;
+      return;
+    }
     const btn = form.querySelector('button[type=submit]') as HTMLButtonElement;
     btn.disabled = true;
     btn.textContent = t('רגע…');
@@ -123,6 +130,7 @@ export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode =
         password: (form.querySelector('#auth-pass') as HTMLInputElement).value,
         name: val('reg-name'),
         invite: val('reg-invite'),
+        ...(mode === 'register' ? { terms: true } : {}),
       });
       if (res.needCode && res.challenge) return renderCodeStep(root, res.challenge, res.email ?? '');
       await startSession(res as { token: string; user: User });
