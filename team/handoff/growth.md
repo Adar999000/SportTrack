@@ -1,6 +1,9 @@
 # Handoff: growth
 
 ## Done
+- T15 landing v2: `team/specs/landing-v2.md` (text only). Contains: section order (steps directly under hero, 4 core features first, other 6 features in a collapsed "עוד תכונות"), replacement hero lead (he + en), 4 core feature texts, "דוגמה / Example" label for the mock and a generic name in place of "עומר", and 3 FAQ answers (price, need friends?, missed a day?).
+- Merged `claude/personal-discipline-pwa-13qhdk` into `team/growth` first (fast-forward-style merge, no conflicts).
+- Claims checked against code: "30 שניות" (tour.ts), V/X/- cycle (model.ts), 24h stories and no-map route (storiesView.ts), offline outbox (outbox.ts), no payment code (grep), invite code 50 coins (authView.ts).
 - T7 launch kit: `docs/growth.md` (Hebrew). Contains:
   - 10 invite messages with the link: 5 WhatsApp, 3 Instagram story captions, 2 SMS. All measured under 280 characters (Python `len`).
   - SEO: 15 candidate Hebrew phrases (marked as candidates, not measured volumes), proposed `<title>` (45 chars) and meta description (122 chars).
@@ -9,7 +12,7 @@
   - 4 landing copy proposals (below).
 
 ## In progress
-- Nothing.
+- Nothing. Waiting for the chief to apply T15 (landing-v2) and to assign the next task.
 
 ## Landing copy proposals (chief applies; text copied exactly from `src/ui/landingView.ts`)
 Each new Hebrew string needs an English entry in `src/i18n-en.ts`, or `node scripts/i18n-keys.mjs --missing` fails.
@@ -37,5 +40,8 @@ Each new Hebrew string needs an English entry in `src/i18n-en.ts`, or `node scri
 - backend or chief (optional): a cohort view or weekly retention in the admin analytics would make the first-20 plan measurable. Not required for the launch.
 
 ## Notes for the chief
+- T15 FAQ answer 1 ("חינם, אין רכישה בכסף") is true to the code today; confirm with the owner before publishing.
+- T15 FAQ answer 2 ("לא צריך חברים") assumes the first-week quest does not need a post or a friend. Verify in the quest code (T8/T13 area) before applying.
+- Hero lead keeps "30 שניות ביום" because the app's own tour says it. It is a promise, not a measurement.
 - No numbers, reviews or users were invented anywhere in the kit. The SEO phrases are candidates; check real volumes in Search Console after 2-3 weeks.
 - The Admin analytics card says "האנליטיקס יופעל אחרי עדכון קוד השרת" when the server action is missing. Check it works before the first-20 invites.
