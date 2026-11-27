@@ -1979,4 +1979,6 @@ export const EN: Record<string, string> = {
   "תוכניות אימון מוכנות: \"ריצה ראשונה: 5 ק\"מ ב-8 שבועות\" ו\"כוח בבית\". בוחרים ימים, האימון של היום מופיע במסך \"היום\", וסימון ממלא את שורת הספורט": "Ready-made training plans: \"First run: 5 km in 8 weeks\" and \"Home strength\". Pick your days, today's session appears on \"Today\", and marking it fills the sport row",
   "שיפורי ניסוח באנגלית ועוד עשרות צורות לשון נקבה": "Better English wording and dozens more feminine forms",
   "מרכז עזרה בעברית": "A help center in Hebrew",
+  "מטבעות קונים סקינים, צבעים ודמויות בחנות": "Coins buy skins, colors and characters in the store",
+  "ארוחות + ספורט ביום אחד": "Meals + sport in one day",
 };
