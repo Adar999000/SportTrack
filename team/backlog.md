@@ -21,7 +21,7 @@ Priority: P1 now, P2 next, P3 later. Status is mirrored on the office dashboard.
 | T10 | P1 | Shorter onboarding: step 1 = gender + goal chips + explicit "דלג"; the rest moves to Profile edit; optional current weight fills quest step 2 (F8, F9) | frontend | todo |
 | T11 | P1 | Lighter sign-up: invite code collapsed, one-line privacy hint, inline consent/password errors, password rule aligned to 8 (F4, F5) | frontend | todo |
 | T12 | P2 | One welcome, one skip: merge welcome + first tour into 2 slides, drop the AI step, a single "דלג" ends all (F10) | frontend | todo |
-| T13 | P2 | Quest rules and deadline: allow a "-" sport mark to count for a full day, show days left, server-side quest status so a second device doesn't re-show a claimed quest (F12, F13) | backend | todo |
+| T13 | P2 | Quest rules and deadline: allow a "-" sport mark to count for a full day, show days left, rule change only; the client switches to the existing `questStatus` call (F12, F13) | backend | todo |
 | T14 | P2 | Empty community state with "invite a friend" and "share your first workout" actions (F15) | frontend | todo |
 | T15 | P2 | Landing restructure proposal: steps right under the hero, 4 core features first, lead paragraph about the 30-second habit, mark the mock as an example (F1, F2, F3) | growth | todo |
 | T16 | P3 | Copy for onboarding and quest: coin explanation line, quest step labels, English and feminine forms (F14) | content | todo |
@@ -59,7 +59,7 @@ Priority: P1 now, P2 next, P3 later. Status is mirrored on the office dashboard.
 
 **T13** (backend, with chief approval for the rule change)
 - `claimQuest` counts a "-" sport mark as satisfying the sport part of the "full day" step; unit/mock tests cover it.
-- The user object (or a `questStatus` call) exposes `claimed` and `expiresAt`; the client hides the card from that, not only from `localStorage`.
+- `questStatus` (already exists, `server.js:1295`) also returns `expiresAt`; same "-" rule applies to its `full` step. (Using it in the client is T20.)
 - Claiming twice never pays twice (existing guarantee kept, test added).
 - No change to the live server data in tests; use `tests/gas/mock.mjs`.
 
@@ -82,6 +82,43 @@ Priority: P1 now, P2 next, P3 later. Status is mirrored on the office dashboard.
 - e2e specs for: invited sign-up with prefilled code, onboarding skip, quest 0→4 then claim (+100 once), unverified-email feed, all against the mock server.
 - Each spec runs in `npm run e2e` in under 60 seconds and leaves no state behind.
 - A failing assertion prints which step of the journey broke.
+
+## Beta metrics and funnel (`team/specs/beta-metrics.md`)
+
+| id | P | Task | Owner | Status |
+|---|---|---|---|---|
+| T19 | P1 | Beta success metrics and funnel spec | pm | review |
+| T20 | P1 | Client events: `onboarding:done`, `onboarding:skip`, `mark:weight`, `day:full`, `invite:share`, `verify:done`, `quest:claim`; and use the existing `questStatus` call instead of the `localStorage` flag in the quest card | frontend | todo |
+| T21 | P1 | Anonymous landing counters (`landing:view`, `landing:cta`, `landing:signup-open`) as a new server action with no user id, plus the client calls | backend | todo |
+| T22 | P1 | `adminFunnel(days)` server action: cohort funnel from Users + Weeks + Analytics, cached 10 min, excludes admin/test accounts (new user flag) | backend | todo |
+| T23 | P1 | Admin "Funnel" card in `adminView.ts` showing `adminFunnel` (period 7/30/90, funnel rows, sign-up-weeks table, "too few" rule) | frontend | todo |
+| T24 | P2 | Tests for the funnel: mock-server data with known cohorts, day-3/day-7 eligibility edge cases, privacy check (no personal fields in the response) | qa | todo |
+
+**T20** (frontend)
+- Each listed event fires exactly once per action, via `track()` from `src/analytics.ts`, and names match the spec exactly.
+- The quest card reads `questStatus` (`paid`, `open`) from the server; the card stays hidden after a claim on a second device.
+- No new personal data is sent; `node scripts/i18n-keys.mjs --missing` and the other checks pass.
+
+**T21** (backend)
+- A new unauthenticated action increments a per-day counter per event name from an allow-list of three names; it stores no user id, IP or free text.
+- Rate-limited per request source so it cannot flood the sheet; unknown names are ignored.
+- Mock-server test covers a call without a token and a call with an unknown name.
+
+**T22** (backend)
+- `adminFunnel(days)` (admin only) returns the shape in section 3 of the spec; non-admins get the usual error.
+- Day-3 and day-7 rates use the "eligible" denominator; results are cached for 10 minutes.
+- Response has counts only, no names, emails or user ids; admin and flagged test accounts are excluded.
+- Tested against `tests/gas/mock.mjs` with a fixed cohort.
+
+**T23** (frontend)
+- The card shows all nine steps with count, % of signed-up and % of previous step, readable without colour.
+- Period selector 7/30/90; percentages hidden with a "too few" note when the denominator is under 5.
+- Hebrew and English strings, keyboard and screen-reader accessible, works on a phone width.
+
+**T24** (qa)
+- Known-cohort fixtures produce the expected counts for every step.
+- Users younger than 4 / 8 days are not counted as non-returners.
+- The response is checked to contain no personal fields.
 
 ## Owns (areas)
 - frontend: `src/ui/*` (except admin/legal), `src/styles.css`
