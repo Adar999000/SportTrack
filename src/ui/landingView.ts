@@ -57,6 +57,24 @@ function landingHeader(go: (to: 'login' | 'signup') => void): HTMLElement {
   );
 }
 
+/** A 12-second muted loop of the real app. Pausable (WCAG 2.2.2); still image when motion is reduced; plays only while visible. */
+function demoVideo(): HTMLElement {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('a11y-motion');
+  const v = h('video', { class: 'demo-video', muted: true, loop: true, playsinline: true, preload: 'none', poster: 'demo-poster.webp', width: 360, height: 612,
+    'aria-label': t('סרטון קצר: סימון ארוחה, מסך ההתקדמות וסטורי של אימון') }, h('source', { src: 'demo.mp4', type: 'video/mp4' })) as HTMLVideoElement;
+  v.muted = true; v.setAttribute('muted', '');
+  const btn = h('button', { class: 'demo-toggle', type: 'button' });
+  const draw = () => { btn.textContent = v.paused ? '▶ ' + t('הפעלה') : '❚❚ ' + t('השהיה'); btn.setAttribute('aria-pressed', String(!v.paused)); };
+  let userPaused = reduce;
+  btn.addEventListener('click', () => { if (v.paused) { userPaused = false; v.play().catch(() => {}); } else { userPaused = true; v.pause(); } });
+  v.addEventListener('play', draw); v.addEventListener('pause', draw);
+  draw();
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([e]) => { if (e.isIntersecting && !userPaused) v.play().catch(() => {}); else if (!e.isIntersecting) v.pause(); }, { threshold: 0.4 }).observe(v);
+  }
+  return h('div', { class: 'demo-wrap' }, h('div', { class: 'demo-phone' }, v), btn);
+}
+
 /** Landing page for visitors who aren't signed in. */
 export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') => void): void {
   const days = isRTL ? ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -98,8 +116,8 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       h('section', { class: 'hero' },
         h('div', { class: 'hero-copy' },
           h('p', { class: 'eyebrow', lang: 'en', dir: 'ltr' }, 'Every journey starts with one step'),
-          h('h1', null, t('טבלה שבועית אחת. הרגלים שנשארים.')),
-          h('p', { class: 'lead' }, t('ארוחות בריאות, אימונים ומשקל. מסמנים בהקשה, צוברים מטבעות, ועוזר AI שמכיר את הנתונים שלכם עוזר לראות מה באמת עובד.')),
+          h('h1', null, t('ההרגלים שלך.'), h('br'), h('span', { class: 'hero-accent' }, t('החברים שדוחפים.'))),
+          h('p', { class: 'lead' }, t('ארוחות, אימונים ומשקל בהקשה אחת. מקליטים ריצה עם GPS, משתפים סטורי, ומתחרים עם חברים באתגרים ובליגות. עוזר AI שמכיר את הנתונים שלכם עוזר לראות מה באמת עובד.')),
           h('div', { class: 'hero-cta' },
             signup(),
             h('button', { class: 'btn btn-lg btn-on-band', type: 'button', onclick: () => go('login') }, t('יש לי חשבון')),
@@ -133,8 +151,12 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
         feature('stats', t('סטטיסטיקה אמיתית'), t('גרף משקל לאורך זמן, אחוזי הצלחה לכל ארוחה, אימונים בשבוע, רצפים ומגמה לכל רבעון. עובדות, בלי הטפות.')),
         feature('chat', t('עוזר AI שגם עושה'), t('שואלים בשפה פשוטה ומקבלים תשובה מהנתונים, או מבקשים "תסמן לי אימון ריצה אתמול" והוא מסמן.'), true),
         feature('coin', t('מטבעות, רמות ואתגרים'), t('צוברים מטבעות על ימים מלאים, אימונים ורצפים, עולים ברמות ומשלימים אתגרים יומיים, שבועיים, חודשיים ושנתיים.')),
-        feature('profile', t('חברים ודירוג'), t('מזמינים חברים בקוד אישי, מתחרים בטבלת דירוג, ושניכם מקבלים מטבעות כשחבר מצטרף.')),
+        feature('week', t('אימונים עם GPS ושעונים'), t('מקליטים ריצה, הליכה או רכיבה: מרחק, זמן, קצב ומסלול על המפה. או מחברים Strava ומייבאים מ-Garmin, Apple Watch, Polar ועוד.')),
+        feature('feed', t('סטוריז וקהילה'), t('סטורי ל-24 שעות עם נתוני האימון או תמונה מהגלריה, פיד עם חברים, מפגשי ריצה משותפים, והיי פייב במקום לייק.')),
+        feature('profile', t('אתגרים, ליגות וחברים'), t('אתגר "מי מנצח" או "יעד קבוצתי", ליגה שבועית עם עלייה וירידה, וצ\'אט לכל אתגר. מזמינים בקוד אישי ושניכם מקבלים מטבעות.')),
+        feature('music', t('מוזיקה לאימון'), t('מחברים Spotify ורואים את הפלייליסטים, מחפשים שירים ושולטים בניגון, או מדביקים קישור מ-Apple Music. הנגן מופיע גם במסך האימון.')),
         feature('history', t('עובד גם בלי אינטרנט'), t('מתקינים כאפליקציה על הטלפון, מסמנים גם בלי קליטה, והכול מסתנכרן כשחוזרת הרשת.')),
+        feature('access', t('נגיש ובעברית'), t('עברית ואנגלית, לשון זכר או נקבה, הגדלת טקסט, ניגודיות גבוהה ועצירת אנימציות. בנוי לפי תקן הנגישות.')),
       ),
     ),
 
@@ -149,6 +171,7 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
 
     h('section', { class: 'shots', id: 'peek', 'aria-labelledby': 'shots-title' },
       h('h2', { id: 'shots-title' }, t('הצצה לאפליקציה')),
+      demoVideo(),
       h('div', { class: 'shots-row', tabindex: '0', role: 'region', 'aria-label': t('צילומי מסך, אפשר לגלול לצדדים') },
         ...([['today', 'היום: מסמנים בהקשה, וטבעות מראות כמה נשאר'], ['progress', 'התקדמות: משקל, אימונים וימים מלאים'], ['story', 'סטורי של אימון: מסלול ונתונים, בלי מיקום'], ['store', 'רמות, מטבעות וחנות']] as const).map(([n, cap]) =>
           h('figure', { class: 'shot' }, h('img', { src: `shots/${n}.webp`, alt: t(cap), loading: 'lazy', width: 300, height: 512 }), h('figcaption', null, t(cap))))),
@@ -198,6 +221,10 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
       faq(t('הנתונים שלי פרטיים?'), t('הנתונים נשמרים בגיליון Google פרטי של מנהל האפליקציה. באפליקציה המנהל רואה רק סיכומים סטטיסטיים, לא הערות, תמונות שבועיות או פרטים אישיים. אפשר לייצא את כל הנתונים בכל רגע.')),
       faq(t('צריך להוריד מחנות אפליקציות?'), t('לא. פותחים את האתר ובוחרים "התקנת האפליקציה". היא מופיעה במסך הבית כמו כל אפליקציה ועובדת גם בלי אינטרנט.')),
       faq(t('יש לי טבלה ישנה בקובץ Word. אפשר להעביר?'), t('כן. בהגדרות יש ייבוא מקובץ Word: השבועות, המשקל והסימונים נטענים עם תצוגה מקדימה לפני השמירה.')),
+      faq(t('מי רואה את התמונות והסטוריז שלי?'), t('אתם בוחרים בכל פוסט: כל הקהילה או רק חברים. סטורי נעלם אחרי 24 שעות, ואפשר לחסום כל משתמש. התמונות נשמרות בתיקייה פרטית.')),
+      faq(t('האם האפליקציה חושפת איפה אני רץ?'), t('לא. המסלול נשמר רק אצלכם. בסטורי של אימון מוצגת רק צורת המסלול, בלי מפה ובלי מיקום.')),
+      faq(t('צריך Spotify Premium?'), t('לא. בלי Premium מקבלים נגן מוטמע של הפלייליסט. עם Premium אפשר גם לשלוט בניגון מתוך האפליקציה.')),
+      faq(t('יש לי שעון חכם. זה עובד?'), t('כן, דרך Strava: מחברים פעם אחת, והאימונים מהשעון נכנסים עם המרחק, הזמן והמסלול.')),
       faq(t('מה העוזר יודע ומה לא?'), t('העוזר מכיר את האפליקציה ואת הנתונים שלך בלבד, ועונה רק על שאלות שקשורות אליהם. הוא לא נותן ייעוץ רפואי.')),
     ),
 

@@ -64,13 +64,16 @@ export const setToken = (t: string | null) => (token = t);
 export const hasBackend = () => !!API_URL;
 
 /** POST as text/plain so the browser sends a "simple" request (no CORS preflight). */
+/** No connection at all (as opposed to an error the server returned). */
+export class NetworkError extends Error {}
+
 export async function call<T = any>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
   if (!API_URL) throw new Error(t('השרת לא הוגדר'));
   let res: Response;
   try {
     res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, token, ...payload }) });
   } catch {
-    throw new Error(t('אין חיבור לשרת. בדוק את האינטרנט ונסה שוב.'));
+    throw new NetworkError(t('אין חיבור לשרת. בדוק את האינטרנט ונסה שוב.'));
   }
   let data: any;
   try {

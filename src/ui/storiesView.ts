@@ -20,6 +20,7 @@ import { availableAchievements } from './shareCard';
 import { visibilitySelect } from './shareCard';
 import { track } from '../analytics';
 import type { Post } from './feedView';
+import { postOrQueue } from '../outbox';
 import { blockButton, reportButton } from './safety';
 
 export interface StoryData {
@@ -322,8 +323,9 @@ export function openStoryComposer(preset?: StoryData, onPosted?: () => void, gal
     post.disabled = true;
     try {
       const shots = d.tpl === 'photo' ? queue : [null];
-      for (const ph of shots) await call('createPost', { kind: 'story', text: text.value.trim(), data: d, visibility: vis.value, ...(ph ? { photo: ph } : {}) });
-      close(); toast(shots.length > 1 ? tr`${shots.length} סטוריז עלו 🎉` : t('הסטורי עלה 🎉')); track('story:post:' + d.tpl); onPosted?.();
+      let queued = 0;
+      for (const ph of shots) if (await postOrQueue({ kind: 'story', text: text.value.trim(), data: d, visibility: vis.value, ...(ph ? { photo: ph } : {}) }) === 'queued') queued++;
+      close(); toast(queued ? t('אין חיבור כרגע. הסטורי יעלה לבד כשיחזור האינטרנט.') : shots.length > 1 ? tr`${shots.length} סטוריז עלו 🎉` : t('הסטורי עלה 🎉')); track('story:post:' + d.tpl); onPosted?.();
     } catch (e: any) { toast(e.message); post.disabled = false; }
   });
   drawTpls(); drawExtra(); drawBgs(); draw();

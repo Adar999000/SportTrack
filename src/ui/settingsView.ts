@@ -1,4 +1,6 @@
 import { blockedListCard } from './safety';
+import { docsWithPrefix, getDoc, putDoc } from '../docs';
+import { currentUser } from '../session';
 import { owns } from '../rewards';
 import { hasBackend } from '../api';
 import { HASH, navigate } from './router';
@@ -36,6 +38,18 @@ function toggle(label: string, checked: boolean, onchange: (v: boolean) => void,
     h('label', { for: id }, label, hint && h('small', { class: 'hint' }, hint)),
     input,
   );
+}
+
+/** Bring back workouts, trackers and table setup from a backup (merge keeps what's already here). */
+function restoreDocs(docs: Record<string, unknown> | undefined, overwrite: boolean): number {
+  if (!docs) return 0;
+  let n = 0;
+  for (const [id, v] of Object.entries(docs)) {
+    if (v === null || v === undefined) continue;
+    if (!overwrite && getDoc(id) !== null) continue;
+    putDoc(id, v); n++;
+  }
+  return n;
 }
 
 export function renderSettings(root: HTMLElement): void {
@@ -77,7 +91,11 @@ export function renderSettings(root: HTMLElement): void {
 
   const stamp = todayISO();
 
+  // jump by the section's own title (some sections only show sometimes)
+  const jump = (title: string) => () => [...root.querySelectorAll('section.card')].find((sec) => sec.querySelector('.card-title')?.textContent === t(title))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const sections: [string, string][] = [['🎨 תצוגה', 'תצוגה'], ['🔔 תזכורות', 'תזכורות'], ['💾 גיבוי וייבוא', 'גיבוי וייבוא'], ['🚫 חסומים', 'משתמשים חסומים']];
   root.replaceChildren(
+    h('nav', { class: 'chips settings-jump', 'aria-label': t('קפיצה מהירה') }, sections.map(([label, title]) => h('button', { type: 'button', class: 'chip', onclick: jump(title) }, t(label)))),
     h('section', { class: 'card' },
       h('h2', { class: 'card-title' }, t('תצוגה')),
       toggle(t('שורת "מעשן?"'), st.showSmoking, (v) => updateSettings({ showSmoking: v })),
@@ -169,7 +187,7 @@ export function renderSettings(root: HTMLElement): void {
     h('section', { class: 'card' },
       h('h2', { class: 'card-title' }, t('גיבוי וייבוא')),
       h('div', { class: 'btn-grid' },
-        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-backup-${stamp}.json`, JSON.stringify(toBackup(allWeeks(), getSettings()), null, 1), 'application/json') }, t('ייצוא JSON')),
+        h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-backup-${stamp}.json`, JSON.stringify(toBackup(allWeeks(), getSettings(), { docs: docsWithPrefix(''), profile: currentUser()?.profile }), null, 1), 'application/json') }, t('ייצוא JSON (הכול)')),
         h('button', { class: 'btn', disabled: IS_DEMO, onclick: () => download(`mishmaat-${stamp}.csv`, toCSV(allWeeks()), 'text/csv;charset=utf-8') }, t('ייצוא CSV')),
         h('button', {
           class: 'btn', onclick: () => pickFile('.json,application/json', async (f) => {
@@ -178,8 +196,9 @@ export function renderSettings(root: HTMLElement): void {
               await clearDemo();
               const body = h('div', { class: 'stack' },
                 h('p', null, tr`בקובץ ${data.weeks.length} שבועות.` + (data.skipped ? ' ' + tr`${data.skipped} לא תקינים דולגו.` : '')),
-                h('button', { class: 'btn btn-primary', onclick: () => { const n = putWeeks(data.weeks, 'skip-existing'); close(); toast(tr`נוספו ${n} שבועות`); } }, t('מיזוג — הוסף רק שבועות חדשים')),
-                confirmButton(t('החלפת כל הנתונים'), t('הקש שוב: כל הנתונים הנוכחיים יימחקו'), () => { replaceAll(data.weeks, data.settings); close(); toast('הנתונים שוחזרו'); }, 'btn btn-danger'),
+                data.docs ? h('p', { class: 'muted small' }, tr`ועוד ${Object.keys(data.docs).length} פריטים: אימונים, מעקבים והגדרות טבלה.`) : '',
+                h('button', { class: 'btn btn-primary', onclick: () => { const n = putWeeks(data.weeks, 'skip-existing'); const d = restoreDocs(data.docs, false); close(); toast(tr`נוספו ${n} שבועות` + (d ? ' · ' + tr`${d} פריטים` : '')); } }, t('מיזוג — הוסף רק שבועות חדשים')),
+                confirmButton(t('החלפת כל הנתונים'), t('הקש שוב: כל הנתונים הנוכחיים יימחקו'), () => { replaceAll(data.weeks, data.settings); restoreDocs(data.docs, true); close(); toast('הנתונים שוחזרו'); }, 'btn btn-danger'),
               );
               const close = openSheet('ייבוא גיבוי JSON', body);
             } catch (e: any) {

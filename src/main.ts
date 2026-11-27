@@ -42,6 +42,7 @@ import { refreshMascots } from './ui/mascot';
 import { renderMusic } from './ui/musicView';
 import { renderGoals } from './ui/goalsView';
 import { handleSpotifyRedirect } from './music';
+import { initOutbox } from './outbox';
 setLockedHandler((whole) => toast(whole ? t('השבוע נעול. אפשר לשחרר אותו מתחת לטבלה.') : t('היום נעול. לחיצה על היום בטבלה פותחת אותו לשחרור.')));
 setDayCompleteHandler(() => {
   const today = todayISO();
@@ -384,6 +385,7 @@ async function boot() {
   initAnalytics();
   initSwipeTabs();
   initPeeks();
+  initOutbox();
   addEventListener('scroll', () => document.body.classList.toggle('scrolled', scrollY > 4), { passive: true });
   await loadStore();
   await loadDocs();

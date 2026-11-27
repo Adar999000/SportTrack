@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.0 (2026-11-27)
+- Landing: new hero copy, six new feature tiles, a 12-second demo video (pausable, no autoplay with reduced motion, plays only in view), new FAQ entries; new `og.jpg` share image, canonical, `og:locale`, JSON-LD WebApplication.
+- Offline outbox (`src/outbox.ts`): posts and stories created without a connection are kept in IndexedDB and sent on `online` / next launch (`NetworkError` from `call`).
+- Full JSON backup v2 with synced documents (GPS workouts, trackers, table setup) and profile; import restores documents (merge keeps existing).
+- Settings quick-jump chips (sticky), clearer empty states (Progress, friends feed).
+- axe (WCAG 2 A/AA) clean in light and dark on landing, Today, feed, story viewer, challenges, music, goals, settings and Me.
+
 ## 5.9.1 (2026-11-27)
 - Six team posts with designed images shipped in `public/team/` (seeded once, `TEAM_SEEDED2`); only team posts may show a `data.image`, and only from `team/*.webp`.
 

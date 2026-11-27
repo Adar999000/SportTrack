@@ -1,5 +1,6 @@
 import { t, tr } from '../i18n';
-import { call } from '../api';
+import { call, NetworkError } from '../api';
+import { onOutboxSent, postOrQueue } from '../outbox';
 import { currentUser, isAdmin, photoUrl, rememberPhoto } from '../session';
 import { fileToDataUrl, pickImages } from '../image';
 import { levelLabel } from '../rewards';
@@ -210,10 +211,12 @@ function composer(onPosted: () => void): HTMLElement {
     (post as HTMLButtonElement).disabled = true;
     try {
       const asTeam = !!(document.getElementById('as-team') as HTMLInputElement | null)?.checked;
-      const r = await call<{ post: Post }>('createPost', { text: text.value, visibility: vis.value, photos, asTeam });
-      const ids: string[] = r.post.data?.photos ?? (r.post.photoId ? [r.post.photoId] : []);
-      ids.forEach((id, i) => photos[i] && rememberPhoto(id, photos[i]));
-      text.value = ''; photos = []; drawThumbs(); toast(t('פורסם')); track('post:create');
+      const payload = { text: text.value, visibility: vis.value, photos, asTeam };
+      let r: { post: Post } | null = null;
+      try { r = await call<{ post: Post }>('createPost', payload); }
+      catch (ex) { if (!(ex instanceof NetworkError)) throw ex; await postOrQueue(payload); }
+      if (r) { const ids: string[] = r.post.data?.photos ?? (r.post.photoId ? [r.post.photoId] : []); ids.forEach((id, i) => photos[i] && rememberPhoto(id, photos[i])); }
+      text.value = ''; photos = []; drawThumbs(); toast(r ? t('פורסם') : t('אין חיבור כרגע. הפוסט יישלח לבד כשיחזור האינטרנט.')); track(r ? 'post:create' : 'post:queued');
       onPosted();
     } catch (ex: any) { toast(ex.message); }
     (post as HTMLButtonElement).disabled = false;
@@ -310,8 +313,13 @@ export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels')
     try {
       const r = await call<{ posts: Post[]; more: boolean }>('feed', { only, before: append && posts.length ? posts[posts.length - 1].at : undefined });
       posts = append ? posts.concat(r.posts) : r.posts;
-      list.replaceChildren(...(posts.length ? posts.map((p) => postCard(p, () => load())) : [h('section', { class: 'card empty' },
-        h('p', { class: 'empty-icon', 'aria-hidden': 'true' }, '👋'), h('p', null, t('עוד אין פוסטים. היו הראשונים לשתף אימון או הישג!')))]));
+      list.replaceChildren(...(posts.length ? posts.map((p) => postCard(p, () => load())) : [only === 'friends'
+        ? h('section', { class: 'card empty' },
+            h('p', { class: 'empty-icon', 'aria-hidden': 'true' }, '👯'),
+            h('p', null, t('כאן יופיעו הפוסטים של החברים שלך. מזמינים חבר בקישור אישי, ושניכם מקבלים 50 מטבעות.')),
+            h('a', { class: 'btn btn-primary', href: HASH.share }, t('הזמנת חברים')))
+        : h('section', { class: 'card empty' },
+            h('p', { class: 'empty-icon', 'aria-hidden': 'true' }, '👋'), h('p', null, t('עוד אין פוסטים. היו הראשונים לשתף אימון או הישג!')))]));
       moreBtn.hidden = !r.more;
     } catch (e: any) {
       const old = /לא מוכרת|Unknown action/.test(e.message);
@@ -327,5 +335,6 @@ export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels')
   box.replaceChildren(storiesBar(), composer(() => load()), filter, list, moreBtn,
     h('p', { class: 'hint' }, t('"חברים" הם מי שהזמנת לאפליקציה ומי שהזמין אותך. אפשר לדווח על תוכן לא הולם דרך ⋯.')));
   load();
+  const off = onOutboxSent(() => { if (list.isConnected) load(); else off(); });
   void navigate;
 }

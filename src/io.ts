@@ -6,18 +6,21 @@ export const APP_ID = 'mishmaat-ishit';
 
 export interface Backup {
   app: typeof APP_ID;
-  version: 1;
+  version: 1 | 2;
   exportedAt: string;
   settings: Settings;
   weeks: Week[];
+  docs?: Record<string, unknown>;
+  profile?: unknown;
 }
 
-export function toBackup(weeks: Week[], settings: Settings): Backup {
-  return { app: APP_ID, version: 1, exportedAt: new Date().toISOString(), settings, weeks };
+/** Everything on this device: weeks, settings, and synced documents (GPS workouts, custom trackers, table setup), plus profile and goals when signed in. */
+export function toBackup(weeks: Week[], settings: Settings, extra: { docs?: [string, unknown][]; profile?: unknown } = {}): Backup {
+  return { app: APP_ID, version: 2, exportedAt: new Date().toISOString(), settings, weeks, ...(extra.docs ? { docs: Object.fromEntries(extra.docs) } : {}), ...(extra.profile ? { profile: extra.profile } : {}) };
 }
 
 /** Accepts a backup object (or a bare array of weeks). Throws a Hebrew message if invalid. */
-export function parseBackup(text: string): { weeks: Week[]; settings?: Partial<Settings>; skipped: number } {
+export function parseBackup(text: string): { weeks: Week[]; settings?: Partial<Settings>; skipped: number; docs?: Record<string, unknown> } {
   let data: any;
   try {
     data = JSON.parse(text);
@@ -33,7 +36,8 @@ export function parseBackup(text: string): { weeks: Week[]; settings?: Partial<S
     if (w) weeks.push(w);
     else skipped++;
   }
-  return { weeks, settings: Array.isArray(data) ? undefined : data.settings, skipped };
+  const docs = !Array.isArray(data) && data.docs && typeof data.docs === 'object' ? Object.fromEntries(Object.entries(data.docs).filter(([k]) => /^[\w:.-]{1,80}$/.test(k))) : undefined;
+  return { weeks, settings: Array.isArray(data) ? undefined : data.settings, skipped, docs };
 }
 
 const csvCell = (v: unknown) => {

@@ -30,7 +30,11 @@ function barTd(text: string, pct: number | null, kind = ''): HTMLElement {
 
 export function statsSections(weeks: Week[] = allWeeks(), frozen: { days?: string[]; weeks?: string[]; goal?: number } = {}): (Node | string)[] {
   const today = todayISO();
-  if (!weeks.length) return [h('section', { class: 'card' }, h('p', { class: 'muted' }, t('אין עדיין נתונים להצגה.')))];
+  if (!weeks.length) return [h('section', { class: 'card empty-state' },
+    h('p', { class: 'empty-icon', 'aria-hidden': 'true' }, '📈'),
+    h('h2', { class: 'empty-title' }, t('כאן יופיעו הגרפים שלך')),
+    h('p', { class: 'muted' }, t('אחרי כמה ימים של סימון תראו כאן משקל לאורך זמן, אחוז ארוחות בריאות, אימונים ורצפים.')),
+    h('a', { class: 'btn btn-primary', href: '#week' }, t('לסמן את היום')))];
   const pts = weightPoints(weeks);
   const ws = weightSummary(pts);
   const warn = warnings(weeks, today);
