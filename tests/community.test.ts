@@ -421,3 +421,17 @@ describe('launch hardening', () => {
     expect(be.post({ action: 'adminErrors', token: u.token }).error).toBeTruthy();
   });
 });
+
+describe('team content calendar', () => {
+  it('posts one tip card every 3 days, in order', () => {
+    let clock = Date.parse('2026-12-01T09:00:00Z');
+    const be = createBackend({ now: () => clock });
+    be.properties.set('TEAM_SEEDED', '1'); be.properties.set('TEAM_SEEDED2', '1'); be.properties.set('TEAM_DRIP_N', '0');
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
+    const images = () => be.post({ action: 'feed', token: u.token }).posts.map((p: any) => p.data?.image).filter(Boolean);
+    expect(images()).toEqual(['team/stretch.webp']);
+    clock += 864e5; expect(images()).toHaveLength(1);
+    clock += 2 * 864e5; expect(images()).toEqual(['team/protein.webp', 'team/stretch.webp']);
+  });
+});

@@ -334,7 +334,7 @@ function weekPhoto(sunday: string): HTMLElement | '' {
   function draw() {
     if (!week.photoId) {
       box.className = 'inline-photo';
-      box.replaceChildren(h('button', { class: 'link-btn', type: 'button', onclick: upload }, t('תמונה')));
+      box.replaceChildren(h('button', { class: 'mini-act', type: 'button', onclick: upload }, icon('camera', 18), h('span', null, t('תמונה'))));
       return;
     }
     box.className = 'card week-photo';
@@ -396,10 +396,10 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     weekTable(sunday, today),
     note,
     h('div', { class: 'mini-actions' },
-      !week.note && h('button', { class: 'link-btn', type: 'button', onclick: (e: Event) => { note.hidden = false; note.focus(); (e.currentTarget as HTMLElement).remove(); } }, t('הערה')),
+      !week.note && h('button', { class: 'mini-act', type: 'button', onclick: (e: Event) => { note.hidden = false; note.focus(); (e.currentTarget as HTMLElement).remove(); } }, icon('note', 18), h('span', null, t('הערה'))),
       week.photoId ? '' : weekPhoto(sunday),
-      h('button', { class: 'link-btn', type: 'button', onclick: () => setLock(sunday, null, !week.locked) }, week.locked ? '🔓 ' + t('שחרר שבוע') : '🔒 ' + t('נעל שבוע')),
-      h('button', { class: 'link-btn', type: 'button', onclick: () => openWeekMenu() }, t('התאמה אישית')),
+      h('button', { class: 'mini-act' + (week.locked ? ' on' : ''), type: 'button', 'aria-pressed': String(!!week.locked), onclick: () => setLock(sunday, null, !week.locked) }, icon(week.locked ? 'lock' : 'unlock', 18), h('span', null, week.locked ? t('שחרר שבוע') : t('נעל שבוע'))),
+      h('button', { class: 'mini-act', type: 'button', onclick: () => openWeekMenu() }, icon('sliders', 18), h('span', null, t('התאמה'))),
     ),
   );
 

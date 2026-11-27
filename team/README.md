@@ -15,6 +15,7 @@ The chief assigns work, reviews every change, merges it into the release branch 
 | growth | Growth: landing copy, SEO, invite messages, launch kit | Haiku | `team/growth` |
 
 ## Rules for every agent
+0. **Work autonomously. Never ask the user (the CEO) anything** and never wait for their answer. The chief is your only contact. If something is unclear, pick the sensible default, write the choice under "Notes for the chief" in your handoff, and keep going. If you truly cannot continue, send the chief `STATUS | <id> | <task> | blocked | <question>` and work on the next part meanwhile. Never end a turn with a question to the user.
 1. Start by reading `team/README.md`, `team/backlog.md`, `team/decisions.md` and your own `team/handoff/<id>.md`.
 2. Work only on your branch (`team/<id>`), created from `claude/personal-discipline-pwa-13qhdk`. Never push to `main` or to the chief's branch, never open pull requests, never force-push.
 3. Keep changes inside your area (see "Owns" in backlog). If you need a change in someone else's area, write it under "Requests" in your handoff file.
