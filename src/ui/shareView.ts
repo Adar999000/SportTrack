@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import { brandIcon } from './brandIcons';
 import { icon } from './icons';
 import { myInvite } from '../rewards';
@@ -25,16 +26,17 @@ export function renderShare(root: HTMLElement): void {
     const enc = encodeURIComponent;
     const input = h('input', { class: 'input', readonly: true, value: link, 'aria-label': t('הקישור שלך'), id: 'invite-link' });
     const copy = async () => {
+      track('invite:share');
       try { await navigator.clipboard.writeText(link); toast(t('הקישור הועתק')); } catch { input.select(); }
     };
     const a = (label: string, href: string, glyph: Node) =>
-      h('a', { class: 'share-btn', href, target: '_blank', rel: 'noopener', 'aria-label': tr`שתף ב-${label}` }, h('span', { class: 'share-ico' }, glyph), h('span', { class: 'share-name' }, label));
+      h('a', { class: 'share-btn', href, target: '_blank', rel: 'noopener', onclick: () => track('invite:share'), 'aria-label': tr`שתף ב-${label}` }, h('span', { class: 'share-ico' }, glyph), h('span', { class: 'share-name' }, label));
     box.replaceChildren(
       h('div', { class: 'invite-link' }, input, h('button', { class: 'btn', type: 'button', onclick: copy }, t('העתק'))),
       h('p', null, t('הקוד שלך: '), h('b', { dir: 'ltr', class: 'code-inline' }, inv.code)),
       h('p', { class: 'hint' }, tr`הצטרפו עם הקוד שלך: ${inv.used} · קיבלת מטבעות על ${inv.rewarded} מתוך ${inv.cap}`),
       'share' in navigator
-        ? h('button', { class: 'btn btn-primary', type: 'button', onclick: () => navigator.share({ title: t('משמעת אישית'), text, url: link }).catch(() => {}) }, t('שתף…'))
+        ? h('button', { class: 'btn btn-primary', type: 'button', onclick: () => navigator.share({ title: t('משמעת אישית'), text, url: link }).then(() => track('invite:share')).catch(() => {}) }, t('שתף…'))
         : '',
       h('div', { class: 'share-grid' },
         a('WhatsApp', `https://wa.me/?text=${enc(msg)}`, brandIcon('whatsapp')),

@@ -367,6 +367,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   });
   weight.addEventListener('change', () => {
     const v = parseFloat(weight.value.replace(',', '.'));
+    if (Number.isFinite(v) && v > 0) track('mark:weight');
     editWeek(sunday, (w) => {
       if (Number.isFinite(v) && v > 0) w.startWeight = Math.round(v * 100) / 100;
       else delete w.startWeight;
@@ -415,9 +416,9 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   root.replaceChildren(
     listTrackers().length ? trackerBar(null) : '',
     isCurrent ? monthlySummaryCard() || weeklySummaryCard() : '',
-    isCurrent ? questCard() : '',
-    isCurrent ? planCard() : '',
     isCurrent ? todayPanel(today) : '',
+    isCurrent ? planCard() : '',
+    isCurrent ? questCard() : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,
     week.photoId ? weekPhoto(sunday) : '',
