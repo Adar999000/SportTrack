@@ -1,5 +1,9 @@
 # Changelog
 
+## 6.4.0 (2026-11-27)
+- Landing v2 from growth's spec (team/specs/landing-v2.md): 30-second lead, steps right under the hero, four core features with the rest folded under "More features", the mock labeled as an example (no named person), FAQ: cost, no friends needed, missed day.
+- Merged pm T19 (beta metrics spec), content T16, growth T15.
+
 ## 6.3.0 (2026-11-27)
 - Training plans (frontend T2): `src/plans.ts`, `#plans`, Today plan card; synced doc `plan:active`; 11 tests.
 - Copy (content T6): 13 English fixes, 54 feminine entries, `docs/help.md`; "חד\"כ" = Gym.

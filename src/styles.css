@@ -1946,3 +1946,6 @@ a.btn-primary.plan-btn { color: var(--accent-ink); }
 @media (prefers-reduced-motion: reduce) { .plan-card .bar > span { transition: none; } }
 .plan-card .row-between, .plan-active .row-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .plan-card .row-between > h2 { flex: 1; min-width: 0; }
+.mock-label { margin: 0 0 8px; text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .02em; color: rgb(255 255 255 / .75); }
+.more-features { margin-top: 16px; }
+.more-features > summary { cursor: pointer; font-weight: 800; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 0 20px; width: fit-content; margin: 0 auto 16px; }
