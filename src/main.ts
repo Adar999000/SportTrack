@@ -154,6 +154,13 @@ function render() {
     if (key !== lastRoute) { route.name === 'accessibility' ? renderAccessibility(main) : route.name === 'terms' ? renderTerms(main) : renderPrivacy(main); window.scrollTo(0, 0); lastRoute = key; }
     return;
   }
+  if (route.name === 'about') {
+    // the landing page, also for people who are signed in (a link to share or to show someone)
+    nav.hidden = true;
+    document.body.classList.add('is-landing');
+    if (key !== lastRoute || !main.querySelector('.landing')) { renderLanding(main, (to) => (location.hash = currentUser() ? HASH.week() : to === 'login' ? HASH.login : HASH.signup)); window.scrollTo(0, 0); lastRoute = key; }
+    return;
+  }
   if (hasBackend() && !currentUser()) {
     nav.hidden = true;
     const landing = route.name !== 'join' && route.name !== 'login' && route.name !== 'signup';

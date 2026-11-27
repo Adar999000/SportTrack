@@ -1,5 +1,9 @@
 # Changelog
 
+## 6.1.1 (2026-11-27)
+- Landing aligned with the app: interactive Today mock (rings follow taps) instead of the old table + chat, store/levels copy matches the catalog and real level numbers, steps match onboarding, safety section mentions verification/reporting/blocking.
+- `#about` (or `#home`) shows the landing page even when signed in; linked from Me.
+
 ## 6.1.0 (2026-11-27)
 - Terms of use page (`#terms`) with health disclaimer and minimum age 16; consent checkbox at sign-up, stored as `consentAt` on the account.
 - Email verification (`sendVerifyCode`, `verifyEmail`, `emailVerified` on the user): posting, comments, challenges and challenge chat need a verified email (`VERIFY_POSTING`, admin toggle); accounts created before the first request of this version are grandfathered (`VERIFY_SINCE`).

@@ -1899,3 +1899,18 @@ body:not(.is-landing):not(.a11y-inapp) .a11y-btn, body:not(.is-landing):not(.a11
 .err-row summary { cursor: pointer; line-height: 1.5; }
 .err-stack { white-space: pre-wrap; font-size: 11px; background: var(--surface-2); padding: 8px; border-radius: 8px; max-height: 200px; overflow: auto; }
 .consent a { color: var(--text); font-weight: 800; text-decoration-color: var(--signal, #c6f432); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+/* landing: Today mock in the hero phone */
+.mock-today { display: grid; gap: 10px; padding: 4px 2px; }
+.mock-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mock-head .greet { margin: 0; font-size: 12px; color: var(--muted); font-weight: 700; }
+.mock-head strong { font-size: 18px; font-weight: 900; display: block; }
+.mock-next { margin: 2px 0 0; font-size: 12px; font-weight: 800; }
+.mock-rings { width: 76px; height: 76px; flex: none; }
+.mock-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mock-grid .today-btn { min-height: 64px; padding: 6px; }
+.mock-grid .today-title { font-size: 13px; } .mock-grid .today-val { font-size: 22px; } .mock-grid .today-empty { font-size: 11px; }
+.mock-story { display: flex; align-items: center; gap: 8px; margin-top: 10px; background: var(--surface-2); border-radius: 14px; padding: 8px 10px; font-size: 12px; }
+.mock-story-ring { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--signal, #c6f432), var(--accent), var(--signal, #c6f432)); flex: none; }
+.mock-story > span:nth-child(2) { flex: 1; }
+.mock-five { font-size: 18px; }
+.hero-visual .chip-b { bottom: auto; top: 44%; }

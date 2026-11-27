@@ -1,8 +1,8 @@
 import { cycleMark } from '../model';
 import type { Mark } from '../types';
 import { h } from './dom';
-import { aiBadge, aiMark, icon, logo } from './icons';
-import { isRTL, lang, setLang, t } from '../i18n';
+import { aiBadge, icon, logo } from './icons';
+import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION } from '../version';
 import { installButton } from './installButton';
 import { getSettings, updateSettings } from '../store';
@@ -75,35 +75,43 @@ function demoVideo(): HTMLElement {
   return h('div', { class: 'demo-wrap' }, h('div', { class: 'demo-phone' }, v), btn);
 }
 
+/** A small, working copy of the app's Today screen: tap a task to cycle V / X / – and the rings follow. */
+function todayMock(live: HTMLElement): HTMLElement {
+  const tasks: { label: string; mark: Mark | null }[] = [
+    { label: t('בוקר'), mark: 'V' }, { label: t('צהריים'), mark: 'V' }, { label: t('ערב'), mark: null }, { label: t('ספורט'), mark: null },
+  ];
+  const NS = 'http://www.w3.org/2000/svg';
+  const rings = document.createElementNS(NS, 'svg');
+  rings.setAttribute('viewBox', '0 0 100 100'); rings.setAttribute('class', 'rings mock-rings'); rings.setAttribute('aria-hidden', 'true');
+  const grid = h('div', { class: 'mock-grid' });
+  const note = h('p', { class: 'mock-next' });
+  const draw = () => {
+    const meals = tasks.slice(0, 3).filter((x) => x.mark === 'V').length;
+    const sport = tasks[3].mark === 'V' ? 1 : 0;
+    const full = tasks.every((x) => x.mark);
+    rings.innerHTML = ([[42, meals / 3, 'r-meals'], [31, sport, 'r-sport'], [20, (4 + (full ? 1 : 0)) / 7, 'r-week']] as [number, number, string][]).map(([r, p, cls]) => {
+      const c = 2 * Math.PI * r;
+      return `<circle cx="50" cy="50" r="${r}" class="ring-track ${cls}"/><circle cx="50" cy="50" r="${r}" class="ring-val ${cls}" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - Math.min(1, p))}" transform="rotate(-90 50 50)"/>`;
+    }).join('');
+    const next = tasks.find((x) => !x.mark);
+    note.textContent = full ? t('היום סגור! +5 מטבעות') : tr`הבא בתור: ${next!.label}`;
+    grid.replaceChildren(...tasks.map((x) => {
+      const b = h('button', { class: `today-btn ${cls(x.mark)}`, type: 'button', 'aria-label': `${x.label}: ${x.mark ?? t('ריק')}` },
+        h('span', { class: 'today-title' }, x.label), x.mark ? h('span', { class: 'today-val' }, x.mark) : h('span', { class: 'today-empty' }, t('לא סומן')));
+      b.addEventListener('click', () => { x.mark = cycleMark(x.mark); draw(); live.textContent = `${x.label}: ${x.mark ?? t('ריק')}`; (grid.children[tasks.indexOf(x)] as HTMLElement)?.focus(); });
+      return b;
+    }));
+  };
+  const cls = (m: Mark | null) => (m === 'V' ? 'mark-V' : m === 'X' ? 'mark-X' : m === '-' ? 'mark-dash' : 'mark-empty');
+  draw();
+  return h('div', { class: 'mock-today', role: 'group', 'aria-label': t('הדגמה של מסך "היום". אפשר להקיש על משימה.') },
+    h('div', { class: 'mock-head' }, h('div', null, h('p', { class: 'greet' }, t('בוקר טוב')), h('strong', null, t('היום')), note), rings),
+    grid);
+}
+
 /** Landing page for visitors who aren't signed in. */
 export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') => void): void {
-  const days = isRTL ? ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  const rows: { label: string; marks: (Mark | null)[] }[] = [
-    { label: t('בוקר'), marks: ['V', 'V', '-', 'V', 'X', 'V', null] },
-    { label: t('צהריים'), marks: ['V', 'V', 'V', 'V', 'V', 'X', null] },
-    { label: t('ערב'), marks: ['X', 'V', 'X', 'V', 'V', 'V', null] },
-    { label: t('ספורט'), marks: ['V', '-', 'V', '-', 'V', '-', null] },
-  ];
-  const cls = (m: Mark | null) => (m === 'V' ? 'mark-V' : m === 'X' ? 'mark-X' : m === '-' ? 'mark-dash' : 'mark-empty');
   const demoLive = h('span', { class: 'sr-only', 'aria-live': 'polite' });
-  const demo = h('div', { class: 'demo-table', role: 'group', 'aria-label': t('הדגמה של הטבלה השבועית. אפשר להקיש על תא.') },
-    h('span', null), ...days.map((d) => h('span', { class: 'demo-day' }, d)),
-    ...rows.flatMap((r) => [
-      h('span', { class: 'demo-label' }, r.label),
-      ...r.marks.map((m) => {
-        let cur = m;
-        const b = h('button', { class: `demo-cell ${cls(m)}`, type: 'button', 'aria-label': `${r.label}: ${m ?? t('ריק')}` }, m ?? '');
-        b.addEventListener('click', () => queueMicrotask(() => { demoLive.textContent = b.getAttribute('aria-label') ?? ''; }));
-        b.addEventListener('click', () => {
-          cur = cycleMark(cur);
-          b.className = `demo-cell ${cls(cur)}`;
-          b.textContent = cur ?? '';
-          b.setAttribute('aria-label', `${r.label}: ${cur ?? t('ריק')}`);
-        });
-        return b;
-      }),
-    ]),
-  );
   const signup = (label = t('להרשמה בחינם'), extra = '') => h('button', { class: `btn btn-primary btn-lg ${extra}`, type: 'button', onclick: () => go('signup') }, label);
   const feature = (ic: string, title: string, text: string, ai = false) =>
     h('div', { class: 'feature' }, h('span', { class: 'feature-icon' }, icon(ic, 24)), h('h3', null, title, ai ? [' ', aiBadge()] : ''), h('p', null, text));
@@ -127,15 +135,12 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
         ),
         h('div', { class: 'hero-visual' },
           h('div', { class: 'phone' },
-            h('div', { class: 'phone-top' }, h('span', { class: 'phone-brand' }, logo(20), t('השבוע שלי')), h('span', { class: 'coin-pill' }, h('span', { class: 'coin' }), '520 · ', t('רמה'), ' 3')),
-            demo, demoLive,
-            h('div', { class: 'phone-chat' },
-              h('div', { class: 'bubble bubble-user' }, t('תסמן לי צהריים V היום')),
-              h('div', { class: 'bubble bubble-assistant' }, h('span', { class: 'bubble-ai' }, aiMark(14)), t('סימנתי. זה היום החמישי ברצף עם צהריים V, ועוד 2 ימים לבונוס הרצף.')),
-            ),
+            h('div', { class: 'phone-top' }, h('span', { class: 'phone-brand' }, logo(20), t('משמעת אישית')), h('span', { class: 'coin-pill' }, h('span', { class: 'coin' }), '520 · ', t('רמה'), ' 3')),
+            todayMock(demoLive), demoLive,
+            h('div', { class: 'mock-story' }, h('span', { class: 'mock-story-ring' }, '🏃'), h('span', null, h('b', null, t('עומר')), ' ', t('העלה סטורי: 8.1 ק"מ')), h('span', { class: 'mock-five' }, '🙌')),
           ),
           h('span', { class: 'float-chip chip-a', 'aria-hidden': 'true' }, '🔥 ', t('רצף 5 ימים')),
-          h('span', { class: 'float-chip chip-b', 'aria-hidden': 'true' }, '+15 ', h('span', { class: 'coin' }), ' ', t('אתגר יומי')),
+          h('span', { class: 'float-chip chip-b', 'aria-hidden': 'true' }, '🏆 ', t('ליגת זהב · מקום 2')),
         ),
       ),
     ),
@@ -163,10 +168,10 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
     h('section', { class: 'levels-band', id: 'coins' },
       h('div', null,
         h('h2', null, t('כל יום שווה משהו')),
-        h('p', null, t('יום מלא 5 מטבעות, אימון 10, אתגר יומי 15, רצף של שבוע 20. המטבעות פותחים הקפאת רצף, צבעים מיוחדים והודעות נוספות לעוזר.')),
+        h('p', null, t('יום מלא 5 מטבעות, אימון 10, אתגר יומי 15, רצף של שבוע 20. בחנות קונים סקינים לאפליקציה, דמויות לעוזר, מסגרות פרופיל, אפקטים וצבעים, ויש פריטים שנפתחים רק מרמות גבוהות.')),
       ),
       h('ol', { class: 'level-ladder', 'aria-label': t('רמות') },
-        ...['מתחיל', 'מתמיד', 'ממושמע', 'לוחם', 'אלוף השכונה', 'אגדה'].map((n, i) => h('li', null, h('b', null, String([1, 2, 3, 4, 5, 9][i])), t(n)))),
+        ...([[1, 'מתחיל'], [3, 'ממושמע'], [5, 'אלוף השכונה'], [10, 'יהלום'], [11, 'אגדה'], [15, 'משמעת אישית']] as const).map(([n, name]) => h('li', null, h('b', null, String(n)), t(name)))),
     ),
 
     h('section', { class: 'shots', id: 'peek', 'aria-labelledby': 'shots-title' },
@@ -195,9 +200,9 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
     h('section', { class: 'steps', id: 'how' },
       h('h2', null, t('איך מתחילים')),
       h('ol', { class: 'step-list' },
-        h('li', null, h('h3', null, t('נרשמים')), h('p', null, t('אימייל וסיסמה, ומתקינים על הטלפון בלחיצה. עם קוד הזמנה מחבר מקבלים 50 מטבעות.'))),
-        h('li', null, h('h3', null, t('מסמנים כל יום')), h('p', null, t('V, X או "-" בכל שורה. שקילה פעם בשבוע ביום ראשון.'))),
-        h('li', null, h('h3', null, t('רואים את התמונה הגדולה')), h('p', null, t('גרפים, רצפים ואתגרים מראים מה עובד, שבוע אחרי שבוע.'))),
+        h('li', null, h('h3', null, t('נרשמים ובוחרים מטרות')), h('p', null, t('אימייל וסיסמה, בוחרים מה חשוב לכם (ירידה במשקל, כושר, שינה ועוד) ומתקינים על הטלפון. משימות השבוע הראשון שוות 100 מטבעות.'))),
+        h('li', null, h('h3', null, t('מסמנים את היום')), h('p', null, t('במסך "היום" מקישים על כל משימה: V עשיתי, X לא הפעם. שקילה פעם בשבוע, ואימון אפשר להקליט עם GPS.'))),
+        h('li', null, h('h3', null, t('מתקדמים עם חברים')), h('p', null, t('גרפים וסיכום שבועי מראים מה עובד. מזמינים חברים, פותחים אתגר או יעד קבוצתי, ומשתפים סטורי.'))),
       ),
     ),
 
@@ -207,7 +212,9 @@ export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') =>
         h('div', { class: 'trust-item' }, h('span', { class: 'trust-icon' }, icon('admin', 26)), h('h3', null, t('אבטחה בכמה שכבות')),
           h('p', null, t('סיסמאות מוצפנות, חסימה אחרי ניסיונות כושלים, אימות דו-שלבי במייל וניתוק כל המכשירים בלחיצה.'))),
         h('div', { class: 'trust-item' }, h('span', { class: 'trust-icon' }, icon('profile', 26)), h('h3', null, t('הנתונים שלכם נשארים שלכם')),
-          h('p', null, t('המנהל רואה רק סיכומים סטטיסטיים, בלי הערות ותמונות. אפשר לייצא הכול בכל רגע.'))),
+          h('p', null, t('המנהל רואה רק סיכומים סטטיסטיים, לא הערות ולא תמונות שבועיות. בכל פוסט בוחרים מי רואה, סטורי נעלם אחרי 24 שעות, ואפשר לייצא הכול בכל רגע.'))),
+        h('div', { class: 'trust-item' }, h('span', { class: 'trust-icon' }, icon('feed', 26)), h('h3', null, t('קהילה בטוחה')),
+          h('p', null, t('אימות מייל לכל חשבון חדש, דיווח על תוכן, חסימת משתמשים ותנאי שימוש ברורים. המסלול שלכם לא נחשף בסטוריז.'))),
         h('div', { class: 'trust-item' }, h('span', { class: 'trust-icon' }, icon('info', 26)), h('h3', null, t('נגיש לכולם')),
           h('p', null, t('תפריט נגישות, ניווט במקלדת ותמיכה בקוראי מסך, לפי התקן הישראלי ת"י 5568.'))),
       ),

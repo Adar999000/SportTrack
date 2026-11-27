@@ -238,6 +238,7 @@ export function renderProfile(root: HTMLElement): void {
       menuItem('star', t('המטרות שלי'), t('מה חשוב לך, והאפליקציה מתאימה את עצמה'), go(HASH.goals)),
       menuItem(mascot(34, 'mi-mascot'), t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),
       menuItem('info', t('מצאתי באג / יש לי רעיון'), t('אנחנו בבטא: כל הערה עוזרת ומגיעה ישר למנהל'), () => openAssistant('support')),
+      menuItem('info', t('על האפליקציה'), t('דף ההסבר, לשתף עם מי שעוד לא מכיר'), go('#about')),
       menuItem('mail', t('הזמנת חברים'), t('קישור אישי, ומטבעות לשניכם'), go(HASH.share)),
       menuItem('access', t('נגישות'), t('גודל טקסט, ניגודיות, עצירת אנימציות'), () => openAccessibility()),
       menuItem('settings', t('הגדרות'), t('תצוגה, תזכורות, ייבוא וגיבוי'), go(HASH.settings)),

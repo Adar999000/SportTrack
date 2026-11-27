@@ -15,6 +15,7 @@ export type Route =
   | { name: 'accessibility' }
   | { name: 'privacy' }
   | { name: 'terms' }
+  | { name: 'about' }
   | { name: 'tracker'; id: string; sunday?: string }
   | { name: 'feed'; tab?: 'posts' | 'events' | 'duels' }
   | { name: 'duel'; code: string }
@@ -62,6 +63,7 @@ export function parseRoute(hash: string): Route {
   if (h === 'accessibility') return { name: 'accessibility' };
   if (h === 'privacy') return { name: 'privacy' };
   if (h === 'terms') return { name: 'terms' };
+  if (h === 'about' || h === 'home') return { name: 'about' };
   if (h === 'signup') return { name: 'signup' };
   if (h === 'share') return { name: 'share' };
   if (h === 'music') return { name: 'music' };
