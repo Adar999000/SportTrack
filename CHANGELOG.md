@@ -1,5 +1,9 @@
 # Changelog
 
+## 6.2.0 (2026-11-27)
+- Team work merged: product review and backlog (pm), six new team cards + generator (design), launch kit `docs/growth.md` (growth).
+- Team content calendar: one designed tip post every 3 days (`TEAM_DRIP`, `TEAM_DRIP_N/LAST`).
+
 ## 6.1.3 (2026-11-27)
 - Week actions under the table are icon buttons (note, photo, lock/unlock with pressed state, customize) instead of text links and a lock emoji.
 

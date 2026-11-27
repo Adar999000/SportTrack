@@ -1911,4 +1911,5 @@ export const EN: Record<string, string> = {
   "הכפתור של העוזר נשאר בדיוק איפה שמשאירים אותו, ולא קופץ לצד ימין": "The assistant button stays exactly where you leave it and no longer jumps to the side",
   "הכפתורים מתחת לטבלה (הערה, תמונה, נעילת שבוע, התאמה) עם אייקונים ברורים במקום טקסט ואימוג׳י": "The buttons under the table (note, photo, lock week, customize) now have clear icons instead of text and emoji",
   "התאמה": "Customize",
+  "לוח תוכן של הצוות: כרטיס טיפ חדש בפיד כל 3 ימים (מתיחות, חלבון, צעדים, סוף שבוע, חימום, אכילה מודעת)": "Team content calendar: a new tip card in the feed every 3 days (stretching, protein, steps, weekends, warm-up, mindful eating)",
 };

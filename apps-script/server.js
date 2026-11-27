@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '6.1.0';
+const SERVER_VERSION = '6.2.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -2020,8 +2020,30 @@ function ensureTeamImagePosts() {
   withLock(() => appendRows(postsSheet(), rowsNew));
 }
 
+/** Content calendar: one more team tip card every 3 days, in order, so the feed keeps moving. */
+const TEAM_DRIP = [
+  ['stretch', 'מתיחות אחרי ריצה 🌿 5 דקות עדינות מספיקות: מחזיקים כל מתיחה 20–30 שניות, נושמים לאט, ושומרים על תחושה נעימה ולא כואבת.'],
+  ['protein', 'חלבון בלי סיבוכים 🥚 ביצה, יוגורט או קטניות בכל ארוחה, ורבע מהצלחת לחלבון. פשוט וטעים.'],
+  ['steps', 'הליכה יומית 👟 מטרה מוכרת היא 10,000 צעדים. הליכה של 10 דקות אחרי כל ארוחה כבר מקרבת אתכם לשם.'],
+  ['weekend', 'גם בסוף השבוע 🎯 בוחרים הרגל קטן אחד ולא מוותרים עליו, אפילו אימון קצר. ה-V בטבלה נשאר ירוק!'],
+  ['warmup', 'חימום לפני כוח 🔥 8 דקות של תנועה קלה, סיבובי מפרקים וסט ראשון עם משקל קל. מעלים משקל בהדרגה ומקשיבים לגוף.'],
+  ['mindful', 'אכילה מודעת 🍽️ יושבים, מניחים את הטלפון, לועסים לאט ועוצרים באמצע לשאול: עדיין רעבים?'],
+];
+const DRIP_EVERY = 3 * 864e5;
+function dripTeamPost() {
+  const n = Number(props().getProperty('TEAM_DRIP_N')) || 0;
+  if (n >= TEAM_DRIP.length) return;
+  const last = Number(props().getProperty('TEAM_DRIP_LAST')) || 0;
+  if (Date.now() - last < DRIP_EVERY) return;
+  props().setProperty('TEAM_DRIP_N', String(n + 1));
+  props().setProperty('TEAM_DRIP_LAST', String(Date.now()));
+  const x = TEAM_DRIP[n];
+  withLock(() => appendRows(postsSheet(), [[Utilities.getUuid().slice(0, 10), TEAM_ID, new Date().toISOString(), 'all', 'text', x[1], JSON.stringify({ image: 'team/' + x[0] + '.webp' }), '', '[]', '[]', '[]', 'ok']]));
+}
+
 function ensureTeamPosts() {
   ensureTeamImagePosts();
+  dripTeamPost();
   if (props().getProperty('TEAM_SEEDED')) return;
   props().setProperty('TEAM_SEEDED', '1');
   const now = Date.now();
