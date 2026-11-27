@@ -30,3 +30,8 @@
   - "ארוחות + ספורט ביום אחד" → "Meals + sport in one day" (F12 proposed label for step 4).
 - Quest step labels that are in code (infinitives, neutral, no feminine form needed): "לסמן ארוחה ראשונה", "להזין משקל התחלתי", "לסמן אימון ראשון", "לסגור יום מלא".
 - Request to frontend (owns `src/ui/questCard.ts`): add the coin line under the claim button, and use the step-4 label above if F12 is applied.
+
+## Chief answers applied (6.3.0 merge)
+- "חד"כ" → "Gym" (chief confirmed; already in the merged file).
+- Password minimum is 8 (MIN_PASSWORD). EN values for the 6-character keys now read "8 characters". Those Hebrew keys are no longer used in code; only the English values changed.
+- "כובה אימות דו-שלבי" keeps its key; the English value reads "Two-step verification turned off".

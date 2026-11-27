@@ -234,6 +234,7 @@ export function renderProfile(root: HTMLElement): void {
     h('section', { class: 'card menu-list' },
       menuItem('coin', t('מטבעות וחנות'), t('אתגרים אישיים, רמות וחנות'), go(HASH.rewards)),
       menuItem('feed', t('קהילה ואתגרים'), t('פיד, אתגרים עם חברים ותחרויות'), go(HASH.feed)),
+      menuItem('week', t('תוכניות אימון'), t('5 ק"מ ב-8 שבועות, כוח בבית ועוד'), go(HASH.plans)),
       menuItem('music', t('מוזיקה'), t('Spotify ו-Apple Music לאימונים'), go(HASH.music)),
       menuItem('star', t('המטרות שלי'), t('מה חשוב לך, והאפליקציה מתאימה את עצמה'), go(HASH.goals)),
       menuItem(mascot(34, 'mi-mascot'), t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 6.3.0 (2026-11-27)
+- Training plans (frontend T2): `src/plans.ts`, `#plans`, Today plan card; synced doc `plan:active`; 11 tests.
+- Copy (content T6): 13 English fixes, 54 feminine entries, `docs/help.md`; "חד\"כ" = Gym.
+
 ## 6.2.0 (2026-11-27)
 - Team work merged: product review and backlog (pm), six new team cards + generator (design), launch kit `docs/growth.md` (growth).
 - Team content calendar: one designed tip post every 3 days (`TEAM_DRIP`, `TEAM_DRIP_N/LAST`).

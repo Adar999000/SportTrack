@@ -23,6 +23,7 @@ import { gx } from '../gender';
 import { smokeFreeStreak } from '../goalEffects';
 import { monthlySummaryCard, weeklySummaryCard } from './weeklySummary';
 import { questCard } from './questCard';
+import { planCard } from './planCard';
 
 const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
@@ -415,6 +416,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     listTrackers().length ? trackerBar(null) : '',
     isCurrent ? monthlySummaryCard() || weeklySummaryCard() : '',
     isCurrent ? questCard() : '',
+    isCurrent ? planCard() : '',
     isCurrent ? todayPanel(today) : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,
