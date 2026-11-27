@@ -1,6 +1,8 @@
 # Handoff: growth
 
 ## Done
+- T26 retention copy: `team/specs/retention-copy.md`. Seven messages (day 1 evening, day 2 morning, day 3 inactive, day 7 recap, streak saved, friend joined, come back after 5 days), each with trigger from existing data, text, button label, and channel. FAQ checks: "no purchase with money" true to code (Spotify Premium is external, noted); "no friends needed" true to the first-week quest.
+- Findings for the chief: (1) there is no switch to turn off assistant notes (`nudges.ts`); only the peek bubbles have one; (2) day 7 recap is tied to Saturday in `nudges.ts`; (3) no email/push exists for lapsed users, so messages 1.3 and 1.7 only show when the app is opened.
 - T15 landing v2: `team/specs/landing-v2.md` (text only). Contains: section order (steps directly under hero, 4 core features first, other 6 features in a collapsed "עוד תכונות"), replacement hero lead (he + en), 4 core feature texts, "דוגמה / Example" label for the mock and a generic name in place of "עומר", and 3 FAQ answers (price, need friends?, missed a day?).
 - Merged `claude/personal-discipline-pwa-13qhdk` into `team/growth` first (fast-forward-style merge, no conflicts).
 - Claims checked against code: "30 שניות" (tour.ts), V/X/- cycle (model.ts), 24h stories and no-map route (storiesView.ts), offline outbox (outbox.ts), no payment code (grep), invite code 50 coins (authView.ts).
