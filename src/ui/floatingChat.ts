@@ -81,7 +81,9 @@ export function mountFloatingChat(): { refresh: () => void } {
   const place = (x: number, y: number) => {
     const size = fab.offsetWidth || 58, m = 8;
     const cx = Math.min(innerWidth - size - m, Math.max(m, x)), cy = Math.min(innerHeight - size - 70, Math.max(60, y));
-    fab.style.left = cx + 'px'; fab.style.top = cy + 'px'; fab.style.right = 'auto'; fab.style.bottom = 'auto'; fab.style.insetInlineEnd = 'auto';
+    // clear the logical side first: in RTL `inset-inline-end` IS `left`, so resetting it after setting left wiped the position
+    fab.style.insetInlineEnd = 'auto'; fab.style.insetInlineStart = 'auto'; fab.style.right = 'auto'; fab.style.bottom = 'auto';
+    fab.style.left = cx + 'px'; fab.style.top = cy + 'px';
     return [cx, cy];
   };
   const restore = () => {
@@ -102,10 +104,9 @@ export function mountFloatingChat(): { refresh: () => void } {
       removeEventListener('pointermove', move); removeEventListener('pointerup', up);
       if (!dragged) return;
       fab.classList.remove('dragging');
-      // snap to the nearest side
+      // stays exactly where it was dropped (kept inside the screen)
       const rr = fab.getBoundingClientRect();
-      const left = rr.left + rr.width / 2 < innerWidth / 2;
-      const [cx, cy] = place(left ? 8 : innerWidth - rr.width - 8, rr.top);
+      const [cx, cy] = place(rr.left, rr.top);
       try { localStorage.setItem(POS_KEY, JSON.stringify({ x: cx / innerWidth, y: cy / innerHeight })); } catch { /* ignore */ }
       navigator.vibrate?.(6);
     };
@@ -130,6 +131,7 @@ export function mountFloatingChat(): { refresh: () => void } {
   function settle() {
     if (fab.hidden || !panel.hidden) return;
     fab.classList.remove('tucked');
+    try { if (localStorage.getItem(POS_KEY)) return; } catch { /* ignore */ } // the person chose this spot: don't move it
     const r = fab.getBoundingClientRect();
     if (!r.width) return;
     const prev = fab.style.pointerEvents;

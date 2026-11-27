@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.1.2 (2026-11-27)
+- Fix: the floating assistant button jumped to the right after dragging (in RTL, resetting `inset-inline-end` after setting `left` cleared it). No more snapping to a side; a spot the user chose is never auto-tucked.
+
 ## 6.1.1 (2026-11-27)
 - Landing aligned with the app: interactive Today mock (rings follow taps) instead of the old table + chat, store/levels copy matches the catalog and real level numbers, steps match onboarding, safety section mentions verification/reporting/blocking.
 - `#about` (or `#home`) shows the landing page even when signed in; linked from Me.
