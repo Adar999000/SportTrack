@@ -415,9 +415,9 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   root.replaceChildren(
     listTrackers().length ? trackerBar(null) : '',
     isCurrent ? monthlySummaryCard() || weeklySummaryCard() : '',
-    isCurrent ? questCard() : '',
-    isCurrent ? planCard() : '',
     isCurrent ? todayPanel(today) : '',
+    isCurrent ? planCard() : '',
+    isCurrent ? questCard() : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,
     week.photoId ? weekPhoto(sunday) : '',

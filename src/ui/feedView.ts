@@ -1,3 +1,4 @@
+import { verifyCard } from './verifyCard';
 import { t, tr } from '../i18n';
 import { call, NetworkError } from '../api';
 import { onOutboxSent, postOrQueue } from '../outbox';
@@ -332,7 +333,11 @@ export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels')
     } }, t(label)));
   });
   moreBtn.addEventListener('click', () => load(true));
-  box.replaceChildren(storiesBar(), composer(() => load()), filter, list, moreBtn,
+  // Unverified email: the verify card takes the composer's place, then the composer appears in place.
+  const slot = h('div', { class: 'stack' });
+  const fillSlot = () => slot.replaceChildren((!isAdmin() && verifyCard({ reason: t('כדי לפרסם צריך לאמת את המייל. זה לוקח 20 שניות.'), onVerified: () => { fillSlot(); setTimeout(() => document.querySelector<HTMLElement>('.composer textarea')?.focus(), 50); } })) || composer(() => load()));
+  fillSlot();
+  box.replaceChildren(storiesBar(), slot, filter, list, moreBtn,
     h('p', { class: 'hint' }, t('"חברים" הם מי שהזמנת לאפליקציה ומי שהזמין אותך. אפשר לדווח על תוכן לא הולם דרך ⋯.')));
   load();
   const off = onOutboxSent(() => { if (list.isConnected) load(); else off(); });
