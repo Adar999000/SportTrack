@@ -1,3 +1,4 @@
+import { blockedListCard } from './safety';
 import { owns } from '../rewards';
 import { hasBackend } from '../api';
 import { HASH, navigate } from './router';
@@ -216,4 +217,6 @@ export function renderSettings(root: HTMLElement): void {
       h('p', { class: 'credit' }, t('פותח על ידי'), ' ', h('strong', null, 'AZ Creative')),
     ),
   );
+  if (hasBackend()) root.append(blockedListCard());
+
 }

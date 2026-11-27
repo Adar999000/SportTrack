@@ -20,10 +20,11 @@ import { availableAchievements } from './shareCard';
 import { visibilitySelect } from './shareCard';
 import { track } from '../analytics';
 import type { Post } from './feedView';
+import { blockButton, reportButton } from './safety';
 
 export interface StoryData {
   tpl: 'photo' | 'text' | 'rings' | 'workout' | 'achievement' | 'week';
-  workouts?: number; full?: number;
+  workouts?: number; full?: number; label?: string;
   bg: string;
   meals?: number; sport?: number; week?: number; streak?: number;
   type?: WorkoutType; distanceM?: number; durationS?: number; name?: string; route?: [number, number][];
@@ -100,10 +101,10 @@ export function storyCard(d: StoryData, text: string, photo: string | null, who:
       h('div', { class: 'st-stats' }, big(fmtDuration(d.durationS ?? 0), t('זמן')), big(ps.value, t(ps.label))));
   } else if (d.tpl === 'week') {
     body = h('div', { class: 'st-body' },
-      h('p', { class: 'st-kicker' }, t('סיכום השבוע')),
+      h('p', { class: 'st-kicker' }, d.label ? tr`סיכום ${d.label}` : t('סיכום השבוע')),
       h('div', { class: 'st-hero-num' }, h('b', null, String(d.workouts ?? 0)), h('span', null, t('אימונים'))),
-      h('div', { class: 'st-week-dots', 'aria-hidden': 'true' }, Array.from({ length: 7 }, (_, i) => h('span', { class: i < (d.full ?? 0) ? 'on' : '' }))),
-      h('div', { class: 'st-stats' }, big(`${d.full ?? 0}/7`, t('ימים מלאים')), big(`${d.meals ?? 0}%`, t('ארוחות'))));
+      d.label ? '' : h('div', { class: 'st-week-dots', 'aria-hidden': 'true' }, Array.from({ length: 7 }, (_, i) => h('span', { class: i < (d.full ?? 0) ? 'on' : '' }))),
+      h('div', { class: 'st-stats' }, big(d.label ? String(d.full ?? 0) : `${d.full ?? 0}/7`, t('ימים מלאים')), big(`${d.meals ?? 0}%`, t('ארוחות'))));
   } else if (d.tpl === 'achievement') {
     body = h('div', { class: 'st-body st-center' }, h('div', { class: 'st-emoji', 'aria-hidden': 'true' }, d.emoji || '🏆'), h('p', { class: 'st-title' }, d.title || ''));
   } else if (d.tpl === 'photo') {
@@ -156,6 +157,12 @@ function openViewer(groups: Group[], gi: number, onClose: () => void): void {
     head.replaceChildren(
       avatar(g.author.name, g.author.photoId, 34, g.author.frame),
       h('div', { class: 'sv-who' }, h('b', null, g.author.name), h('span', null, new Date(p.at).toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' }))),
+      !p.mine ? h('button', { class: 'sv-x', type: 'button', 'aria-label': t('אפשרויות'), onclick: () => {
+        pause();
+        const shut = openSheet(t('אפשרויות'), h('div', { class: 'stack' },
+          reportButton(p.id, () => { shut(); go(1); }, t('דיווח על הסטורי')),
+          blockButton(g.author.userId, g.author.name, () => { shut(); groups.splice(gi, 1); ii = -1; if (!groups.length) close(); else { gi = Math.min(gi, groups.length - 1); ii = 0; show(); } })));
+      } }, '⋯') : '',
       h('button', { class: 'sv-x', type: 'button', 'aria-label': t('סגירה'), onclick: close }, '✕'));
     const card = storyCard(d, p.text, null, { name: g.author.name, at: p.at });
     if (d.tpl === 'photo' && p.photoId) {

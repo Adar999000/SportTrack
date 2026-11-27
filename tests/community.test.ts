@@ -325,3 +325,66 @@ describe('photo posts', () => {
     expect(post.data.photos.every((id: string) => be.files.get(id).trashed)).toBe(true);
   });
 });
+
+describe('blocking, first-week quest and group challenges', () => {
+  it('hides blocked people both ways in feed, stories, comments and chat', () => {
+    const be = createBackend();
+    be.properties.set('TEAM_SEEDED', '1');
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const a = be.post({ action: 'register', email: 'a@x.com', password: 'secret12', name: 'אלף' });
+    const b = be.post({ action: 'register', email: 'b@x.com', password: 'secret12', name: 'בית' });
+    const pa = be.post({ action: 'createPost', token: a.token, text: 'שלום' }).post;
+    be.post({ action: 'createPost', token: b.token, text: 'היי' });
+    be.post({ action: 'createPost', token: b.token, kind: 'story', data: { tpl: 'text' }, text: 'סטורי' });
+    be.post({ action: 'commentPost', token: b.token, id: pa.id, text: 'תגובה' });
+    expect(be.post({ action: 'blockUser', token: a.token, userId: b.user.userId }).blocked.map((x: any) => x.name)).toEqual(['בית']);
+    expect(be.post({ action: 'feed', token: a.token }).posts.map((p: any) => p.text)).toEqual(['שלום']);
+    expect(be.post({ action: 'feed', token: a.token }).posts[0].comments).toHaveLength(0);
+    expect(be.post({ action: 'stories', token: a.token }).groups).toHaveLength(0);
+    expect(be.post({ action: 'feed', token: b.token }).posts.map((p: any) => p.text)).toEqual(['היי']); // both ways
+    expect(be.post({ action: 'commentPost', token: b.token, id: pa.id, text: 'עוד' }).error).toBeTruthy();
+    expect(be.post({ action: 'blockUser', token: a.token, userId: a.user.userId }).error).toBeTruthy();
+    be.post({ action: 'blockUser', token: a.token, userId: b.user.userId, on: false });
+    expect(be.post({ action: 'feed', token: a.token }).posts).toHaveLength(2);
+  });
+
+  it('pays the first-week quest once, only when all four steps are done', () => {
+    const be = createBackend();
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
+    expect(be.post({ action: 'claimQuest', token: u.token }).error).toMatch(/לא כל/);
+    const sunday = new Date(); sunday.setUTCDate(sunday.getUTCDate() - sunday.getUTCDay());
+    const sd = sunday.toISOString().slice(0, 10);
+    be.post({ action: 'putWeeks', token: u.token, weeks: [{ sundayDate: sd, updatedAt: Date.now(), data: { sundayDate: sd, startWeight: 80, days: [{ breakfast: 'V', lunch: 'V', dinner: 'V', sport: { status: 'V', label: 'ריצה', countsAsWorkout: true } }] }, summary: {} }] });
+    expect(be.post({ action: 'questStatus', token: u.token }).steps).toEqual({ meal: true, weight: true, sport: true, full: true });
+    const before = be.post({ action: 'rewards', token: u.token }).rewards.balance;
+    expect(be.post({ action: 'claimQuest', token: u.token }).paid).toBe(true);
+    be.post({ action: 'claimQuest', token: u.token });
+    expect(be.post({ action: 'rewards', token: u.token }).rewards.balance).toBe(before + 100);
+  });
+
+  it('runs a group challenge toward one shared goal and pays everyone who helped', () => {
+    let now = new Date('2026-12-01T10:00:00Z');
+    const be = createBackend({ now: () => now });
+    const reg = (email: string, name: string, invite?: string) => be.post({ action: 'register', email, password: 'secret12', name, invite });
+    reg('adm@x.com', 'מנהל');
+    const a = reg('a@x.com', 'אלף');
+    const b = reg('b@x.com', 'בית', be.post({ action: 'myInvite', token: a.token }).code);
+    expect(be.post({ action: 'createDuel', token: a.token, metric: 'workouts', days: 3, team: true, target: 0 }).error).toMatch(/יעד/);
+    const { duel } = be.post({ action: 'createDuel', token: a.token, metric: 'workouts', days: 3, team: true, target: 3, invite: [b.user.userId] });
+    expect(duel).toMatchObject({ team: true, target: 3, metric: 'workouts', total: 0 });
+    be.post({ action: 'respondDuel', token: b.token, id: duel.id, accept: true });
+    const day = { breakfast: 'V', sport: { status: 'V', label: 'כוח', countsAsWorkout: true } };
+    const wk = (days: any[]) => ({ sundayDate: '2026-11-29', updatedAt: Date.now(), data: { sundayDate: '2026-11-29', days }, summary: {} });
+    be.post({ action: 'putWeeks', token: a.token, weeks: [wk([null, null, day, day])] });
+    be.post({ action: 'putWeeks', token: b.token, weeks: [wk([null, null, day])] });
+    now = new Date('2026-12-02T10:00:00Z');
+    expect(be.post({ action: 'duels', token: a.token }).duels[0].total).toBe(3);
+    now = new Date('2026-12-05T10:00:00Z');
+    const ba = be.post({ action: 'rewards', token: a.token }).rewards.balance;
+    const d = be.post({ action: 'duels', token: a.token }).duels[0];
+    expect(d.status).toBe('done');
+    expect(d.winners.sort()).toEqual([a.user.userId, b.user.userId].sort());
+    expect(be.post({ action: 'rewards', token: a.token }).rewards.balance).toBe(ba + 50);
+  });
+});

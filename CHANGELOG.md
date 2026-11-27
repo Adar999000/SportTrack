@@ -1,5 +1,12 @@
 # Changelog
 
+## 5.9.0 (2026-11-27)
+- Blocking (`blockUser`, `myBlocks`, `hiddenFor`): hides posts, stories, comments and challenge chat both ways; blocked users can't comment on your posts. Report and block from a story's ⋯; reported stories in the admin queue with their photo.
+- First-week quest (`questStatus`, `claimQuest`): meal, weigh-in, workout, full day within 14 days of joining pays 100 coins once, verified on the server.
+- Group challenges: metric stored as `team:<metric>:<target>`, total progress bar, everyone who contributed gets 50 coins when the goal is met.
+- Monthly recap card (1st–3rd), `week` story template takes a `label`.
+- Spotify track search; SVG media controls; floating button stays tucked when it would cover content; admin quick-jump chips; privacy policy sections; sender gender in challenge / event emails.
+
 ## 5.8.0 (2026-11-27)
 - Posts take up to 4 photos (`photos` array; extra ids in `data.photos`, all trashed on delete, visibility checked for each) with a swipeable gallery.
 - Stories from the gallery: a Gallery bubble and a first "Gallery" template, up to 5 photos posted as separate stories, optional stats overlay (`ov`: last workout or today).

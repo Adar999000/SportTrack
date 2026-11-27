@@ -10,6 +10,7 @@ import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { duelsTab } from './duelsView';
 import { storiesBar } from './storiesView';
+import { blockButton, reportButton } from './safety';
 import { leagueCard } from './leagueView';
 import { track } from '../analytics';
 import { cardPreview, openShareAchievement, shareOutside, visibilitySelect, type Achievement } from './shareCard';
@@ -88,9 +89,8 @@ function postCard(p: Post, reload: () => void): HTMLElement {
       (p.mine || isAdmin()) && confirmButton(t('מחק פוסט'), t('הקש שוב למחיקה'), async () => {
         try { await call('deletePost', { id: p.id }); close(); toast(t('הפוסט נמחק')); reload(); } catch (e: any) { toast(e.message); }
       }, 'btn btn-danger'),
-      !p.mine && h('button', { class: 'btn', type: 'button', onclick: async () => {
-        try { await call('reportPost', { id: p.id }); close(); toast(t('תודה, הדיווח נשלח למנהל')); } catch (e: any) { toast(e.message); }
-      } }, '🚩 ', t('דווח על תוכן לא הולם')),
+      !p.mine && reportButton(p.id, () => close()),
+      !p.mine && !p.author.team && blockButton(p.author.userId, p.author.name, () => { close(); reload(); }),
     ));
   };
   return h('article', { class: 'card post' + (p.status !== 'ok' ? ' post-hidden' : '') },

@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '5.8.0';
+const SERVER_VERSION = '5.9.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -90,6 +90,10 @@ function route(req) {
     case 'createPost': return createPost(me, req);
     case 'stories': return stories(me);
     case 'league': return league(me);
+    case 'blockUser': return blockUser(me, req);
+    case 'questStatus': return questStatus(me);
+    case 'claimQuest': return claimQuest(me);
+    case 'myBlocks': return myBlocks(me);
     case 'viewStory': return viewStory(me, req);
     case 'likePost': return likePost(me, req);
     case 'commentPost': return commentPost(me, req);
@@ -1208,6 +1212,35 @@ function leaderboard(period) {
   return list.slice().sort((a, b) => b[k] - a[k]);
 }
 
+/** First-week quest: four things in the first 14 days pay 100 coins once. Checked from the user's own data. */
+const QUEST_PRIZE = 100;
+function questStatus(me) {
+  const uid = me.r[U.id];
+  const created = Date.parse(String(me.r[U.created])) || 0;
+  const weeks = rows('Weeks').filter((r) => r[W.user] === uid).map((r) => parseJSON(r[W.data], null)).filter(Boolean);
+  const days = [].concat.apply([], weeks.map((w) => w.days || []));
+  const done = (d) => ['breakfast', 'lunch', 'dinner'].filter((k) => d[k] || (d.text && d.text[k])).length + (d.sport && d.sport.status ? 1 : 0);
+  const steps = {
+    meal: days.some((d) => ['breakfast', 'lunch', 'dinner'].some((k) => d[k] === 'V')),
+    weight: weeks.some((w) => typeof w.startWeight === 'number'),
+    sport: days.some((d) => d.sport && d.sport.status === 'V'),
+    full: days.some((d) => done(d) >= 4),
+  };
+  const paid = ledgerRows().some((l) => l[0] === uid && String(l[3]) === 'quest:firstweek');
+  return { steps: steps, paid: paid, open: !paid && Date.now() - created < 14 * 864e5, prize: QUEST_PRIZE };
+}
+function claimQuest(me) {
+  return withLock(() => {
+    const q = questStatus(me);
+    if (q.paid) return q;
+    if (!q.open) throw new Error('תקופת משימות הפתיחה הסתיימה');
+    if (!Object.keys(q.steps).every((k) => q.steps[k])) throw new Error('עוד לא כל המשימות הושלמו');
+    appendRows(ledgerSheet(), [[me.r[U.id], new Date().toISOString(), QUEST_PRIZE, 'quest:firstweek', 'משימות השבוע הראשון']]);
+    CacheService.getScriptCache().remove('lb-v1');
+    return Object.assign(q, { paid: true, open: false });
+  });
+}
+
 /** Weekly league: people with similar lifetime coins in groups of 15, ranked by this week's coins. */
 const LEAGUE_SIZE = 15;
 const LEAGUE_TIERS = ['יהלום', 'פלטינה', 'זהב', 'כסף', 'ארד'];
@@ -1792,12 +1825,49 @@ function canSeePost(uid, r, friends) {
   return r[P.vis] === 'all' || !!friends[r[P.user]];
 }
 
+/** People hidden from me: those I blocked and those who blocked me (blocking hides both ways). */
+function hiddenFor(uid, users) {
+  const set = {};
+  (users || rows('Users')).forEach((r) => {
+    const b = extraOf(r).blocks || [];
+    if (r[U.id] === uid) b.forEach((x) => { set[x] = true; });
+    else if (b.indexOf(uid) >= 0) set[r[U.id]] = true;
+  });
+  return set;
+}
+
+/** "הזמין/ה" → "הזמין" or "הזמינה" by a user's chosen gender (kept as is when not set). */
+function gz(text, userRow) {
+  const g = (parseJSON(userRow[U.profile], {}) || {}).gender;
+  if (g !== 'male' && g !== 'female') return text;
+  const fin = { 'ך': 'כ', 'ם': 'מ', 'ן': 'נ', 'ף': 'פ', 'ץ': 'צ' };
+  return String(text).replace(/([\u0590-\u05FF]+)\/(ה|י|ית)(?![\u0590-\u05FF])/g, (m, w, suf) => (g === 'female' ? w.replace(/[ךםןףץ]$/, (c) => fin[c]) + suf : w));
+}
+
+function blockUser(me, req) {
+  const uid = me.r[U.id];
+  const other = String(req.userId || '');
+  if (!other || other === uid || other === TEAM_ID) throw new Error('אי אפשר לחסום את המשתמש הזה');
+  if (!findUser((r) => r[U.id] === other)) throw new Error('המשתמש לא נמצא');
+  const blocks = (extraOf(me.r).blocks || []).filter((x) => x !== other);
+  if (req.on !== false) blocks.push(other);
+  setExtra(me, { blocks: blocks.slice(-500) });
+  audit(uid, req.on !== false ? 'block' : 'unblock', other);
+  return myBlocks(me);
+}
+
+function myBlocks(me) {
+  const ids = extraOf(me.r).blocks || [];
+  const users = rows('Users');
+  return { blocked: ids.map((id) => { const r = users.find((x) => x[U.id] === id); return { userId: id, name: r ? r[U.name] : '—' }; }) };
+}
+
 const TEAM_ID = 'team';
-function postOut(r, uid, people) {
+function postOut(r, uid, people, hidden) {
   const a = r[P.user] === TEAM_ID ? { name: 'צוות משמעת אישית', team: true } : (people[r[P.user]] || { name: '—' });
   const likes = parseJSON(r[P.likes], []) || [];
   // story replies are private: the author sees all of them, everyone else only their own
-  const comments = (parseJSON(r[P.comments], []) || []).filter((c) => r[P.kind] !== 'story' || r[P.user] === uid || c.userId === uid).slice(-30).map((c) => ({
+  const comments = (parseJSON(r[P.comments], []) || []).filter((c) => (r[P.kind] !== 'story' || r[P.user] === uid || c.userId === uid) && !(hidden && hidden[c.userId])).slice(-30).map((c) => ({
     id: c.id, userId: c.userId, name: (people[c.userId] || {}).name || '—', text: c.text, at: c.at,
   }));
   let data = parseJSON(r[P.data], null);
@@ -1856,7 +1926,7 @@ function cleanStory(d) {
       ? { km: num(d.ov.km, 1000), time: String(d.ov.time || '').slice(0, 10), pace: String(d.ov.pace || '').slice(0, 16) }
       : { meals: num(d.ov.meals, 3), sport: num(d.ov.sport, 1) };
   }
-  if (out.tpl === 'week') Object.assign(out, { workouts: num(d.workouts, 50), full: num(d.full, 7), meals: num(d.meals, 100) });
+  if (out.tpl === 'week') Object.assign(out, { workouts: num(d.workouts, 100), full: num(d.full, 31), meals: num(d.meals, 100), label: String(d.label || '').slice(0, 20) });
   if (out.tpl === 'achievement') Object.assign(out, { title: String(d.title || '').slice(0, 80), emoji: String(d.emoji || '🏆').slice(0, 4) });
   return out;
 }
@@ -1864,10 +1934,12 @@ function cleanStory(d) {
 /** Live stories (last 24h) I may see, grouped by person; mine first, then unseen-first is up to the client. */
 function stories(me) {
   const uid = me.r[U.id];
-  const friends = friendsOf(uid, rows('Users'));
+  const users = rows('Users');
+  const friends = friendsOf(uid, users);
+  const hidden = hiddenFor(uid, users);
   const since = new Date(Date.now() - STORY_MS).toISOString();
   const live = allRows(postsSheet(), POST_W)
-    .filter((r) => r[P.kind] === 'story' && String(r[P.at]) >= since && canSeePost(uid, r, friends))
+    .filter((r) => r[P.kind] === 'story' && !hidden[r[P.user]] && String(r[P.at]) >= since && canSeePost(uid, r, friends))
     .sort((a, b) => String(a[P.at]).localeCompare(String(b[P.at])));
   const people = peopleIndex();
   const groups = {};
@@ -1875,7 +1947,7 @@ function stories(me) {
   live.forEach((r) => {
     const k = r[P.user];
     if (!groups[k]) { groups[k] = []; order.push(k); }
-    groups[k].push(postOut(r, uid, people));
+    groups[k].push(postOut(r, uid, people, hidden));
   });
   order.sort((a, b) => (a === uid ? -1 : b === uid ? 1 : String(groups[b][groups[b].length - 1].at).localeCompare(String(groups[a][groups[a].length - 1].at))));
   return { groups: order.map((k) => ({ author: groups[k][0].author, items: groups[k] })) };
@@ -1898,16 +1970,18 @@ function viewStory(me, req) {
 function feed(me, req) {
   ensureTeamPosts();
   const uid = me.r[U.id];
-  const friends = friendsOf(uid, rows('Users'));
+  const users = rows('Users');
+  const friends = friendsOf(uid, users);
+  const hidden = hiddenFor(uid, users);
   const before = String(req.before || '9999');
   const only = String(req.only || '');
   const list = allRows(postsSheet(), POST_W)
-    .filter((r) => r[P.kind] !== 'story' && String(r[P.at]) < before && canSeePost(uid, r, friends))
+    .filter((r) => r[P.kind] !== 'story' && !hidden[r[P.user]] && String(r[P.at]) < before && canSeePost(uid, r, friends))
     .filter((r) => (only === 'mine' ? r[P.user] === uid : only === 'friends' ? !!friends[r[P.user]] || r[P.user] === uid : true))
     .sort((a, b) => String(b[P.at]).localeCompare(String(a[P.at])))
     .slice(0, 20);
   const people = peopleIndex();
-  return { posts: list.map((r) => postOut(r, uid, people)), more: list.length === 20 };
+  return { posts: list.map((r) => postOut(r, uid, people, hidden)), more: list.length === 20 };
 }
 
 function createPost(me, req) {
@@ -1969,6 +2043,7 @@ function commentPost(me, req) {
   dailyCount('cmt-' + me.r[U.id], 60, 'אפשר להגיב עד 60 פעמים ביום');
   return withLock(() => {
     const p = findPost(me, req.id);
+    if (hiddenFor(me.r[U.id])[p.r[P.user]]) throw new Error('הפוסט לא נמצא');
     const list = parseJSON(p.r[P.comments], []) || [];
     if (list.length >= 100) throw new Error('הגעת למספר התגובות המרבי לפוסט');
     const c = { id: Utilities.getUuid().slice(0, 8), userId: me.r[U.id], text: text, at: new Date().toISOString() };
@@ -2077,7 +2152,7 @@ function suggestEvent(me, req) {
     EVENT_TYPES.indexOf(req.type) >= 0 ? req.type : 'other', url, String(req.details || '').trim().slice(0, 1000),
     admin ? 'approved' : 'pending', me.r[U.id], new Date().toISOString()];
   withLock(() => appendRows(eventsSheet(), [row]));
-  if (!admin) rows('Users').filter((r) => r[U.role] === 'admin').forEach((a) => safeMail(a[U.email], 'הצעה לתחרות חדשה', me.r[U.name] + ' הציע/ה: ' + title + ' (' + date + '). אפשר לאשר בלוח המנהל ← תחרויות.'));
+  if (!admin) rows('Users').filter((r) => r[U.role] === 'admin').forEach((a) => safeMail(a[U.email], 'הצעה לתחרות חדשה', me.r[U.name] + gz(' הציע/ה: ', me.r) + title + ' (' + date + '). אפשר לאשר בלוח המנהל ← תחרויות.'));
   return { event: eventOut(row) };
 }
 
@@ -2109,12 +2184,19 @@ const DUEL_METRICS = {
   coins: 'הכי הרבה מטבעות',
 };
 const DUEL_PRIZE = 100;
+const TEAM_PRIZE = 50;
+/** Group challenges are stored as metric "team:<metric>:<target>": everyone adds up toward one goal. */
+function duelMeta(m) {
+  const t = /^team:(\w+):(\d+)$/.exec(String(m));
+  return t ? { base: t[1], team: true, target: Number(t[2]) } : { base: String(m), team: false, target: 0 };
+}
 const DU = { id: 0, by: 1, title: 2, metric: 3, start: 4, end: 5, members: 6, code: 7, status: 8, at: 9, winners: 10 };
 const DUEL_W = 11;
 function duelsSheet() { return lazySheet('Duels', ['id', 'createdBy', 'title', 'metric', 'start', 'end', 'members', 'code', 'status', 'createdAt', 'winners']); }
 
 /** A member's score for a metric between two dates (inclusive), from their own data. */
 function duelScore(uid, metric, start, end, ctx) {
+  metric = duelMeta(metric).base;
   const until = end < todayStr() ? end : todayStr();
   if (start > until) return 0;
   if (metric === 'coins') {
@@ -2149,8 +2231,10 @@ function duelOut(r, uid, ctx, people) {
       score: m.status === 'in' ? duelScore(m.userId, r[DU.metric], String(r[DU.start]), String(r[DU.end]), ctx) : 0 };
   }).sort((a, b) => b.score - a.score);
   const me = members.find((m) => m.userId === uid);
+  const meta = duelMeta(r[DU.metric]);
   return {
-    id: r[DU.id], title: r[DU.title], metric: r[DU.metric], metricName: DUEL_METRICS[r[DU.metric]] || '', start: String(r[DU.start]), end: String(r[DU.end]),
+    id: r[DU.id], title: r[DU.title], metric: meta.base, metricName: DUEL_METRICS[meta.base] || '', start: String(r[DU.start]), end: String(r[DU.end]),
+    team: meta.team, target: meta.target, total: standings.reduce((s2, x) => s2 + x.score, 0), teamPrize: TEAM_PRIZE,
     code: me && me.status === 'in' ? r[DU.code] : '', status: r[DU.status], mine: r[DU.by] === uid, myStatus: me ? me.status : '',
     winners: parseJSON(r[DU.winners], []) || [], prize: DUEL_PRIZE, standings: standings,
   };
@@ -2171,12 +2255,15 @@ function settleDuels() {
       const members = (parseJSON(x.r[DU.members], []) || []).filter((m) => m.status === 'in');
       const scores = members.map((m) => ({ userId: m.userId, score: duelScore(m.userId, x.r[DU.metric], String(x.r[DU.start]), String(x.r[DU.end]), ctx) }));
       const top = Math.max.apply(null, scores.map((s) => s.score).concat([0]));
-      const winners = members.length > 1 && top > 0 ? scores.filter((s) => s.score === top).map((s) => s.userId) : [];
+      const meta = duelMeta(x.r[DU.metric]);
+      const total = scores.reduce((s2, x2) => s2 + x2.score, 0);
+      const winners = meta.team ? (total >= meta.target ? scores.filter((s) => s.score > 0).map((s) => s.userId) : [])
+        : members.length > 1 && top > 0 ? scores.filter((s) => s.score === top).map((s) => s.userId) : [];
       sh.getRange(x.i + 2, DU.status + 1).setValue('done');
       sh.getRange(x.i + 2, DU.winners + 1).setValue(JSON.stringify(winners));
       const ref = 'duel:' + x.r[DU.id];
       const paid = ledgerRows().some((l) => String(l[3]) === ref);
-      if (!paid && winners.length) appendRows(ledgerSheet(), winners.map((w) => [w, new Date().toISOString(), DUEL_PRIZE, ref, 'ניצחון באתגר: ' + x.r[DU.title]]));
+      if (!paid && winners.length) appendRows(ledgerSheet(), winners.map((w) => [w, new Date().toISOString(), meta.team ? TEAM_PRIZE : DUEL_PRIZE, ref, (meta.team ? 'יעד קבוצתי הושג: ' : 'ניצחון באתגר: ') + x.r[DU.title]]));
     });
   });
   CacheService.getScriptCache().remove('lb-v1');
@@ -2195,10 +2282,16 @@ function myDuels(me) {
 }
 
 function createDuel(me, req) {
-  const metric = DUEL_METRICS[req.metric] ? req.metric : '';
+  let metric = DUEL_METRICS[req.metric] ? req.metric : '';
   if (!metric) throw new Error('נא לבחור על מה מתחרים');
+  if (req.team) {
+    const target = Math.round(Number(req.target) || 0);
+    if (target < 1 || target > 5000) throw new Error('נא לבחור יעד קבוצתי (1 עד 5000)');
+    metric = 'team:' + metric + ':' + target;
+  }
   const days = Math.max(1, Math.min(31, Number(req.days) || 7));
-  const title = String(req.title || '').trim().slice(0, 60) || DUEL_METRICS[metric];
+  const UNITS = { workouts: 'אימונים', runs: 'ריצות', healthy: 'ארוחות בריאות', fullDays: 'ימים מלאים', coins: 'מטבעות' };
+  const title = String(req.title || '').trim().slice(0, 60) || (req.team ? 'ביחד: ' + duelMeta(metric).target + ' ' + UNITS[duelMeta(metric).base] : DUEL_METRICS[metric]);
   const uid = me.r[U.id];
   const mineActive = allRows(duelsSheet(), DUEL_W).filter((r) => r[DU.by] === uid && r[DU.status] === 'active').length;
   if (mineActive >= 5) throw new Error('אפשר לנהל עד 5 אתגרים פעילים בו זמנית');
@@ -2212,7 +2305,7 @@ function createDuel(me, req) {
   const users = rows('Users');
   invite.forEach((id) => {
     const u = users.find((r) => r[U.id] === id);
-    if (u) safeMail(u[U.email], me.r[U.name] + ' הזמין/ה אותך לאתגר', me.r[U.name] + ' הזמין/ה אותך לאתגר "' + title + '" במשמעת אישית. אפשר להצטרף בלשונית קהילה ← אתגרים.');
+    if (u) safeMail(u[U.email], me.r[U.name] + gz(' הזמין/ה אותך לאתגר', me.r), me.r[U.name] + gz(' הזמין/ה אותך לאתגר "', me.r) + '' + title + '" במשמעת אישית. אפשר להצטרף בלשונית קהילה ← אתגרים.');
   });
   return { duel: duelOut(row, uid, duelCtx(), peopleIndex()) };
 }
@@ -2460,7 +2553,8 @@ function duelMember(me, id, needIn) {
 function duelChat(me, id, after) {
   duelMember(me, id, false);
   const people = peopleIndex();
-  const list = allRows(duelChatSheet(), 5).filter((r) => r[DC.duel] === id);
+  const hidden = hiddenFor(me.r[U.id]);
+  const list = allRows(duelChatSheet(), 5).filter((r) => r[DC.duel] === id && !hidden[r[DC.user]]);
   const from = after ? list.findIndex((r) => r[DC.id] === after) + 1 : 0;
   return list.slice(Math.max(from, list.length - 100))
     .map((r) => ({ id: r[DC.id], userId: r[DC.user], name: (people[r[DC.user]] || {}).name || '—', at: r[DC.at], text: r[DC.text], mine: r[DC.user] === me.r[U.id] }));

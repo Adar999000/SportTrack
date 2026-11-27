@@ -1,3 +1,4 @@
+import { photoUrl } from '../session';
 import { APP_VERSION } from '../version';
 import { isRTL, t, tr } from '../i18n';
 import { call, type AdminUserRow, type UserSummary } from '../api';
@@ -176,7 +177,8 @@ function communityCard(): HTMLElement {
         ))) : h('p', { class: 'muted' }, t('אין תחרויות.')),
         h('h3', { class: 'section-title' }, t('פוסטים שדווחו')),
         posts.length ? h('div', { class: 'stack' }, posts.map((p) => h('div', { class: 'mod-post' },
-          h('p', null, h('strong', null, p.author.name), ' · ', p.text || (p.data?.title ?? '')),
+          h('p', null, p.kind === 'story' ? h('span', { class: 'badge' }, t('סטורי')) : '', ' ', h('strong', null, p.author.name), ' · ', p.text || (p.data?.title ?? p.data?.name ?? (p.photoId ? t('תמונה') : ''))),
+          p.photoId ? h('a', { class: 'link-btn', href: '#', onclick: (e: Event) => { e.preventDefault(); photoUrl(p.photoId!).then((u) => openSheet(t('תמונה מדווחת'), h('img', { src: u, alt: t('תמונה מדווחת'), style: { width: '100%', borderRadius: '12px' } }))).catch(() => {}); } }, t('צפייה בתמונה')) : '',
           h('p', { class: 'muted small' }, tr`${p.reports.length} דיווחים`, p.status !== 'ok' ? ' · ' + t('מוסתר') : ''),
           h('div', { class: 'row-actions' },
             h('button', { class: 'link-btn', type: 'button', onclick: act(() => call('modAction', { id: p.id, do: 'restore' })) }, t('השאר והסר דיווחים')),
@@ -187,7 +189,7 @@ function communityCard(): HTMLElement {
     } catch (e: any) { body.replaceChildren(h('p', { class: 'form-error' }, e.message)); }
   };
   det.addEventListener('toggle', () => { if (det.open) load(); });
-  return h('section', { class: 'card' }, det);
+  return h('section', { class: 'card admin-community' }, det);
 }
 
 function auditCard(names: Record<string, string>): HTMLElement {
@@ -255,7 +257,7 @@ function settingsCard(): HTMLElement {
   };
   const load = () => call<AdminSettings>('adminSettings').then(draw).catch((e) => body.replaceChildren(h('p', { class: 'form-error' }, e.message)));
   load();
-  return h('section', { class: 'card' }, h('details', null, h('summary', { class: 'card-title' }, t('הגדרות אתר, תקציב AI וגיבויים')), body));
+  return h('section', { class: 'card admin-settings' }, h('details', null, h('summary', { class: 'card-title' }, t('הגדרות אתר, Spotify, תקציב AI וגיבויים')), body));
 }
 
 export function renderAdmin(root: HTMLElement): void {
@@ -307,11 +309,22 @@ export function renderAdmin(root: HTMLElement): void {
     }));
   };
 
+  const jump = (sel: string) => () => {
+    const el = root.querySelector(sel) as HTMLElement | null;
+    if (!el) return;
+    el.querySelectorAll('details').forEach((d) => { (d as HTMLDetailsElement).open = true; });
+    if (el instanceof HTMLDetailsElement) el.open = true;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const quick = h('nav', { class: 'chips admin-jump', 'aria-label': t('קפיצה מהירה') },
+    ([['.admin-settings', '⚙️ הגדרות אתר, Spotify ונגישות'], ['.admin-community', '🚩 דיווחים ותחרויות'], ['.inbox-card', '✉️ פניות'], ['.admin-users', '👥 משתמשים']] as const)
+      .map(([sel, label]) => h('button', { type: 'button', class: 'chip', onclick: jump(sel) }, t(label))));
   root.replaceChildren(
+    quick,
     h('section', { class: 'card' }, h('h2', { class: 'card-title' }, t('לוח מנהל')), overview,
       h('button', { class: 'btn ai-btn', onclick: () => navigate(HASH.chatAll) }, aiBadge(), ' ', t('שאל את העוזר על כל המשתמשים'))),
     inboxCard(),
-    h('section', { class: 'card' },
+    h('section', { class: 'card admin-users' },
       h('h2', { class: 'card-title' }, t('משתמשים')),
       h('p', { class: 'hint' }, t('בעמודה השמאלית: שינוי משקל מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים. מוצגים רק נתונים סטטיסטיים.')),
       list,

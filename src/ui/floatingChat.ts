@@ -124,8 +124,27 @@ export function mountFloatingChat(): { refresh: () => void } {
     fab.dataset.side = r.left + r.width / 2 < innerWidth / 2 ? 'left' : 'right';
     fab.classList.add('tucked');
     clearTimeout(tuckTimer);
-    tuckTimer = window.setTimeout(() => fab.classList.remove('tucked'), 1100);
+    tuckTimer = window.setTimeout(settle, 1100);
   }, { passive: true });
+  /** When the page stops, come back out, unless that would cover a button, a link or text: then stay tucked at the edge. */
+  function settle() {
+    if (fab.hidden || !panel.hidden) return;
+    fab.classList.remove('tucked');
+    const r = fab.getBoundingClientRect();
+    if (!r.width) return;
+    const prev = fab.style.pointerEvents;
+    fab.style.pointerEvents = 'none';
+    const hits = [[r.left + r.width * 0.3, r.top + r.height / 2], [r.left + r.width / 2, r.top + r.height / 2], [r.left + r.width * 0.7, r.top + r.height / 2]]
+      .map(([x, y]) => document.elementFromPoint(x, y));
+    fab.style.pointerEvents = prev;
+    const covers = hits.some((el) => el && !el.closest('.fab, .fab-panel, nav, .tabbar') && el.closest('button, a, input, textarea, select, img, label, h1, h2, h3, p, li, .today-btn, .post-text, .playlist, .smart-chip, td, th'));
+    if (covers) {
+      fab.dataset.side = r.left + r.width / 2 < innerWidth / 2 ? 'left' : 'right';
+      fab.classList.add('tucked');
+    }
+  }
+  addEventListener('hashchange', () => setTimeout(settle, 600));
+  setTimeout(settle, 1500);
   openPanel = (tab0?: 'ai' | 'support') => { if (tab0) tab = tab0; open(); };
   const refresh = () => {
     const signedIn = !!currentUser();

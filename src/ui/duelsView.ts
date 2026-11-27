@@ -10,6 +10,7 @@ import { track } from '../analytics';
 export interface Duel {
   id: string; title: string; metric: string; metricName: string; start: string; end: string; code: string; status: 'active' | 'done';
   mine: boolean; myStatus: string; winners: string[]; prize: number;
+  team?: boolean; target?: number; total?: number; teamPrize?: number;
   standings: { userId: string; name: string; photoId: string | null; frame: string; status: string; score: number }[];
 }
 
@@ -47,16 +48,21 @@ function duelCard(d: Duel, reload: () => void): HTMLElement {
       h('span', { class: 'duel-icon', 'aria-hidden': 'true' }, m.icon),
       h('div', { class: 'duel-title' },
         h('strong', null, d.title),
-        h('span', { class: 'muted small' }, `${d.title === m.name || d.title === t(m.name) ? '' : t(m.name) + ' · '}${formatShort(d.start)} – ${formatShort(d.end)}`)),
-      h('span', { class: 'prize', title: t('פרס למנצח') }, '🏆 ', String(d.prize)),
+        h('span', { class: 'muted small' }, `${d.team ? t('יעד קבוצתי') + ' · ' : d.title === m.name || d.title === t(m.name) ? '' : t(m.name) + ' · '}${formatShort(d.start)} – ${formatShort(d.end)}`)),
+      d.team ? h('span', { class: 'prize', title: t('פרס לכל משתתף כשמגיעים ליעד') }, '🤝 ', String(d.teamPrize ?? 50)) : h('span', { class: 'prize', title: t('פרס למנצח') }, '🏆 ', String(d.prize)),
     ),
     d.status === 'active'
       ? h('div', { class: 'duel-time' },
           h('div', { class: 'bar', role: 'progressbar', 'aria-label': t('זמן שעבר'), 'aria-valuenow': Math.round((passed / total) * 100), 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { style: { width: (passed / total) * 100 + '%' } })),
           h('span', { class: 'muted small' }, d.start > today ? t('מתחיל מחר') : left === 0 ? t('יום אחרון!') : tr`עוד ${left} ימים`))
       : h('div', { class: 'duel-winner' + (iWon ? ' me' : '') }, d.winners.length
-          ? (iWon ? tr`🎉 ניצחת! +${d.prize} מטבעות` : tr`🏆 ניצח/ה: ${d.standings.filter((s) => d.winners.includes(s.userId)).map((s) => s.name).join(', ')}`)
-          : t('האתגר הסתיים בלי מנצח')),
+          ? d.team ? (iWon ? tr`🎉 הגעתם ליעד! +${d.teamPrize ?? 50} מטבעות` : t('🎉 הקבוצה הגיעה ליעד!')) : (iWon ? tr`🎉 ניצחת! +${d.prize} מטבעות` : tr`🏆 ניצח/ה: ${d.standings.filter((s) => d.winners.includes(s.userId)).map((s) => s.name).join(', ')}`)
+          : d.team ? t('הפעם לא הגעתם ליעד. נסו שוב!') : t('האתגר הסתיים בלי מנצח')),
+    d.team ? h('div', { class: 'team-goal' },
+      h('div', { class: 'row-between' }, h('strong', null, t('יעד קבוצתי')), h('span', { class: 'team-num' }, `${d.total ?? 0} / ${d.target} ${t(m.unit)}`)),
+      h('div', { class: 'bar team-bar', role: 'progressbar', 'aria-label': t('התקדמות הקבוצה'), 'aria-valuenow': d.total ?? 0, 'aria-valuemin': 0, 'aria-valuemax': d.target ?? 1 },
+        h('span', { style: { width: Math.min(100, Math.round(((d.total ?? 0) / Math.max(1, d.target ?? 1)) * 100)) + '%' } })),
+      h('p', { class: 'muted small' }, (d.total ?? 0) >= (d.target ?? 1) ? t('🎉 הגעתם ליעד! כל מי שתרם מקבל מטבעות בסוף האתגר') : tr`עוד ${Math.max(0, (d.target ?? 0) - (d.total ?? 0))} ${t(m.unit)} ליעד, ביחד`)) : '',
     h('ol', { class: 'standings' }, d.standings.map((s, i) => h('li', { class: s.userId === me ? 'me' : '' },
       h('span', { class: 'rank' }, s.status === 'invited' ? '⏳' : medal[i] ?? String(i + 1)),
       avatar(s.name, s.photoId, 34, s.frame),
@@ -111,7 +117,14 @@ function openDuelChat(d: Duel): void {
 }
 
 function newDuelSheet(onDone: () => void): void {
-  let metric = 'workouts', days = 7;
+  let metric = 'workouts', days = 7, team = false;
+  const target = h('input', { class: 'input', id: 'duel-target', type: 'number', inputmode: 'numeric', min: 1, max: 5000, value: 20 }) as HTMLInputElement;
+  const targetField = h('div', { class: 'field', hidden: true }, h('label', { for: 'duel-target' }, t('היעד של כולם ביחד')), target,
+    h('small', { class: 'hint' }, t('למשל 20 אימונים בשבוע לקבוצה של 4. כשמגיעים ליעד, כל מי שתרם מקבל 50 מטבעות.')));
+  const modes = h('div', { class: 'seg', role: 'group', 'aria-label': t('סוג אתגר') },
+    ...([[false, '⚔️ מי מנצח'], [true, '🤝 יעד קבוצתי']] as const).map(([v, label]) => h('button', { type: 'button', 'aria-pressed': String(v === team), onclick: (e: Event) => {
+      team = v; modes.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget))); targetField.hidden = !team;
+    } }, t(label))));
   const picks = h('div', { class: 'metric-pick', role: 'radiogroup', 'aria-label': t('על מה מתחרים') },
     Object.entries(METRICS).map(([k, m]) => {
       const b = h('button', { class: 'metric-opt', type: 'button', role: 'radio', 'aria-checked': String(k === metric), onclick: () => {
@@ -138,13 +151,15 @@ function newDuelSheet(onDone: () => void): void {
     e.preventDefault();
     const invite = [...friendsBox.querySelectorAll<HTMLInputElement>('input:checked')].map((i) => i.value);
     try {
-      const { duel } = await call<{ duel: Duel }>('createDuel', { metric, days, title: title.value, invite, startToday: start.value === 'today' });
+      const { duel } = await call<{ duel: Duel }>('createDuel', { metric, days, title: title.value, invite, startToday: start.value === 'today', team, target: Number(target.value) });
       track('duel:create');
       close(); toast(t('האתגר נוצר! עכשיו מזמינים חברים')); onDone();
       shareInvite(duel);
     } catch (ex: any) { toast(ex.message); }
   } },
+    modes,
     h('h3', { class: 'section-title' }, t('על מה מתחרים?')), picks,
+    targetField,
     h('h3', { class: 'section-title' }, t('כמה זמן?')), lengths,
     h('div', { class: 'field' }, h('label', { for: 'duel-start' }, t('מתי מתחילים')), start),
     h('div', { class: 'field' }, h('label', { for: 'duel-title' }, t('שם לאתגר (לא חובה)')), title),

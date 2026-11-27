@@ -113,7 +113,9 @@ export async function nowPlaying(): Promise<NowPlaying | null> {
 export class NoDeviceError extends Error {}
 /** Play on the active device; if none is active, wake the first available one; if there is none, NoDeviceError. */
 export async function playContext(uri: string): Promise<void> {
-  const body = JSON.stringify({ context_uri: uri });
+  return playBody(JSON.stringify(uri.startsWith('spotify:track:') ? { uris: [uri] } : { context_uri: uri }));
+}
+async function playBody(body: string): Promise<void> {
   try { await api('/me/player/play', { method: 'PUT', body }); return; } catch (e: any) {
     if (!/פתחו את Spotify/.test(e.message)) throw e;
   }
@@ -121,6 +123,11 @@ export async function playContext(uri: string): Promise<void> {
   const dev = (d?.devices ?? []).find((x) => !x.is_restricted);
   if (!dev) throw new NoDeviceError('no device');
   await api('/me/player/play?device_id=' + encodeURIComponent(dev.id), { method: 'PUT', body });
+}
+export interface Track { uri: string; id: string; name: string; artist: string; image: string }
+export async function searchTracks(q: string): Promise<Track[]> {
+  const j = await api<{ tracks: { items: any[] } }>('/search?type=track&limit=12&q=' + encodeURIComponent(q));
+  return (j?.tracks?.items ?? []).filter(Boolean).map((x) => ({ uri: x.uri, id: x.id, name: x.name, artist: (x.artists ?? []).map((a: any) => a.name).join(', '), image: x.album?.images?.[2]?.url ?? x.album?.images?.[0]?.url ?? '' }));
 }
 export const resume = () => api('/me/player/play', { method: 'PUT' });
 export const pause = () => api('/me/player/pause', { method: 'PUT' });

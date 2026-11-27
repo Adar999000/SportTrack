@@ -2,10 +2,10 @@
  * Weekly recap: from Saturday evening until Monday, a card on Today with the week's result,
  * a comparison with the week before, one focus for next week, and "share as story".
  */
-import { t, tr } from '../i18n';
+import { lang, t, tr } from '../i18n';
 import { addDays, sundayOf, todayISO } from '../dates';
-import { getWeek } from '../store';
-import { allMealsRatio, mealRatio, workoutsInWeek } from '../stats';
+import { allWeeks, getWeek } from '../store';
+import { allMealsRatio, datedDays, mealRatio, workoutsInWeek } from '../stats';
 import type { Day, MealKey, Week } from '../types';
 import { currentUser } from '../session';
 import { hasBackend } from '../api';
@@ -60,6 +60,37 @@ export function weeklySummaryCard(): HTMLElement | '' {
       r.dWeight !== null ? stat((r.dWeight > 0 ? '+' : '') + r.dWeight, t('ק"ג')) : ''),
     h('p', { class: 'rc-focus' }, '🎯 ', r.focus),
     hasBackend() && currentUser() ? h('button', { class: 'btn', type: 'button', onclick: () => openStoryComposer({ tpl: 'week', bg: 'lime', workouts: r.workouts, full: r.full, meals: r.meals ?? 0 } as any) }, icon('story'), ' ', t('שיתוף כסטורי')) : '',
+  );
+  return card;
+}
+
+/** Monthly recap: on the 1st–3rd of the month, the month before in numbers. */
+export function monthlySummaryCard(now = new Date()): HTMLElement | '' {
+  if (now.getDate() > 3) return '';
+  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const last = new Date(now.getFullYear(), now.getMonth(), 0);
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const from = iso(first), to = iso(last);
+  const mkey = 'recap-month:' + (currentUser()?.userId ?? 'local');
+  try { if (localStorage.getItem(mkey) === from) return ''; } catch { /* ignore */ }
+  const days = datedDays(allWeeks(), to).filter((x) => x.date >= from && x.date <= to);
+  if (!days.some((x) => done(x.day) > 0)) return '';
+  const workouts = days.filter((x) => x.day.sport.status === 'V' && x.day.sport.countsAsWorkout !== false).length;
+  const full = days.filter((x) => done(x.day) >= 4).length;
+  const meals = allMealsRatio(days.map((x) => x.day)).pct;
+  const ws = allWeeks().filter((w) => w.sundayDate >= addDays(from, -6) && w.sundayDate <= to && typeof w.startWeight === 'number');
+  const dW = ws.length > 1 ? Math.round((ws[ws.length - 1].startWeight! - ws[0].startWeight!) * 10) / 10 : null;
+  const month = first.toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', { month: 'long' });
+  const stat = (v: string, label: string) => h('div', { class: 'rc-stat' }, h('b', null, v), h('span', null, label));
+  const card = h('section', { class: 'card recap recap-month', 'aria-label': tr`סיכום ${month}` },
+    h('div', { class: 'row-between' },
+      h('h2', { class: 'card-title' }, tr`סיכום ${month}`),
+      h('button', { class: 'link-btn', type: 'button', 'aria-label': t('הסתר את הסיכום'), onclick: () => { try { localStorage.setItem(mkey, from); } catch { /* ignore */ } card.remove(); } }, '✕')),
+    h('div', { class: 'rc-stats' },
+      stat(String(workouts), t('אימונים')), stat(String(full), t('ימים מלאים')), stat(meals === null ? '—' : meals + '%', t('ארוחות')),
+      dW !== null ? stat((dW > 0 ? '+' : '') + dW, t('ק"ג')) : ''),
+    h('p', { class: 'rc-focus' }, workouts >= 12 ? t('🔥 חודש חזק. ממשיכים ככה!') : t('🎯 החודש: לפחות 3 אימונים בכל שבוע')),
+    hasBackend() && currentUser() ? h('button', { class: 'btn', type: 'button', onclick: () => openStoryComposer({ tpl: 'week', bg: 'sunset', workouts, full, meals: meals ?? 0, label: month } as any) }, icon('story'), ' ', t('שיתוף כסטורי')) : '',
   );
   return card;
 }
