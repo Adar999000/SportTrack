@@ -367,6 +367,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   });
   weight.addEventListener('change', () => {
     const v = parseFloat(weight.value.replace(',', '.'));
+    if (Number.isFinite(v) && v > 0) track('mark:weight');
     editWeek(sunday, (w) => {
       if (Number.isFinite(v) && v > 0) w.startWeight = Math.round(v * 100) / 100;
       else delete w.startWeight;

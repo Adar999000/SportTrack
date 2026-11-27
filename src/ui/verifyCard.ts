@@ -1,4 +1,5 @@
 /** Verify the email with a 6-digit code (needed to post, comment and open challenges in the community). */
+import { track } from '../analytics';
 import { t, tr } from '../i18n';
 import { call, type User } from '../api';
 import { currentUser, setUser } from '../session';
@@ -36,6 +37,7 @@ export function verifyCard(opts: { reason?: string; onVerified?: () => void } = 
       try {
         const r = await call<{ user: User }>('verifyEmail', { code });
         await setUser(r.user);
+        track('verify:done');
         toast(t('המייל אומת ✓'));
         opts.onVerified?.();
       } catch (err: any) {

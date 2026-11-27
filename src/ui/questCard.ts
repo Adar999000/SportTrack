@@ -1,17 +1,32 @@
 /**
  * First-week quest on Today: four simple steps in the first 14 days, then 100 coins.
  * Steps are read from local data for instant feedback; the server checks again before paying.
+ * Whether the quest is still open (not claimed, inside the 14 days) comes from the server's
+ * `questStatus`, so a quest claimed on one device stays hidden on the others.
  */
 import { isRTL, t, tr } from '../i18n';
 import { call, hasBackend } from '../api';
 import { currentUser } from '../session';
-import { allWeeks } from '../store';
+import { allWeeks, notifyChange } from '../store';
+import { track } from '../analytics';
 import { refreshRewards } from '../rewards';
 import { celebrate } from './celebrate';
 import { h, toast } from './dom';
 import type { Day } from '../types';
 
-const KEY = () => 'quest-done:' + (currentUser()?.userId ?? '');
+/** Last server answer per user, fetched once per app start (and set again after a claim). */
+let status: { userId: string; paid: boolean; open: boolean } | null = null;
+let asking = '';
+function serverStatus(userId: string): { paid: boolean; open: boolean } | null {
+  if (status?.userId === userId) return status;
+  if (asking !== userId) {
+    asking = userId;
+    call<{ paid: boolean; open: boolean }>('questStatus')
+      .then((r) => { status = { userId, paid: !!r.paid, open: !!r.open }; if (r.paid || !r.open) notifyChange(); })
+      .catch(() => { asking = ''; }); // offline or old server: keep the local view, ask again next time
+  }
+  return null;
+}
 const done = (d: Day) => (['breakfast', 'lunch', 'dinner'] as const).filter((k) => d[k] || d.text?.[k]).length + (d.sport.status ? 1 : 0);
 
 /** Scroll to the control a quest step needs and focus it, with a short highlight. */
@@ -28,7 +43,8 @@ function focusControl(selector: string): void {
 export function questCard(): HTMLElement | '' {
   const u = currentUser();
   if (!hasBackend() || !u) return '';
-  try { if (localStorage.getItem(KEY())) return ''; } catch { /* ignore */ }
+  const s = serverStatus(u.userId);
+  if (s && (s.paid || !s.open)) return '';
   const created = Date.parse(u.createdAt) || 0;
   if (Date.now() - created > 14 * 864e5) return '';
   const weeks = allWeeks();
@@ -52,13 +68,15 @@ export function questCard(): HTMLElement | '' {
     })),
     h('p', { class: 'sr-only', id: 'q-step-hint' }, t('מעבר לכפתור המתאים בדף')),
     claim,
+    h('p', { class: 'hint quest-coins' }, t('מטבעות קונים סקינים, צבעים ודמויות בחנות')),
   );
   claim.addEventListener('click', async () => {
     claim.setAttribute('disabled', '');
     try {
       const r = await call<{ paid: boolean }>('claimQuest');
       if (r.paid) {
-        try { localStorage.setItem(KEY(), '1'); } catch { /* ignore */ }
+        status = { userId: u.userId, paid: true, open: false };
+        track('quest:claim');
         celebrate('day', t('השבוע הראשון הושלם!'), t('100 מטבעות נכנסו לחשבון'));
         refreshRewards();
         card.remove();

@@ -46,6 +46,7 @@ import { initOutbox } from './outbox';
 import { initErrorReporting } from './errorReport';
 setLockedHandler((whole) => toast(whole ? t('השבוע נעול. אפשר לשחרר אותו מתחת לטבלה.') : t('היום נעול. לחיצה על היום בטבלה פותחת אותו לשחרור.')));
 setDayCompleteHandler(() => {
+  track('day:full');
   const today = todayISO();
   const w = allWeeks().find((x) => x.sundayDate === sundayOf(today));
   if (new Date().getDay() === 6 && w) {

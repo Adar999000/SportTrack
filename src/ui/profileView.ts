@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import { mascot } from './mascot';
 import { goalChips } from './goalChips';
 import { applyGoals } from '../goalEffects';
@@ -88,7 +89,11 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
       });
       if (photo && res.user.photoId) rememberPhoto(res.user.photoId, photo);
       await setUser(res.user);
-      if (onboarding) applyGoals(chips.value());
+      if (onboarding) {
+        applyGoals(chips.value());
+        const filled = chips.value().length || gender.value() || v('pf-birth') || num('pf-height') || num('pf-goalw') || v('pf-goal') || photo;
+        track(filled ? 'onboarding:done' : 'onboarding:skip');
+      }
       toast(t('הפרופיל נשמר'));
       navigate(onboarding ? HASH.week() : HASH.profile);
     } catch (ex: any) {
