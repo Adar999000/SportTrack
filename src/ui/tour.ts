@@ -6,7 +6,7 @@ import { currentUser, isAdmin } from '../session';
 import { hasBackend } from '../api';
 import { parseRoute } from './router';
 import { h } from './dom';
-import { aiMark, icon, logo } from './icons';
+import { icon } from './icons';
 import { t } from '../i18n';
 
 interface Step { sel: string; text: string }
@@ -16,8 +16,6 @@ const TOURS: Record<string, Step[]> = {
     { sel: '.today', text: 'כאן מסמנים את היום. כל הקשה מחליפה: V בוצע, X לא בוצע, "-" לא רלוונטי, וחזרה לריק.' },
     { sel: '.week-table', text: 'הטבלה של כל השבוע. אפשר לסמן כל יום. הקשה כפולה על תא כותבת בו טקסט, כמו "חופשה".' },
     { sel: '#start-weight', text: 'משקל התחלתי: פעם בשבוע, ביום ראשון. מזה נבנה גרף המשקל.' },
-    { sel: '.fab:not([hidden])', text: 'העוזר האישי: שואלים על הנתונים, מבקשים "תסמן לי צהריים V", או פונים למנהל.' },
-
   ],
   history: [
     { sel: '.history-list', text: 'כל השבועות שלך עם משקל, אימונים ואחוז ארוחות. הקשה פותחת את השבוע לעריכה.' },
@@ -79,16 +77,17 @@ export function maybeStartTour(): void {
 
 function welcome(): void {
   running = true;
+  // Two slides: the daily habit and the weekly weigh-in. The assistant is not part of the first steps.
   const slides = [
-    { art: logo(64), title: 'ברוכים הבאים למשמעת אישית', text: 'שלושה צעדים פשוטים, וזהו. 30 שניות ביום מספיקות.' },
     { art: h('div', { class: 'howto-cells', 'aria-hidden': 'true' }, h('span', { class: 'v' }, 'V'), h('span', { class: 'x' }, 'X'), h('span', null, '–')), title: '1. מסמנים את היום', text: 'במסך "היום" מקישים על כל משימה: V עשיתי, X לא הפעם. בסוף היום הוא נסגר והמטבעות נכנסים.' },
     { art: icon('stats', 56), title: '2. שוקלים פעם בשבוע', text: 'ביום ראשון רושמים משקל. בלשונית "התקדמות" רואים גרף, אימונים ומה באמת עובד.' },
-    { art: aiMark(56), title: '3. יש לך עוזר', text: 'הכפתור הצף: אומרים לו "סמן לי צהריים V" או שואלים איך הולך. באזור "אני" יש קהילה, מוזיקה וחנות.' },
-    ];
+  ];
   let i = 0;
   const box = h('div', { class: 'welcome', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('ברוכים הבאים') });
   const overlay = h('div', { class: 'tour-overlay welcome-overlay' }, box);
   const finish = () => { markSeen('welcome'); overlay.remove(); running = false; maybeStartTour(); };
+  // one "skip" ends everything: the welcome and the first Today tour
+  const skipAll = () => { markSeen('week'); finish(); };
   const draw = () => {
     const s = slides[i];
     box.replaceChildren(
@@ -97,7 +96,7 @@ function welcome(): void {
       h('p', null, t(s.text)),
       h('div', { class: 'tour-dots' }, slides.map((_, j) => h('span', { class: j === i ? 'on' : '' }))),
       h('div', { class: 'tour-actions' },
-        h('button', { class: 'link-btn', type: 'button', onclick: finish }, t('דלג')),
+        h('button', { class: 'link-btn', type: 'button', onclick: skipAll }, t('דלג')),
         h('button', { class: 'btn btn-primary', type: 'button', onclick: () => (i < slides.length - 1 ? (i++, draw()) : finish()) },
           i < slides.length - 1 ? t('הבא') : t('בואו נתחיל')),
       ),

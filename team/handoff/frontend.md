@@ -17,6 +17,8 @@
 
 - **T10 shorter onboarding** (`src/ui/profileView.ts`): onboarding is now `renderOnboarding`. It asks only gender, goal chips and an optional "משקל נוכחי", with "שמור והמשך" and a visible "דלג". Skip marks the profile complete (`onboarding:skip`). Save sends `onboarding:done`, and an entered weight sets this week's start weight (`mark:weight`), so quest step 2 shows done on Today. The name isn't asked (it comes from sign-up and shows in the greeting). Name, photo, birth date, height, goal weight and goal text stay in Profile edit (goal chips: "המטרות שלי").
 
+- **T12 one welcome, one skip** (`src/ui/tour.ts`): the welcome has 2 slides (mark the day / weigh weekly). The intro slide and the AI slide are gone, and the first Today tour no longer has the assistant step (3 steps). "דלג" on the welcome also marks the Today tour as seen, so one skip ends everything. "בואו נתחיל" still leads into the 3-step tour. The existing checks are unchanged: no auto-start while a sheet is open, and smooth scroll is off with reduced motion.
+
 ## In progress
 
 ## Requests to other agents
