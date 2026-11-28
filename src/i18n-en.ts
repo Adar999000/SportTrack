@@ -2060,4 +2060,9 @@ export const EN: Record<string, string> = {
   "הזמנת חבר (50 מטבעות לשניכם)": "Invite a friend (50 coins each)",
   "שיתוף האימון האחרון": "Share your latest workout",
   "קהילה ריקה? עכשיו יש צעד ברור: להזמין חבר או לשתף את האימון האחרון": "Empty community? Now there is a clear next step: invite a friend or share your last workout",
+  // beta survey (server messages, T26)
+  "סקר לא מוכר": "Unknown survey",
+  "נא לבחור ציון בין 1 ל-5": "Please choose a score from 1 to 5",
+  "הטקסט ארוך מדי (עד 500 תווים)": "The text is too long (up to 500 characters)",
+  "הסקר עוד לא פתוח": "This survey isn't open yet",
 };
