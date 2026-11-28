@@ -42,3 +42,10 @@
 - `docs/help.en.md` added: natural English version with the same questions and order.
 - Claims checked against code: training plans (`src/plans.ts`: run5k and home3, 8 weeks, 3 sessions a week; a missed day waits for the next training day), email verification gate (`apps-script/server.js` `requireVerified`, on by default, admin can switch off), blocking (`blockUser`), offline posts (`src/outbox.ts`: queued in IndexedDB, max 20, sent when back online or on next open).
 - For frontend later: render the Q&A from these files (one `###` per item).
+
+## T30 (survey and Feedback copy)
+- Merged release branch 6.9.0 into `team/content`.
+- `team/specs/survey-copy.md`: table of key / he / he-fem / en for the day-3 and day-7 survey and the admin Feedback card.
+- All strings are gender-neutral, so he-fem equals he and no `i18n-fem.ts` entries were needed. Checked for masculine-only forms.
+- `src/i18n-en.ts`: 21 new entries added. "שליחה" already existed (value "Send").
+- Checks: tsc passes, `i18n-keys --missing` prints `[]`, vitest 124 passed / 5 skipped.
