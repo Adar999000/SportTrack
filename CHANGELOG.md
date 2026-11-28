@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.7.0 (2026-11-28)
+- Frontend T23 (admin Funnel card, `src/funnel.ts`), T10 (short onboarding: gender, goals, optional weight that fills this week's start weight; real skip); QA T17 (`tests/e2e/newuser.e2e.mjs`, 4 tests, fresh mock per spec).
+
 ## 6.6.0 (2026-11-28)
 - Backend T3: `backend/supabase/schema.sql` (all sheets, RLS), one `api` Edge Function with the existing action names (auth, weeks/docs, rewards/store/quest/league, feed/stories; the rest marked NOT_PORTED), `VITE_BACKEND=supabase` transport switch (default unchanged), export script and runbook; 17 new tests. Client error reports go through the normal transport on Supabase.
 

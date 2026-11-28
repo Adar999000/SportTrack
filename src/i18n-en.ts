@@ -2052,4 +2052,6 @@ export const EN: Record<string, string> = {
   "משקל נוכחי (ק\"ג, לא חובה)": "Current weight (kg, optional)",
   "נכנס כמשקל ההתחלתי של השבוע": "Saved as this week's starting weight",
   "שתי שאלות קצרות, ואפשר גם לדלג. את שאר הפרטים משלימים בפרופיל מתי שרוצים.": "Two short questions, and you can skip them. Fill in the rest of your details in your profile whenever you like.",
+  "הרשמה קצרה: מין, מטרות ומשקל נוכחי (לא חובה), עם \"דלג\" ברור": "Short onboarding: gender, goals and current weight (optional), with a clear \"Skip\"",
+  "כרטיס \"משפך\" במסך הניהול: מהרשמה ועד חזרה ביום 7": "A \"Funnel\" card in admin: from sign-up to coming back on day 7",
 };
