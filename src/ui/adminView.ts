@@ -1,3 +1,4 @@
+import { feedbackCard } from './feedbackCard';
 import { funnelCard } from './funnelCard';
 import { photoUrl } from '../session';
 import { APP_VERSION } from '../version';
@@ -39,6 +40,19 @@ function openThread(th: Thread, onDone: () => void) {
   });
   openSheet(tr`פניות מ${th.name}`, h('div', { class: 'stack' }, log, form), { full: true });
   load().then(onDone);
+}
+
+/** Open the inbox thread that contains a message (from a survey answer that asked for a reply). */
+async function openThreadFor(messageId: string, firstName: string): Promise<void> {
+  try {
+    const { threads } = await call<{ threads: Thread[] }>('adminInbox');
+    const likely = threads.filter((th) => !firstName || th.name.split(' ')[0] === firstName);
+    for (const th of [...likely, ...threads.filter((x) => !likely.includes(x))]) {
+      const { messages } = await call<{ messages: SupportMsg[] }>('adminThread', { userId: th.userId });
+      if (messages.some((m) => m.id === messageId)) return openThread(th, () => {});
+    }
+    toast(t('השרשור לא נמצא בפניות'));
+  } catch (e: any) { toast(e.message); }
 }
 
 function inboxCard(): HTMLElement {
@@ -152,7 +166,7 @@ function analyticsCard(): HTMLElement {
     } catch (e: any) { body.replaceChildren(h('p', { class: 'form-error' }, /לא מוכרת|Unknown action/.test(e.message) ? t('האנליטיקס יופעל אחרי עדכון קוד השרת.') : e.message)); }
   };
   load();
-  return h('section', { class: 'card' }, h('h2', { class: 'card-title' }, t('אנליטיקס שימוש')), body);
+  return h('section', { class: 'card admin-analytics' }, h('h2', { class: 'card-title' }, t('אנליטיקס שימוש')), body);
 }
 
 function communityCard(): HTMLElement {
@@ -341,13 +355,29 @@ export function renderAdmin(root: HTMLElement): void {
     if (!el) return;
     el.querySelectorAll('details').forEach((d) => { (d as HTMLDetailsElement).open = true; });
     if (el instanceof HTMLDetailsElement) el.open = true;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+    el.focus({ preventScroll: true });
   };
   const quick = h('nav', { class: 'chips admin-jump', 'aria-label': t('קפיצה מהירה') },
     ([['.admin-settings', '⚙️ הגדרות אתר, Spotify ונגישות'], ['.admin-community', '🚩 דיווחים ותחרויות'], ['.inbox-card', '✉️ פניות'], ['.admin-users', '👥 משתמשים']] as const)
       .map(([sel, label]) => h('button', { type: 'button', class: 'chip', onclick: jump(sel) }, t(label))));
+  // the weekly 30-minute review (spec: team/specs/beta-feedback.md §2), in reading order
+  const review = h('details', { class: 'card weekly-review' },
+    h('summary', { class: 'card-title' }, t('סקירה שבועית (30 דקות)')),
+    h('ol', { class: 'review-list' }, ([
+      ['.funnel-card', t('משפך'), t('השלב החלש ביותר הוא הנושא של השבוע')],
+      ['.feedback-card', t('משוב'), t('ממוצע יום 3 ויום 7, תשובות כתובות ומי ביקש תשובה')],
+      ['.inbox-card', t('פניות'), t('לענות על הכל תוך 24 שעות, מהישנה לחדשה')],
+      ['.admin-analytics', t('אנליטיקס'), t('פעילים השבוע, ומה משתמשים בו ומה לא')],
+      ['.admin-errors', t('תקלות'), t('תקלה אצל 2 משתמשים או יותר מתוקנת השבוע')],
+      ['.admin-users', t('משתמשים'), t('מי לא חזר 7 ימים אחרי ההרשמה: לפנות לעד 3')],
+    ] as const).map(([sel, title, what]) => h('li', null,
+      h('button', { class: 'review-jump', type: 'button', onclick: jump(sel) }, h('strong', null, title), h('span', { class: 'muted small' }, what))))),
+    h('p', { class: 'hint' }, t('בסוף: להרחיב, לתקן קודם או לעצור, נושא אחד לשבוע הבא, ושורה ב-decisions.md.')));
   root.replaceChildren(
     quick,
+    review,
     h('section', { class: 'card' }, h('h2', { class: 'card-title' }, t('לוח מנהל')), overview,
       h('button', { class: 'btn ai-btn', onclick: () => navigate(HASH.chatAll) }, aiBadge(), ' ', t('שאל את העוזר על כל המשתמשים'))),
     inboxCard(),
@@ -357,6 +387,7 @@ export function renderAdmin(root: HTMLElement): void {
       list,
     ),
     funnelCard(),
+    feedbackCard((id, name) => void openThreadFor(id, name)),
     analyticsCard(),
     serverCard(),
     settingsCard(),

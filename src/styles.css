@@ -2024,3 +2024,18 @@ a.btn-primary.plan-btn { color: var(--accent-ink); }
 .sv-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sv-actions .btn { min-height: 44px; }
 .sv-thanks p { margin: 0; font-weight: 700; }
+
+/* ---- admin feedback + weekly review (T28) ---- */
+.fb-survey { display: flex; flex-direction: column; gap: 8px; }
+.fb-survey + .fb-survey { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
+.fb-few { font-size: 0.85rem; font-weight: 600; }
+.fb-dist th[scope="row"] { position: relative; min-width: 8em; }
+.fb-sub { margin: 4px 0 0; font-size: 0.9rem; }
+.fb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.fb-item { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); }
+.fb-text { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-reply { min-height: 44px; padding-inline: 0; }
+.weekly-review summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.review-list { margin: 8px 0 0; padding-inline-start: 1.4em; display: flex; flex-direction: column; gap: 4px; }
+.review-jump { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 44px; padding: 6px 8px; border: 0; border-radius: 10px; background: none; color: var(--text); text-align: start; cursor: pointer; }
+.review-jump:hover { background: var(--surface-2); }
