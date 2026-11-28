@@ -120,6 +120,43 @@ Priority: P1 now, P2 next, P3 later. Status is mirrored on the office dashboard.
 - Users younger than 4 / 8 days are not counted as non-returners.
 - The response is checked to contain no personal fields.
 
+## Beta feedback loop (`team/specs/beta-feedback.md`)
+
+| id | P | Task | Owner | Status |
+|---|---|---|---|---|
+| T25 | P1 | Beta feedback loop spec (day-3/day-7 survey, weekly review ritual) | pm | review |
+| T26 | P1 | Survey server side: `Feedback` sheet, `surveyStatus` and `submitSurvey` actions, eligibility and snooze state per user, optional reply thread via `createMessage`, `adminFeedback` aggregates; no email per answer | backend | todo |
+| T27 | P1 | Survey card on Today (day 3 and day 7): five labelled buttons, optional text, snooze/dismiss, offline queue | frontend | todo |
+| T28 | P2 | Admin "Feedback" card (average, distribution, latest texts, link to the reply thread) and a weekly-review shortcut list on the admin screen | frontend | todo |
+| T29 | P2 | Tests for the survey: eligibility edge cases, snooze limits, privacy of the admin payload, offline queue | qa | todo |
+| T30 | P3 | Survey and admin-card copy in Hebrew and English with feminine forms | content | todo |
+
+**T26** (backend)
+- `surveyStatus` returns `{survey: 'd3'|'d7'|null, snoozedUntil}` using the rules in spec 1.2 (age, 2 active days, d3 before d7, 24 h gap, window); `submitSurvey` accepts `survey`, `score` 1–5, optional `text` (max 500) and `wantsReply`, validates all, and ignores a second answer to the same survey.
+- Snooze and dismiss are stored per user and survive a new device; max 2 snoozes then the survey closes.
+- Sending an answer never sends email; with `wantsReply` and text, one message is created through `createMessage` with the survey subject.
+- `adminFeedback` (admin only) returns counts, average (omitted under 5 answers), the 1–5 distribution and the latest texts with first name only, no email; tested in `tests/gas/mock.mjs`.
+- The user's own answers are included in the data export; account deletion removes them.
+
+**T27** (frontend)
+- The card appears on Today below the Today panel only when `surveyStatus` says so, never in onboarding, a workout, or with a dialog open.
+- Five score buttons in a `radiogroup` with visible labels, a character-limited optional text, "שליחה", "לא עכשיו" and "לא להציג שוב"; all keyboard and screen-reader usable, `aria-live="polite"` thank-you.
+- Offline: the answer is queued and sent later (existing outbox pattern), and the card shows a thank-you immediately.
+- Strings in `src/i18n-en.ts`; `npx tsc --noEmit && npx vitest run && node scripts/i18n-keys.mjs --missing` pass.
+
+**T28** (frontend)
+- The Feedback card shows, per survey, the count, average (or "too few answers"), the distribution and the latest texts; wants-reply items link to the inbox thread.
+- The admin screen has a short "weekly review" list of the six places in spec section 2, each a shortcut to its card.
+- Readable without colour, usable at phone width, Hebrew and English.
+
+**T29** (qa)
+- Fixtures for a user at day 2, 3, 6, 7, 10 and 15 confirm which survey (if any) is offered; snooze twice then the survey is gone.
+- The admin payload is checked to contain no email or user id; the average is hidden under 5 answers.
+- An answer submitted offline appears on the server after reconnecting, exactly once.
+
+**T30** (content)
+- Hebrew and English strings for both surveys, the thank-you and the admin card, with feminine forms listed for `src/i18n-fem.ts`; neutral, short, no pressure ("לא עכשיו" never guilt-trips).
+
 ## Owns (areas)
 - frontend: `src/ui/*` (except admin/legal), `src/styles.css`
 - backend: `apps-script/*`, `backend/*`, `src/api.ts`, `src/sync.ts`, `scripts/load-test.mjs`
