@@ -366,6 +366,37 @@ describe('blocking, first-week quest and group challenges', () => {
     expect(be.post({ action: 'rewards', token: u.token }).rewards.balance).toBe(before + 100);
   });
 
+  it('T13: a "-" sport mark completes the full day; claimed/expiresAt; never pays twice; closes after 14 days', () => {
+    let now = new Date('2026-12-02T10:00:00Z'); // Wednesday
+    const be = createBackend({ now: () => now });
+    be.post({ action: 'register', email: 'adm@x.com', password: 'secret12', name: 'מנהל' });
+    const u = be.post({ action: 'register', email: 'u@x.com', password: 'secret12', name: 'דנה' });
+    const week = (days: any[], weight?: number) => ({ sundayDate: '2026-11-29', updatedAt: Date.now(), summary: {},
+      data: { sundayDate: '2026-11-29', ...(weight ? { startWeight: weight } : {}), days } });
+    let q = be.post({ action: 'questStatus', token: u.token });
+    expect(q).toMatchObject({ paid: false, claimed: false, open: true, expiresAt: '2026-12-16T10:00:00.000Z' });
+    // day 1: three meals + a rest day ("-") = full; day 2: a V workout
+    be.post({ action: 'putWeeks', token: u.token, weeks: [week([
+      { breakfast: 'V', lunch: 'X', dinner: 'V', sport: { status: '-', countsAsWorkout: false } },
+      { breakfast: 'V', sport: { status: 'V', label: 'ריצה', countsAsWorkout: true } },
+    ], 80)] });
+    q = be.post({ action: 'questStatus', token: u.token });
+    expect(q.steps).toEqual({ meal: true, weight: true, sport: true, full: true });
+    // a "-" sport row without meals is not a full day
+    const u2 = be.post({ action: 'register', email: 'u2@x.com', password: 'secret12', name: 'רון' });
+    be.post({ action: 'putWeeks', token: u2.token, weeks: [week([{ sport: { status: '-', countsAsWorkout: false } }])] });
+    expect(be.post({ action: 'questStatus', token: u2.token }).steps.full).toBe(false);
+    // claim pays once, even when called again
+    expect(be.post({ action: 'claimQuest', token: u.token })).toMatchObject({ paid: true, claimed: true, open: false });
+    expect(be.post({ action: 'claimQuest', token: u.token })).toMatchObject({ paid: true, claimed: true });
+    const paid = be.sheets.Ledger.data.filter((r: any[]) => r[0] === u.user.userId && r[3] === 'quest:firstweek');
+    expect(paid).toHaveLength(1);
+    // after 14 days an unclaimed quest closes
+    now = new Date('2026-12-17T10:00:00Z');
+    expect(be.post({ action: 'questStatus', token: u2.token }).open).toBe(false);
+    expect(be.post({ action: 'claimQuest', token: u2.token }).error).toMatch(/הסתיימה/);
+  });
+
   it('runs a group challenge toward one shared goal and pays everyone who helped', () => {
     let now = new Date('2026-12-01T10:00:00Z');
     const be = createBackend({ now: () => now });

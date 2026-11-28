@@ -115,7 +115,7 @@ export async function questStatus(me: Me) {
   const weeks = must(await me.db.from('weeks').select('data').eq('user_id', me.id), 'weeks') as { data: unknown }[];
   const paid = !!(must(await me.db.from('ledger').select('id').eq('user_id', me.id).eq('ref', 'quest:firstweek').limit(1), 'ledger') as unknown[]).length;
   const created = Date.parse(String(me.p.created_at)) || 0;
-  return { steps: questSteps(weeks.map((w) => w.data)), paid, open: !paid && Date.now() - created < 14 * 864e5, prize: QUEST_PRIZE };
+  return { steps: questSteps(weeks.map((w) => w.data)), paid, claimed: paid, open: !paid && Date.now() - created < 14 * 864e5, expiresAt: new Date(created + 14 * 864e5).toISOString(), prize: QUEST_PRIZE };
 }
 
 export async function claimQuest(me: Me) {
@@ -126,7 +126,7 @@ export async function claimQuest(me: Me) {
   const ins = await admin().from('ledger').insert({ user_id: me.id, amount: QUEST_PRIZE, ref: 'quest:firstweek', label: 'משימות השבוע הראשון' });
   if (ins.error && !/duplicate/i.test(ins.error.message)) fail('שגיאת שרת. נסו שוב.'); // duplicate = already paid by a parallel call
   await dropLeaderboardCache();
-  return { ...q, paid: true, open: false };
+  return { ...q, paid: true, claimed: true, open: false };
 }
 
 // ------------------------------------------------------------------ invites

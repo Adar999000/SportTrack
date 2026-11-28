@@ -1311,7 +1311,8 @@ function questStatus(me) {
     full: days.some((d) => d && dayDone(d) >= 4),
   };
   const paid = ledgerRows().some((l) => l[0] === uid && String(l[3]) === 'quest:firstweek');
-  return { steps: steps, paid: paid, open: !paid && Date.now() - created < 14 * 864e5, prize: QUEST_PRIZE };
+  // claimed = paid (name used by the client, T20); expiresAt = end of the 14-day window
+  return { steps: steps, paid: paid, claimed: paid, open: !paid && Date.now() - created < 14 * 864e5, expiresAt: new Date(created + 14 * 864e5).toISOString(), prize: QUEST_PRIZE };
 }
 function claimQuest(me) {
   return withLock(() => {
@@ -1321,7 +1322,7 @@ function claimQuest(me) {
     if (!Object.keys(q.steps).every((k) => q.steps[k])) throw new Error('עוד לא כל המשימות הושלמו');
     appendRows(ledgerSheet(), [[me.r[U.id], new Date().toISOString(), QUEST_PRIZE, 'quest:firstweek', 'משימות השבוע הראשון']]);
     CacheService.getScriptCache().remove('lb-v1');
-    return Object.assign(q, { paid: true, open: false });
+    return Object.assign(q, { paid: true, claimed: true, open: false });
   });
 }
 
