@@ -2045,4 +2045,9 @@ export const EN: Record<string, string> = {
   "אימות מייל ישירות מתוך הקהילה, בלי לצאת מהמסך": "Verify your email right from the community, without leaving the screen",
   "הרשמה קלה יותר: שגיאות ליד השדה, הצגת סיסמה, וקוד הזמנה רק כשצריך": "Easier sign-up: errors next to the field, show password, and the invite code only when needed",
   "צילומי מסך בחלון ההתקנה של האפליקציה": "Screenshots in the app's install window",
+  // short onboarding (T10)
+  "משקל בין 20 ל-400 ק\"ג": "Weight between 20 and 400 kg",
+  "משקל נוכחי (ק\"ג, לא חובה)": "Current weight (kg, optional)",
+  "נכנס כמשקל ההתחלתי של השבוע": "Saved as this week's starting weight",
+  "שתי שאלות קצרות, ואפשר גם לדלג. את שאר הפרטים משלימים בפרופיל מתי שרוצים.": "Two short questions, and you can skip them. Fill in the rest of your details in your profile whenever you like.",
 };

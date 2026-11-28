@@ -15,6 +15,8 @@
 - **T20 events + questStatus**: merged in 6.5.0.
 - **T23 admin Funnel card** (`src/ui/funnelCard.ts`, logic in `src/funnel.ts`, tests `tests/funnel.test.ts`): the card goes above "אנליטיקס שימוש" on the admin screen. It calls `adminFunnel(days)` and expects the shape in beta-metrics §3. Period 7/30/90 (aria-pressed). A 9-row table shows count, % of signed-up (day-3/7: % of eligible) and % of previous step. A row's percentages show "מעט מדי" when the base is under 5. Visitor rows are marked "מבקרים, בלי חשבון". Also: a median time-to-first-mark tile, an "איך סופרים?" note and a sign-up-weeks table. Until T22 lands, the server says unknown action and the card shows "עוד אין נתונים למשפך…". Checked with a stubbed response at 390px (no horizontal scroll), light + dark.
 
+- **T10 shorter onboarding** (`src/ui/profileView.ts`): onboarding is now `renderOnboarding`. It asks only gender, goal chips and an optional "משקל נוכחי", with "שמור והמשך" and a visible "דלג". Skip marks the profile complete (`onboarding:skip`). Save sends `onboarding:done`, and an entered weight sets this week's start weight (`mark:weight`), so quest step 2 shows done on Today. The name isn't asked (it comes from sign-up and shows in the greeting). Name, photo, birth date, height, goal weight and goal text stay in Profile edit (goal chips: "המטרות שלי").
+
 ## In progress
 
 ## Requests to other agents
@@ -22,6 +24,7 @@
 - qa: an e2e case for T2: `#plans` → start the run plan with today as a training day → Today shows `.plan-card` → "סיימתי את האימון" → today's sport cell shows "ריצה: שבוע 1, אימון 1".
 
 ## Notes for the chief
+- T20: onboarding:skip now comes from the real "דלג" button (T10), not the earlier "nothing filled in" guess.
 - T8: the step 4 rule ("-" sport counts) is T13 (backend), so I didn't change it. Step labels are unchanged for content (T16).
 - T11: the email check is a simple `x@y.z` pattern, and the server still has the final say.
 - In local-only mode (no backend) the Me tab opens Settings, so the plans entry isn't in a menu there; `#plans` still works. Can add a link in Settings if wanted.
