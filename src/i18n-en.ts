@@ -2065,4 +2065,6 @@ export const EN: Record<string, string> = {
   "נא לבחור ציון בין 1 ל-5": "Please choose a score from 1 to 5",
   "הטקסט ארוך מדי (עד 500 תווים)": "The text is too long (up to 500 characters)",
   "הסקר עוד לא פתוח": "This survey isn't open yet",
+  "משימת השבוע הראשון: יום עם \"-\" באימון נחשב יום מלא": "First-week quest: a day with \"-\" for workout counts as a full day",
+  "שרת: הכנה לסקר קצר ביום 3 וביום 7, ונתוני משפך לניהול": "Server: groundwork for a short day-3 and day-7 survey, and funnel data for admins",
 };

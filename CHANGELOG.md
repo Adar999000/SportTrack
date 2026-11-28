@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.10.0 (2026-11-28)
+- Backend batch (SERVER_VERSION 6.10.0): T22 `adminFunnel` + `setTestAccount`; T21 anonymous `landing` counters + client `trackLanding`; T13 quest `claimed`/`expiresAt`, `dayDone()`; T26 survey server (`surveyStatus`, `submitSurvey`, `dismissSurvey`, `adminFeedback`, Feedback sheet).
+
 ## 6.9.0 (2026-11-28)
 - Frontend T14: empty community feed shows an invite link (#share) and, with a saved workout, a share-last-workout story action.
 
