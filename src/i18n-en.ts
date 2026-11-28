@@ -2050,4 +2050,8 @@ export const EN: Record<string, string> = {
   "משקל נוכחי (ק\"ג, לא חובה)": "Current weight (kg, optional)",
   "נכנס כמשקל ההתחלתי של השבוע": "Saved as this week's starting weight",
   "שתי שאלות קצרות, ואפשר גם לדלג. את שאר הפרטים משלימים בפרופיל מתי שרוצים.": "Two short questions, and you can skip them. Fill in the rest of your details in your profile whenever you like.",
+  // empty community (T14)
+  "הקהילה עוד שקטה. הכי קל להתחיל עם חבר.": "The community is still quiet. The easiest start is with a friend.",
+  "הזמנת חבר (50 מטבעות לשניכם)": "Invite a friend (50 coins each)",
+  "שיתוף האימון האחרון": "Share your latest workout",
 };

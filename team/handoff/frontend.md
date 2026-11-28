@@ -19,6 +19,8 @@
 
 - **T12 one welcome, one skip** (`src/ui/tour.ts`): the welcome has 2 slides (mark the day / weigh weekly). The intro slide and the AI slide are gone, and the first Today tour no longer has the assistant step (3 steps). "דלג" on the welcome also marks the Today tour as seen, so one skip ends everything. "בואו נתחיל" still leads into the 3-step tour. The existing checks are unchanged: no auto-start while a sheet is open, and smooth scroll is off with reduced motion.
 
+- **T14 empty community** (`src/ui/feedView.ts`): with zero posts, the "הכל" tab shows "הקהילה עוד שקטה…" and a primary "הזמנת חבר (50 מטבעות לשניכם)" link to the share page. If the user has a saved workout (GPS/Strava), it also shows "שיתוף האימון האחרון", which opens the story composer with that workout. Team posts still render first, because the empty state appears only when the list is empty. The "חברים"/"שלי" empty states are unchanged. Checked with an empty stubbed feed: both actions work with Enter.
+
 ## In progress
 
 ## Requests to other agents
