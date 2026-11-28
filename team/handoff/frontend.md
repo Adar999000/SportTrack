@@ -12,6 +12,9 @@
 - **T9 verify in the feed**: `verifyCard` moved to `src/ui/verifyCard.ts` (Profile and feed share it). On the posts tab an unverified non-admin sees the card in place of the composer, with a one-line reason. Wrong code, resend ("שלחנו קוד חדש") and send errors show in a live region next to the field (not only a toast). After a correct code the composer appears without a reload and gets focus. Admins skip it, because the server exempts them. Checked against the mock server: wrong code → "הקוד לא נכון", then the real code → composer.
 - **T11 lighter sign-up** (`src/ui/authView.ts`): the invite field is behind "יש לי קוד הזמנה" and opens by itself when the link has a code. The privacy paragraph is now one line. Name, email, password and consent errors show under each field (`aria-describedby`, `aria-invalid`), and focus moves to the first invalid field. Sign-up and reset both check for 8 characters (`minlength` 8 on reset). There is a show/hide password button (`aria-pressed`, labelled in both languages, 44px). Server errors still use the general alert.
 
+- **T20 events + questStatus**: merged in 6.5.0.
+- **T23 admin Funnel card** (`src/ui/funnelCard.ts`, logic in `src/funnel.ts`, tests `tests/funnel.test.ts`): the card goes above "אנליטיקס שימוש" on the admin screen. It calls `adminFunnel(days)` and expects the shape in beta-metrics §3. Period 7/30/90 (aria-pressed). A 9-row table shows count, % of signed-up (day-3/7: % of eligible) and % of previous step. A row's percentages show "מעט מדי" when the base is under 5. Visitor rows are marked "מבקרים, בלי חשבון". Also: a median time-to-first-mark tile, an "איך סופרים?" note and a sign-up-weeks table. Until T22 lands, the server says unknown action and the card shows "עוד אין נתונים למשפך…". Checked with a stubbed response at 390px (no horizontal scroll), light + dark.
+
 ## In progress
 
 ## Requests to other agents
