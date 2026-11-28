@@ -120,39 +120,29 @@ test('2. admin turns on posting verification; invited sign-up prefills the code 
   });
 });
 
-test('3. unverified email: feed post is refused with a pointer to verification, then verifying unlocks it', async () => {
-  await step(9, 'post while unverified', async () => {
+test('3. unverified email: the feed offers verification instead of the composer; the API refuses posts; verifying unlocks posting', async () => {
+  await step(9, 'unverified feed shows the verify card, no composer', async () => {
     await page.goto(`${BASE}/#feed`);
-    await page.locator('textarea').waitFor();
-    await dismiss();
-    await page.fill('textarea', 'פוסט ראשון ' + stamp);
-    await page.click('button[type=submit]:has-text("פרסם")');
-    await page.locator('.toast, [role=status], [role=alert]', { hasText: /לאמת|אימות/ }).first().waitFor();
-    const feed = JSON.stringify(await api('feed', {}, second.token));
-    assert.ok(!feed.includes('פוסט ראשון ' + stamp), 'post must not be saved while unverified');
-  });
-  await step(10, 'verify email from profile', async () => {
-    await page.goto(`${BASE}/#profile`);
     await page.locator('.verify-card').waitFor();
+    assert.equal(await page.locator('textarea').count(), 0, 'no composer while unverified');
+    const r = await api('createPost', { text: 'פוסט ראשון ' + stamp, visibility: 'all' }, second.token);
+    assert.match(r.error ?? '', /אימות|לאמת/, 'server refuses unverified posts: ' + JSON.stringify(r));
+  });
+  await step(10, 'verify email from the feed card', async () => {
     await dismiss();
-    const send = page.locator('.verify-card button').first();
-    await send.click();
-    await page.waitForTimeout(800);
-    const code = await lastCode('קוד אימות');
-    await page.fill('#verify-code', code);
-    await page.locator('.verify-card button:has-text("אמת"), .verify-card button[type=submit]').last().click();
-    await page.waitForTimeout(800);
+    await page.locator('.verify-card button').first().click(); // "שליחת קוד למייל"
+    await page.locator('.verify-card input').waitFor();
+    await page.fill('.verify-card input', await lastCode('קוד אימות'));
+    await page.locator('.verify-card button[type=submit]').click();
+    await page.locator('textarea').waitFor(); // the composer replaces the card
     assert.equal((await api('me', {}, second.token)).user.emailVerified, true);
   });
   await step(11, 'post after verifying', async () => {
-    await page.goto(`${BASE}/#feed`);
-    await page.locator('textarea').waitFor();
-    await dismiss();
     await page.fill('textarea', 'פוסט אחרי אימות ' + stamp);
-    await page.click('button[type=submit]:has-text("פרסם")');
-    await page.waitForTimeout(1200);
-    const feed = JSON.stringify(await api('feed', {}, second.token));
-    assert.ok(feed.includes('פוסט אחרי אימות ' + stamp), 'verified user can post');
+    await page.locator('button[type=submit].btn-primary').first().click();
+    let ok = false;
+    for (let i = 0; i < 10 && !ok; i++) { await page.waitForTimeout(400); ok = JSON.stringify(await api('feed', {}, second.token)).includes('פוסט אחרי אימות ' + stamp); }
+    assert.ok(ok, 'verified user can post');
   });
 });
 
