@@ -1,7 +1,29 @@
 # Handoff: backend
 
 ## Done
-### T3 — Supabase migration prep (status: review)
+### Batch for server 6.10.0 (SERVER_VERSION bumped once): T22, T21, T13, T26 (status: review)
+- **T22 `adminFunnel(days)`** (admin): spec §3 shape, counts only, cached 10 min per period+day. New admin action
+  `setTestAccount(userId, on)` sets `extra.testAccount` (excluded like admins; clears today's funnel cache).
+  Decisions: cohort = sign-up day (Israel calendar) in `[today-days, today]`; day-3 eligible at age ≥ 4, day-7 at age ≥ 8
+  (window c+7..c+9); "first mark" = any V/X/- or text on a meal/sport cell, or a weight; median uses the earliest marked week's
+  `updatedAt` (spec's approximation). All 5 QA tests in `tests/funnel.test.ts` run and pass; extras in `tests/metrics.test.ts`.
+- **T21 `landing {event}`** (no sign-in): allow-list `landing:view`, `landing:cta`, `landing:signup-open`; one Analytics row per
+  day+event with users `[]`; nothing else read or stored. Decision: Apps Script can't see IPs, so the "per source" limit is a
+  global cap of 2000 per event per hour, and the client sends each name at most once per browser session (`trackLanding` in
+  `src/analytics.ts`, called from `renderLanding` and `renderAuth('register')`).
+- **T13**: `questStatus`/`claimQuest` return `claimed` (= paid) and `expiresAt` (sign-up + 14 days). The "-" rule already held in
+  `done()`; now a shared `dayDone()` and a test lock it in. Pay-once and 14-day close tested. Supabase port mirrors the fields.
+- **T26 survey** (spec `team/specs/beta-feedback.md`): `Feedback` sheet; `surveyStatus` → `{survey, snoozedUntil, answers}`;
+  `submitSurvey {survey, score, text?, wantsReply?}`; `dismissSurvey {survey, forever?}`; `adminFeedback` (admin).
+  Decisions: state in `Users.extra.survey` (any device); an expired d3 window also unblocks d7 (people who started late still get d7);
+  the 24 h gap is measured from the d3 answer/dismiss time (the server can't see when a card was shown); answers are accepted
+  from the opening day even after the window (offline queue); answers are linked to the user id (spec open question 1, default)
+  and the "2 active days" rule is kept (open question 2, default); `createMessage` for reply requests keeps its usual single admin
+  notice (spec 1.4 accepts it) — the answer itself never emails; the admin payload has first name, day of use, score, text, time,
+  wantsReply, no ids/emails; average only with 5+ answers. Account deletion removes answers; `answers` in `surveyStatus` is for the
+  client export.
+
+### T3 — Supabase migration prep (status: merged in 6.6.0)
 - `backend/supabase/schema.sql`: every Sheet as a table (profiles, weeks, docs, posts + likes/comments/reports/story views/meetup RSVPs,
   duels + members, duel_chat, ledger, events, messages, errors, analytics, invites, audit) plus `counters`/`auth_codes`/`settings`
   in place of CacheService/Script properties. Indexes, `put_weeks`/`put_docs` (newer wins, one statement, no lock), RLS:
@@ -37,9 +59,10 @@
 - Photo copy Drive → Storage script (step 10 in the .md).
 - Leaderboard is still computed for all users (cached 5 min) like today; for scale make it a table refreshed by a scheduled job.
 - `getPhoto` still returns base64; switch to signed URLs with a small client change.
-- Next queued: T13 → T21 → T22.
 
 ## Requests to other agents
+- frontend (T27): include `surveyStatus().answers` in the JSON export (settings → ייצוא JSON) so users get their own answers.
+- frontend/T23/T28: admin cards can call `adminFunnel` and `adminFeedback` (shapes above); `setTestAccount` needs a toggle in the users list.
 - chief/frontend: `src/errorReport.ts` posts straight to `API_URL` (Apps Script). On a Supabase build it should go through
   `call('clientError', …)` or the Supabase URL. Not changed (outside my area).
 

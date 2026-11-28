@@ -16,7 +16,7 @@ const SPREADSHEET_ID = '1WFGw04Mk0v_jP_tUkjQxoMW4ha4KxlHGLwvjCL7WV4g';
 const PHOTOS_FOLDER_ID = '1EY4VKDPQ9qHajt617AbW-odV3_3K31o7';
 const APP_FOLDER_ID = '1MzmupyDmqJpvHMKCBcr8nH6RQJvzggRt';
 const BACKUPS_KEEP = 14;
-const SERVER_VERSION = '6.2.0';
+const SERVER_VERSION = '6.10.0';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const TOKEN_DAYS = 60;
 const HASH_ROUNDS = 1000; // legacy hashes (read-only; upgraded on next sign-in)
@@ -121,6 +121,10 @@ function route(req) {
     case 'track': return track(me, req.events);
     case 'adminAnalytics': requireAdmin(me); return adminAnalytics(req.days);
     case 'adminFunnel': requireAdmin(me); return adminFunnel(req.days);
+    case 'surveyStatus': return surveyStatus(me);
+    case 'submitSurvey': return submitSurvey(me, req);
+    case 'dismissSurvey': return dismissSurvey(me, req);
+    case 'adminFeedback': requireAdmin(me); return adminFeedback();
     case 'setTestAccount': requireAdmin(me); return setTestAccount(me, req);
     case 'serverUpdate': requireAdmin(me); return Object.assign(selfUpdate(), { serverVersion: SERVER_VERSION });
     case 'stravaStatus': return stravaStatus(me);
@@ -1548,6 +1552,7 @@ function deleteAccount(me, req) {
     deleteRowsWhere(sheet('Invites'), 4, (v) => v === uid);
     deleteRowsWhere(docsSheet(), D.user, (v) => v === uid);
     deleteRowsWhere(duelChatSheet(), DC.user, (v) => v === uid);
+    deleteRowsWhere(feedbackSheet(), FB.user, (v) => v === uid);
     const ash = analyticsSheet();
     allRows(ash, 4).forEach((r, i) => {
       const us = parseJSON(r[AN.users], []) || [];
@@ -2717,6 +2722,123 @@ function setTestAccount(me, req) {
   [7, 30, 90].forEach((d) => c.remove('funnel-v1-' + d + '-' + todayStr()));
   audit(me.r[U.id], 'test_account', u.r[U.id] + ' ' + !!req.on);
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ beta micro-survey (T26, spec team/specs/beta-feedback.md)
+
+const FB = { user: 0, at: 1, survey: 2, score: 3, text: 4, reply: 5 };
+function feedbackSheet() { return lazySheet('Feedback', ['userId', 'at', 'survey', 'score', 'text', 'wantsReply']); }
+const SURVEYS = {
+  d3: { from: 3, to: 9, subject: 'משוב יום 3' },
+  d7: { from: 7, to: 14, subject: 'משוב יום 7' },
+};
+const SURVEY_SNOOZE_DAYS = 2;
+const SURVEY_MAX_SNOOZES = 2;
+
+/** Days since sign-up, by Israel calendar days. */
+function ageDays(r) {
+  const a = ilDay(r[U.created]).split('-').map(Number), b = todayStr().split('-').map(Number);
+  return Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 864e5);
+}
+
+/** Distinct days the user appears in Analytics (opened the app / used a feature). */
+function activeDays(uid) {
+  const days = {};
+  allRows(analyticsSheet(), 4).forEach((r) => { if ((parseJSON(r[AN.users], []) || []).indexOf(uid) >= 0) days[String(r[AN.day])] = true; });
+  return Object.keys(days).length;
+}
+
+/** Per-user survey state in Users.extra.survey: { d3: { state, snoozes, until, at }, d7: ... }. */
+function surveyState(r) { return extraOf(r).survey || {}; }
+function setSurveyState(me, id, patch) {
+  const all = surveyState(me.r);
+  all[id] = Object.assign({}, all[id] || {}, patch, { at: new Date().toISOString() });
+  setExtra(me, { survey: all });
+}
+
+/** Which survey (if any) to show now: rules of spec 1.2. Also the user's own answers (for their data export). */
+function surveyStatus(me) {
+  const uid = me.r[U.id];
+  const st = surveyState(me.r);
+  const answers = allRows(feedbackSheet(), 6).filter((r) => r[FB.user] === uid)
+    .map((r) => ({ survey: r[FB.survey], at: r[FB.at], score: Number(r[FB.score]), text: String(r[FB.text] || ''), wantsReply: String(r[FB.reply]) === '1' }));
+  const out = { survey: null, snoozedUntil: null, answers: answers };
+  if (me.r[U.role] === 'admin') return out;
+  const age = ageDays(me.r);
+  const closed = (id) => ['answered', 'dismissed', 'closed'].indexOf((st[id] || {}).state) >= 0 || age > SURVEYS[id].to;
+  let pick = null;
+  if (!closed('d3') && age >= SURVEYS.d3.from) pick = 'd3';
+  else if (closed('d3') && !closed('d7') && age >= SURVEYS.d7.from) {
+    // never within 24 h of the previous survey's answer/dismissal
+    const prev = Date.parse((st.d3 || {}).at || '') || 0;
+    if (Date.now() - prev >= 864e5) pick = 'd7';
+  }
+  if (!pick) return out;
+  const until = (st[pick] || {}).until;
+  if (until && Date.parse(until) > Date.now()) return Object.assign(out, { snoozedUntil: until });
+  if (activeDays(uid) < 2) return out; // never really started: covered by the funnel instead
+  return Object.assign(out, { survey: pick });
+}
+
+function submitSurvey(me, req) {
+  const id = String(req.survey || '');
+  if (!SURVEYS[id]) throw new Error('סקר לא מוכר');
+  const score = Number(req.score);
+  if (!(score >= 1 && score <= 5 && Math.round(score) === score)) throw new Error('נא לבחור ציון בין 1 ל-5');
+  const text = String(req.text || '').trim();
+  if (text.length > 500) throw new Error('הטקסט ארוך מדי (עד 500 תווים)');
+  if (ageDays(me.r) < SURVEYS[id].from) throw new Error('הסקר עוד לא פתוח');
+  const wantsReply = !!req.wantsReply && !!text;
+  return withLock(() => {
+    const uid = me.r[U.id];
+    if (allRows(feedbackSheet(), 6).some((r) => r[FB.user] === uid && r[FB.survey] === id)) return { ok: true, duplicate: true };
+    appendRows(feedbackSheet(), [[uid, new Date().toISOString(), id, score, text, wantsReply ? '1' : '']]);
+    setSurveyState(me, id, { state: 'answered' });
+    // No email for an answer. Only a reply request opens a thread in the existing support inbox.
+    if (wantsReply) createMessage(me, SURVEYS[id].subject, text);
+    return { ok: true };
+  });
+}
+
+/** "לא עכשיו" (snooze 2 days; the second snooze closes it) or "לא להציג שוב" (forever: true). */
+function dismissSurvey(me, req) {
+  const id = String(req.survey || '');
+  if (!SURVEYS[id]) throw new Error('סקר לא מוכר');
+  const cur = surveyState(me.r)[id] || {};
+  if (cur.state === 'answered') return { ok: true };
+  if (req.forever) setSurveyState(me, id, { state: 'dismissed' });
+  else {
+    const snoozes = (Number(cur.snoozes) || 0) + 1;
+    if (snoozes >= SURVEY_MAX_SNOOZES) setSurveyState(me, id, { state: 'closed', snoozes: snoozes, until: null });
+    else setSurveyState(me, id, { state: 'snoozed', snoozes: snoozes, until: new Date(Date.now() + SURVEY_SNOOZE_DAYS * 864e5).toISOString() });
+  }
+  return surveyStatus(me);
+}
+
+/** Aggregates for the admin card: counts, average (5+ answers), 1–5 distribution, latest texts (first name only). */
+function adminFeedback() {
+  const users = {};
+  rows('Users').forEach((r) => { users[r[U.id]] = r; });
+  const out = {};
+  const all = allRows(feedbackSheet(), 6);
+  Object.keys(SURVEYS).forEach((id) => {
+    const list = all.filter((r) => r[FB.survey] === id);
+    const scores = list.map((r) => Number(r[FB.score])).filter((n) => n >= 1 && n <= 5);
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    scores.forEach((n) => { distribution[n]++; });
+    const res = { count: scores.length, distribution: distribution };
+    if (scores.length >= 5) res.average = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+    res.latest = list.filter((r) => String(r[FB.text] || '').trim())
+      .sort((a, b) => String(b[FB.at]).localeCompare(String(a[FB.at])))
+      .slice(0, 20)
+      .map((r) => {
+        const u = users[r[FB.user]];
+        return { firstName: u ? String(u[U.name]).trim().split(/\s+/)[0] : '—', day: u ? Math.max(0, Math.round((Date.parse(String(r[FB.at])) - Date.parse(String(u[U.created]))) / 864e5)) : null,
+          score: Number(r[FB.score]), text: String(r[FB.text]), at: String(r[FB.at]), wantsReply: String(r[FB.reply]) === '1' };
+      });
+    out[id] = res;
+  });
+  return { feedback: out };
 }
 
 // ------------------------------------------------------------------ updates (through the loader in Code.gs)

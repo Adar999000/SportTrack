@@ -122,6 +122,8 @@ export const NOT_PORTED = [
   // TODO team content calendar (dripTeamPost, server 6.2.0) belongs with feed(): seed via a scheduled job instead.
   // TODO Strava OAuth (callback becomes its own function `strava-callback`)
   'stravaStatus', 'stravaAuthUrl', 'stravaImport', 'stravaDisconnect',
+  // TODO 6.10.0 additions: landing counters (T21, public), adminFunnel/setTestAccount (T22), beta survey (T26)
+  'landing', 'adminFunnel', 'setTestAccount', 'surveyStatus', 'submitSurvey', 'dismissSurvey', 'adminFeedback',
   // Apps Script only, no Supabase equivalent: backupNow (Supabase backups), serverUpdate (deploys via CLI)
   'backupNow', 'serverUpdate',
 ];
