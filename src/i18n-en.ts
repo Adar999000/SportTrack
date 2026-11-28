@@ -2012,4 +2012,5 @@ export const EN: Record<string, string> = {
   "הרשמה קלה יותר: שגיאות ליד השדה, הצגת סיסמה, וקוד הזמנה רק כשצריך": "Easier sign-up: errors next to the field, show password, and the invite code only when needed",
   "צילומי מסך בחלון ההתקנה של האפליקציה": "Screenshots in the app's install window",
   "חיפוש שירים ב-Spotify עובד שוב (Spotify שינו את מספר התוצאות המותר)": "Spotify song search works again (Spotify changed the allowed number of results)",
+  "תשתית: הכנה מלאה למעבר לשרת שיחזיק קהל גדול (Supabase). עדיין כבוי, נדלק כשהחשבונות יהיו מוכנים": "Infrastructure: full preparation for a server that can handle a large audience (Supabase). Off for now; switched on once the accounts are ready",
 };

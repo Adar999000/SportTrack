@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.6.0 (2026-11-28)
+- Backend T3: `backend/supabase/schema.sql` (all sheets, RLS), one `api` Edge Function with the existing action names (auth, weeks/docs, rewards/store/quest/league, feed/stories; the rest marked NOT_PORTED), `VITE_BACKEND=supabase` transport switch (default unchanged), export script and runbook; 17 new tests. Client error reports go through the normal transport on Supabase.
+
 ## 6.5.1 (2026-11-28)
 - Spotify search: "Invalid limit" (400) for development-mode apps; search now asks for 10, then 5, then the default.
 

@@ -4,7 +4,7 @@
  */
 import { API_URL } from './config';
 import { APP_VERSION } from './version';
-import { getToken } from './api';
+import { backendKind, call, getToken } from './api';
 
 const sent = new Set<string>();
 let count = 0;
@@ -18,6 +18,8 @@ function report(message: string, stack = '') {
   sent.add(key); count++;
   const body = JSON.stringify({ action: 'clientError', token: getToken() ?? undefined, message, stack: stack.slice(0, 900), version: APP_VERSION,
     screen: location.hash.replace(/-[\w-]{6,}$/, '').slice(0, 40) || '#', agent: navigator.userAgent.slice(0, 160) });
+  // Apps Script: a keepalive POST survives a page unload. Supabase: go through the normal transport.
+  if (backendKind() === 'supabase') { const { action: _a, token: _t, ...payload } = JSON.parse(body); void call('clientError', payload).catch(() => {}); return; }
   try { fetch(API_URL, { method: 'POST', body, keepalive: true }).catch(() => {}); } catch { /* ignore */ }
 }
 

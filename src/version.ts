@@ -9,6 +9,11 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '6.6.0',
+    date: '2026-11-28',
+    items: ['תשתית: הכנה מלאה למעבר לשרת שיחזיק קהל גדול (Supabase). עדיין כבוי, נדלק כשהחשבונות יהיו מוכנים'],
+  },
+  {
     version: '6.5.1',
     date: '2026-11-28',
     items: ['חיפוש שירים ב-Spotify עובד שוב (Spotify שינו את מספר התוצאות המותר)'],
