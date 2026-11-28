@@ -2010,3 +2010,17 @@ a.btn-primary.plan-btn { color: var(--accent-ink); }
 .feed-empty-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .feed-empty-actions .btn { min-height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none; }
 .feed-empty-actions a.btn-primary { color: var(--accent-ink); }
+
+/* ---- day-3 / day-7 survey (T27) ---- */
+.survey-card .card-title { margin: 0; }
+.survey-card .row-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sv-close { min-width: 44px; min-height: 44px; }
+.sv-q { margin: 0; font-weight: 700; }
+.sv-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.sv-score { min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-weight: 800; font-size: 1.05rem; }
+.sv-score[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent-ink); }
+.sv-score:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sv-ends { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted); font-size: 0.8rem; }
+.sv-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sv-actions .btn { min-height: 44px; }
+.sv-thanks p { margin: 0; font-weight: 700; }

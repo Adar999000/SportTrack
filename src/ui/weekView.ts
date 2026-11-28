@@ -24,6 +24,7 @@ import { smokeFreeStreak } from '../goalEffects';
 import { monthlySummaryCard, weeklySummaryCard } from './weeklySummary';
 import { questCard } from './questCard';
 import { planCard } from './planCard';
+import { surveyCard } from './surveyCard';
 
 const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
@@ -419,6 +420,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     isCurrent ? todayPanel(today) : '',
     isCurrent ? planCard() : '',
     isCurrent ? questCard() : '',
+    isCurrent ? surveyCard() : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,
     week.photoId ? weekPhoto(sunday) : '',

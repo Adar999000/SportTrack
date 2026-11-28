@@ -1,3 +1,4 @@
+import { initSurveyQueue } from './survey';
 import './styles.css';
 import { registerSW } from 'virtual:pwa-register';
 import { IS_DEMO } from './env';
@@ -397,6 +398,7 @@ async function boot() {
   initSwipeTabs();
   initPeeks();
   initOutbox();
+  initSurveyQueue();
   initErrorReporting();
   addEventListener('need-verify', () => { if (parseRoute(location.hash).name !== 'profile') setTimeout(() => navigate(HASH.profile), 1200); });
   addEventListener('scroll', () => document.body.classList.toggle('scrolled', scrollY > 4), { passive: true });
