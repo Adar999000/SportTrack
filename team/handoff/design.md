@@ -16,6 +16,13 @@
 ```
 Note: `TEAM_SEEDED2` is already used, so these need a new flag (e.g. `TEAM_SEEDED3`) to be posted on existing servers.
 
+## T18 (install experience)
+- `public/install/{today,progress,workout,store}.webp`: 1080×1920 real-app screens, made by `node scripts/team-cards/install-shots.cjs` (starts the mock server + `vite preview`, so run `VITE_API_URL=http://localhost:8787 npx vite build` first). Map tiles are grey on the workout screen because the tiles need internet.
+- `vite.config.ts`: manifest `screenshots` (4 entries, `form_factor: narrow`, Hebrew labels). Nothing else changed; `tsc` and build pass.
+- Maskable icon checked: the glyph's farthest corner is about 178px from the centre, inside the 205px (80%) safe circle, so it survives a circular mask. No change needed. Note: the icon is green (#2f6f5e) while the team look is ink/lime; say if you want it restyled.
+- `scripts/team-cards/recap-template.html`: weekly recap story, 1080×1920, `{{name}} {{range}} {{workouts}} {{dWorkouts}} {{full}} {{meals}} {{focus}}` placeholders documented in the file header (they match `WeekRecap`). `render-recap.cjs` renders it with sample values.
+- Screenshots precache with the service worker (about 45 KB each).
+
 ## In progress
 Nothing.
 

@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  Weekly recap share image, 1080x1920 (story size). Same visual language as the team cards.
+  The frontend replaces every {{placeholder}} (plain text, HTML-escape values first) and renders to PNG.
+  Placeholders (match WeekRecap in src/ui/weeklySummary.ts):
+    {{name}}      first name                         e.g. דנה
+    {{range}}     week range                         e.g. 22/11 – 28/11
+    {{workouts}}  number of workouts                 e.g. 4
+    {{dWorkouts}} change vs previous week, signed    e.g. +1   (use "=" for no change)
+    {{full}}      full days, out of 7                e.g. 5
+    {{meals}}     meals ratio in percent, no % sign  e.g. 82   (use "—" when unknown)
+    {{focus}}     one focus for next week            e.g. שבוע הבא: 5 ימים מלאים
+  Optional: add class "down" to .delta when the change is negative (it turns amber).
+  Preview with sample values: node scripts/team-cards/render-recap.cjs [out.png]
+-->
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@800;900&display=swap">
+<style>
+:root{--ink:#14160f;--paper:#f3f2ec;--lime:#c6f432}
+*{box-sizing:border-box;margin:0}
+body{width:1080px;height:1920px;font-family:'Heebo',Arial,sans-serif;font-weight:800;color:var(--paper);padding:130px 90px 110px;position:relative;
+ background:repeating-linear-gradient(-60deg,rgba(255,255,255,.035) 0 2px,transparent 2px 22px),var(--ink)}
+.kicker{font-size:40px;color:var(--lime)}
+.title{font-size:120px;font-weight:900;line-height:1.05;margin-top:24px}
+.range{font-size:40px;opacity:.7;margin-top:18px}
+.hero{display:flex;align-items:flex-end;gap:36px;margin-top:100px;height:430px}
+.hero .num{font-size:520px;font-weight:900;line-height:.8;color:var(--lime)}
+.hero .unit{font-size:64px;padding-bottom:40px}
+.delta{display:inline-block;direction:ltr;unicode-bidi:isolate;font-size:48px;color:var(--lime);margin-top:6px}
+.delta.down{color:#ffc47a}
+.stats{display:flex;gap:28px;margin-top:70px}
+.stat{flex:1;border-top:3px solid var(--paper);padding-top:28px}
+.stat b{display:block;font-size:130px;font-weight:900;line-height:1;color:var(--lime)}
+.stat span{font-size:42px}
+.focus{margin-top:80px;border:3px solid var(--lime);border-radius:36px;padding:44px 48px;font-size:56px;line-height:1.25}
+.focus small{display:block;font-size:34px;color:var(--lime);margin-bottom:14px}
+.foot{position:absolute;right:90px;left:90px;bottom:110px;border-top:3px dashed rgba(243,242,236,.55);padding-top:40px;display:flex;justify-content:space-between;font-size:38px}
+.brand{display:flex;align-items:center;gap:18px}
+.chk{width:60px;height:60px;border-radius:16px;background:var(--lime);color:var(--ink);display:grid;place-items:center;font-size:40px;font-weight:900}
+.tag{opacity:.8}
+</style></head><body>
+<div class="kicker">סיכום שבועי · {{name}}</div>
+<div class="title">השבוע שלי</div>
+<div class="range">{{range}}</div>
+<div class="hero"><div class="num">{{workouts}}</div><div class="unit">אימונים<br><span class="delta">{{dWorkouts}}</span></div></div>
+<div class="stats">
+  <div class="stat"><b>{{full}}/7</b><span>ימים מלאים</span></div>
+  <div class="stat"><b>{{meals}}%</b><span>ארוחות בזמן</span></div>
+</div>
+<div class="focus"><small>המיקוד הבא</small>{{focus}}</div>
+<div class="foot"><div class="brand"><span class="chk">✓</span><span>משמעת אישית</span></div><div class="tag">#משמעת_אישית</div></div>
+</body></html>
