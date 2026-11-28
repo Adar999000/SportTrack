@@ -60,6 +60,7 @@ function route(req) {
   if (a === 'status') return { ok: true, hasUsers: sheet('Users').getLastRow() > 1, serverVersion: SERVER_VERSION };
   if (a === 'requestReset') return requestReset(req);
   if (a === 'confirmReset') return confirmReset(req);
+  if (a === 'landing') return landingHit(req);
   if (a === 'clientError') { let who = null; try { who = req.token ? auth(req.token) : null; } catch (e) { /* signed out */ } return clientError(req, who); }
 
   const me = auth(req.token);
@@ -2578,6 +2579,35 @@ function adminAnalytics(days) {
   const events = Object.keys(byEvent).map((e) => ({ event: e, count: byEvent[e].count, users: Object.keys(byEvent[e].users).length, count7: byEvent[e].count7, users7: Object.keys(byEvent[e].users7).length }))
     .sort((a, b) => b.count - a.count);
   return { days: days, daily: daily, dau: daily[daily.length - 1].users, wau: uniq(week), mau: uniq(from), totalUsers: rows('Users').length, events: events };
+}
+
+/**
+ * Anonymous landing counters (T21): one per-day count per event name from a fixed allow-list.
+ * No token, user id, IP, cookie or free text is read or stored; unknown names are ignored.
+ * Apps Script can't see the caller's IP, so the limit is a global cap per event per hour (the client
+ * also sends each name at most once per browser session).
+ */
+const LANDING_EVENTS = ['landing:view', 'landing:cta', 'landing:signup-open'];
+const LANDING_HOURLY_CAP = 2000;
+function landingHit(req) {
+  const e = String(req.event || '');
+  if (LANDING_EVENTS.indexOf(e) < 0) return { ok: true };
+  const cache = CacheService.getScriptCache();
+  const hk = 'land-' + e + '-' + new Date().toISOString().slice(0, 13);
+  const n = Number(cache.get(hk)) || 0;
+  if (n >= LANDING_HOURLY_CAP) return { ok: true }; // flood: drop silently
+  cache.put(hk, String(n + 1), 3700);
+  const day = todayStr();
+  withLock(() => {
+    const sh = analyticsSheet();
+    const last = sh.getLastRow();
+    const from = Math.max(2, last - 400);
+    const recent = last >= 2 ? sh.getRange(from, 1, last - from + 1, 4).getValues().map((r) => r.map(cell)) : [];
+    const i = recent.findIndex((r) => String(r[AN.day]) === day && r[AN.event] === e);
+    if (i >= 0) sh.getRange(from + i, AN.count + 1).setValue((Number(recent[i][AN.count]) || 0) + 1);
+    else appendRows(sh, [[day, e, 1, '[]']]);
+  });
+  return { ok: true };
 }
 
 /** The calendar day (Asia/Jerusalem) of an ISO timestamp. */

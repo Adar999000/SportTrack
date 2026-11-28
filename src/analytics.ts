@@ -38,3 +38,24 @@ export function initAnalytics(): void {
   }, true);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushAnalytics(); });
 }
+
+const LANDING_EVENTS = ['landing:view', 'landing:cta', 'landing:signup-open'] as const;
+export type LandingEvent = (typeof LANDING_EVENTS)[number];
+const sentLanding = new Set<string>();
+
+/**
+ * Anonymous landing counter (signed-out visitors): only the event name is sent, at most once per
+ * browser session. No token, no user id, no cookie. Failures are ignored.
+ */
+export function trackLanding(event: LandingEvent): void {
+  if (!hasBackend() || !LANDING_EVENTS.includes(event)) return;
+  const key = 'mishmaat.landing.' + event;
+  try {
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+  } catch {
+    if (sentLanding.has(key)) return; // no sessionStorage: once per page load
+  }
+  sentLanding.add(key);
+  call('landing', { event }).catch(() => {});
+}

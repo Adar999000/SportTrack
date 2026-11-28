@@ -6,6 +6,7 @@ import { lang, setLang, t, tr } from '../i18n';
 import { APP_VERSION } from '../version';
 import { installButton } from './installButton';
 import { getSettings, updateSettings } from '../store';
+import { trackLanding } from '../analytics';
 
 function isDark(): boolean {
   const th = getSettings().theme;
@@ -110,7 +111,9 @@ function todayMock(live: HTMLElement): HTMLElement {
 }
 
 /** Landing page for visitors who aren't signed in. */
-export function renderLanding(root: HTMLElement, go: (to: 'login' | 'signup') => void): void {
+export function renderLanding(root: HTMLElement, goTo: (to: 'login' | 'signup') => void): void {
+  trackLanding('landing:view');
+  const go = (to: 'login' | 'signup') => { if (to === 'signup') trackLanding('landing:cta'); goTo(to); };
   const demoLive = h('span', { class: 'sr-only', 'aria-live': 'polite' });
   const signup = (label = t('להרשמה בחינם'), extra = '') => h('button', { class: `btn btn-primary btn-lg ${extra}`, type: 'button', onclick: () => go('signup') }, label);
   const feature = (ic: string, title: string, text: string, ai = false) =>

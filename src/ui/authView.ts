@@ -2,6 +2,7 @@ import { t } from '../i18n';
 import { call, type User } from '../api';
 import { startSession } from '../session';
 import { h } from './dom';
+import { trackLanding } from '../analytics';
 
 type Mode = 'login' | 'register';
 
@@ -119,6 +120,7 @@ function renderReset(root: HTMLElement, presetEmail = ''): void {
 
 export function renderAuth(root: HTMLElement, mode: Mode = 'login', inviteCode = ''): void {
   const reg = mode === 'register';
+  if (reg) trackLanding('landing:signup-open');
   const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
   const inp = (id: string, attrs: Record<string, any>) => h('input', { id, class: 'input', ...attrs }) as HTMLInputElement;
 
