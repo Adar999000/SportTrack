@@ -119,6 +119,7 @@ export const NOT_PORTED = [
   'auditLog', 'adminSettings', 'setSiteConfig', 'adminErrors', 'adminAnalytics',
   // TODO AI assistant (OpenAI, monthly budget): chat
   'chat',
+  // TODO team content calendar (dripTeamPost, server 6.2.0) belongs with feed(): seed via a scheduled job instead.
   // TODO Strava OAuth (callback becomes its own function `strava-callback`)
   'stravaStatus', 'stravaAuthUrl', 'stravaImport', 'stravaDisconnect',
   // Apps Script only, no Supabase equivalent: backupNow (Supabase backups), serverUpdate (deploys via CLI)

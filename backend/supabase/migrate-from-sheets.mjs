@@ -78,6 +78,7 @@ function tab(name) {
 
 const json = (s, fb) => { try { return s ? JSON.parse(s) : fb; } catch { return fb; } };
 const lit = (v) => (v === null || v === undefined || v === '' ? 'null' : `'${String(v).replace(/'/g, "''")}'`);
+const str = (v) => `'${String(v ?? '').replace(/'/g, "''")}'`; // NOT NULL text: '' stays ''
 const jlit = (v) => (v === null || v === undefined ? 'null' : `${lit(JSON.stringify(v))}::jsonb`);
 const num = (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? 'null' : String(Number(v)));
 const ts = (v) => (v ? lit(v) + '::timestamptz' : 'now()');
@@ -88,7 +89,7 @@ const photo = (id) => (id ? `migrated/${id}.jpg` : null);
 const users = tab('Users'); // id,email,name,role,hash,salt,created,seen,photo,profile,extra
 const mapFile = join(OUT, 'id-map.json');
 mkdirSync(OUT, { recursive: true });
-let idMap = existsSync(mapFile) ? json(readFileSync(mapFile, 'utf8'), {}) : {};
+const idMap = existsSync(mapFile) ? json(readFileSync(mapFile, 'utf8'), {}) : {};
 
 if (args['create-users']) {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -108,6 +109,7 @@ if (args['create-users']) {
   console.log(`auth users: ${Object.keys(idMap).length}/${users.length}`);
 } else {
   users.forEach((u) => { idMap[u.id] ??= '00000000-0000-4000-8000-' + Buffer.from(u.id).toString('hex').padEnd(12, '0').slice(0, 12); });
+  writeFileSync(join(OUT, 'id-map.dry.json'), JSON.stringify(idMap, null, 2)); // for inspection; a real run never reads it
   console.log('dry run: fake uuids (use --create-users for real ones)');
 }
 const uid = (old) => (old && idMap[old] ? lit(idMap[old]) : 'null');
@@ -122,12 +124,12 @@ for (const u of users) {
   const verified = !!x.emailVerified || (!!VERIFY_SINCE && String(u.created) < VERIFY_SINCE);
   add(`update public.profiles set legacy_id=${lit(u.id)}, name=${lit(String(u.name).slice(0, 60) || 'משתמש')}, role=${lit(u.role === 'admin' ? 'admin' : 'user')}, created_at=${ts(u.created)}, last_seen=${ts(u.seen)}, ` +
     `photo_path=${lit(photo(u.photo))}, profile=${jlit(json(u.profile, {}))}, invited_by=${uid(x.invitedBy)}, email_verified=${verified}, ` +
-    `two_factor=${typeof x.twoFactor === 'boolean' ? x.twoFactor : 'null'}, history_approved=${x.historyApproved === true}, frame=${lit(x.frame || '')}, ` +
+    `two_factor=${typeof x.twoFactor === 'boolean' ? x.twoFactor : 'null'}, history_approved=${x.historyApproved === true}, frame=${str(x.frame || '')}, ` +
     `chat_credits=${Number(x.chatCredits) || 0}, consent_at=${x.consentAt ? ts(x.consentAt) : 'null'}, consent=${lit(x.consent)} where id=${uid(u.id)};`);
   if (u.hash) add(`insert into public.legacy_passwords (user_id, hash, salt) values (${uid(u.id)}, ${lit(u.hash)}, ${lit(u.salt)}) on conflict do nothing;`);
   for (const b of x.blocks || []) if (idMap[b]) add(`insert into public.blocks (blocker_id, blocked_id) values (${uid(u.id)}, ${uid(b)}) on conflict do nothing;`);
   if (x.strava && x.strava.refresh) {
-    add(`insert into public.strava_tokens (user_id, access, refresh, expires, athlete) values (${uid(u.id)}, ${lit(x.strava.access)}, ${lit(x.strava.refresh)}, ${Number(x.strava.expires) || 0}, ${lit(x.strava.name || '')}) on conflict do nothing;`);
+    add(`insert into public.strava_tokens (user_id, access, refresh, expires, athlete) values (${uid(u.id)}, ${lit(x.strava.access)}, ${lit(x.strava.refresh)}, ${Number(x.strava.expires) || 0}, ${str(x.strava.name || '')}) on conflict do nothing;`);
   }
 }
 
@@ -150,10 +152,10 @@ for (const p of tab('Posts')) { // id,userId,at,visibility,kind,text,data,photoI
   const going = data && data.going ? data.going : [];
   if (data) { delete data.views; delete data.going; if (Array.isArray(data.photos)) data.photos = data.photos.map(photo); }
   add(`insert into public.posts (id, author_id, team, at, visibility, kind, text, data, photo_path, status) values (${lit(p.id)}, ${team ? 'null' : uid(p.userId)}, ${team}, ${ts(p.at)}, ` +
-    `${lit(p.visibility === 'friends' ? 'friends' : 'all')}, ${lit(p.kind || 'text')}, ${lit(p.text || '')}, ${jlit(data)}, ${lit(photo(p.photoId))}, ${lit(p.status === 'hidden' ? 'hidden' : 'ok')}) on conflict do nothing;`);
+    `${lit(p.visibility === 'friends' ? 'friends' : 'all')}, ${lit(p.kind || 'text')}, ${str(p.text || '')}, ${jlit(data)}, ${lit(photo(p.photoId))}, ${lit(p.status === 'hidden' ? 'hidden' : 'ok')}) on conflict do nothing;`);
   for (const l of json(p.likes, [])) if (idMap[l]) add(`insert into public.post_likes (post_id, user_id) values (${lit(p.id)}, ${uid(l)}) on conflict do nothing;`);
   for (const c of json(p.comments, [])) if (idMap[c.userId]) add(`insert into public.post_comments (id, post_id, user_id, text, at) values (${lit(c.id)}, ${lit(p.id)}, ${uid(c.userId)}, ${lit(c.text)}, ${ts(c.at)}) on conflict do nothing;`);
-  for (const r of json(p.reports, [])) if (idMap[r.userId]) add(`insert into public.post_reports (post_id, user_id, reason, at) values (${lit(p.id)}, ${uid(r.userId)}, ${lit(r.reason || '')}, ${ts(r.at)}) on conflict do nothing;`);
+  for (const r of json(p.reports, [])) if (idMap[r.userId]) add(`insert into public.post_reports (post_id, user_id, reason, at) values (${lit(p.id)}, ${uid(r.userId)}, ${str(r.reason || '')}, ${ts(r.at)}) on conflict do nothing;`);
   for (const v of views) if (idMap[v]) add(`insert into public.story_views (post_id, user_id) values (${lit(p.id)}, ${uid(v)}) on conflict do nothing;`);
   for (const g of going) if (idMap[g]) add(`insert into public.meetup_going (post_id, user_id) values (${lit(p.id)}, ${uid(g)}) on conflict do nothing;`);
 }
@@ -173,19 +175,19 @@ for (const c of tab('DuelChat')) { // duelId,userId,at,text,id
 
 for (const l of tab('Ledger')) { // userId,at,amount,ref,label
   if (!idMap[l.userId]) continue;
-  add(`insert into public.ledger (user_id, at, amount, ref, label) values (${uid(l.userId)}, ${ts(l.at)}, ${Number(l.amount) || 0}, ${lit(l.ref)}, ${lit(l.label || '')}) on conflict do nothing;`);
+  add(`insert into public.ledger (user_id, at, amount, ref, label) values (${uid(l.userId)}, ${ts(l.at)}, ${Number(l.amount) || 0}, ${lit(l.ref)}, ${str(l.label || '')}) on conflict do nothing;`);
 }
 
 for (const e of tab('Events')) { // id,title,date,location,type,url,details,status,createdBy,createdAt
   add(`insert into public.events (id, title, date, location, type, url, details, status, created_by, created_at) values (${lit(e.id)}, ${lit(e.title)}, ${lit(String(e.date).slice(0, 10))}, ` +
-    `${lit(e.location || '')}, ${lit(e.type || 'other')}, ${lit(e.url || '')}, ${lit(e.details || '')}, ${lit(e.status || 'pending')}, ${uid(e.createdBy)}, ${ts(e.createdAt)}) on conflict do nothing;`);
+    `${str(e.location || '')}, ${lit(e.type || 'other')}, ${str(e.url || '')}, ${str(e.details || '')}, ${lit(e.status || 'pending')}, ${uid(e.createdBy)}, ${ts(e.createdAt)}) on conflict do nothing;`);
 }
 
 for (const m of tab('Messages')) { // id,userId,at,from,subject,text,status
   const guest = String(m.userId).startsWith('guest:') ? String(m.userId).slice(6) : null;
   if (!guest && !idMap[m.userId]) continue;
   add(`insert into public.messages (id, user_id, guest_email, at, "from", subject, text, status) values (${lit(m.id)}, ${guest ? 'null' : uid(m.userId)}, ${lit(guest)}, ${ts(m.at)}, ` +
-    `${lit(m.from === 'admin' ? 'admin' : 'user')}, ${lit(m.subject || '')}, ${lit(m.text)}, ${lit(m.status || 'new')}) on conflict do nothing;`);
+    `${lit(m.from === 'admin' ? 'admin' : 'user')}, ${str(m.subject || '')}, ${lit(m.text)}, ${lit(m.status || 'new')}) on conflict do nothing;`);
 }
 
 for (const a of tab('Analytics')) { // day,event,count,users
