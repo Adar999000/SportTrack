@@ -2726,8 +2726,8 @@ function setTestAccount(me, req) {
 
 // ------------------------------------------------------------------ beta micro-survey (T26, spec team/specs/beta-feedback.md)
 
-const FB = { user: 0, at: 1, survey: 2, score: 3, text: 4, reply: 5 };
-function feedbackSheet() { return lazySheet('Feedback', ['userId', 'at', 'survey', 'score', 'text', 'wantsReply']); }
+const FB = { user: 0, at: 1, survey: 2, score: 3, text: 4, reply: 5, message: 6 };
+function feedbackSheet() { return lazySheet('Feedback', ['userId', 'at', 'survey', 'score', 'text', 'wantsReply', 'messageId']); }
 const SURVEYS = {
   d3: { from: 3, to: 9, subject: 'משוב יום 3' },
   d7: { from: 7, to: 14, subject: 'משוב יום 7' },
@@ -2760,7 +2760,7 @@ function setSurveyState(me, id, patch) {
 function surveyStatus(me) {
   const uid = me.r[U.id];
   const st = surveyState(me.r);
-  const answers = allRows(feedbackSheet(), 6).filter((r) => r[FB.user] === uid)
+  const answers = allRows(feedbackSheet(), 7).filter((r) => r[FB.user] === uid)
     .map((r) => ({ survey: r[FB.survey], at: r[FB.at], score: Number(r[FB.score]), text: String(r[FB.text] || ''), wantsReply: String(r[FB.reply]) === '1' }));
   const out = { survey: null, snoozedUntil: null, answers: answers };
   if (me.r[U.role] === 'admin') return out;
@@ -2791,11 +2791,12 @@ function submitSurvey(me, req) {
   const wantsReply = !!req.wantsReply && !!text;
   return withLock(() => {
     const uid = me.r[U.id];
-    if (allRows(feedbackSheet(), 6).some((r) => r[FB.user] === uid && r[FB.survey] === id)) return { ok: true, duplicate: true };
-    appendRows(feedbackSheet(), [[uid, new Date().toISOString(), id, score, text, wantsReply ? '1' : '']]);
-    setSurveyState(me, id, { state: 'answered' });
+    if (allRows(feedbackSheet(), 7).some((r) => r[FB.user] === uid && r[FB.survey] === id)) return { ok: true, duplicate: true };
     // No email for an answer. Only a reply request opens a thread in the existing support inbox.
-    if (wantsReply) createMessage(me, SURVEYS[id].subject, text);
+    let msg = null;
+    if (wantsReply) { try { msg = createMessage(me, SURVEYS[id].subject, text); } catch (e) { /* daily message limit: the answer is still saved */ } }
+    appendRows(feedbackSheet(), [[uid, new Date().toISOString(), id, score, text, wantsReply ? '1' : '', msg ? msg.id : '']]);
+    setSurveyState(me, id, { state: 'answered' });
     return { ok: true };
   });
 }
@@ -2820,7 +2821,7 @@ function adminFeedback() {
   const users = {};
   rows('Users').forEach((r) => { users[r[U.id]] = r; });
   const out = {};
-  const all = allRows(feedbackSheet(), 6);
+  const all = allRows(feedbackSheet(), 7);
   Object.keys(SURVEYS).forEach((id) => {
     const list = all.filter((r) => r[FB.survey] === id);
     const scores = list.map((r) => Number(r[FB.score])).filter((n) => n >= 1 && n <= 5);
@@ -2834,7 +2835,8 @@ function adminFeedback() {
       .map((r) => {
         const u = users[r[FB.user]];
         return { firstName: u ? String(u[U.name]).trim().split(/\s+/)[0] : '—', day: u ? Math.max(0, Math.round((Date.parse(String(r[FB.at])) - Date.parse(String(u[U.created]))) / 864e5)) : null,
-          score: Number(r[FB.score]), text: String(r[FB.text]), at: String(r[FB.at]), wantsReply: String(r[FB.reply]) === '1' };
+          score: Number(r[FB.score]), text: String(r[FB.text]), at: String(r[FB.at]), wantsReply: String(r[FB.reply]) === '1',
+          ...(r[FB.message] ? { messageId: String(r[FB.message]) } : {}) };
       });
     out[id] = res;
   });

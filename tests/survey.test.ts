@@ -112,6 +112,20 @@ describe('submitSurvey', () => {
 });
 
 describe('adminFeedback', () => {
+  it('links a reply request to its support thread with messageId', () => {
+    const w = world();
+    const v = w.reg('v', 'ורד');
+    w.at(3);
+    w.be.post({ action: 'submitSurvey', token: w.u.token, survey: 'd3', score: 4, text: 'בלי בקשה לתשובה' });
+    w.be.post({ action: 'submitSurvey', token: v.token, survey: 'd3', score: 2, text: 'תחזרו אליי', wantsReply: true });
+    const latest = w.be.post({ action: 'adminFeedback', token: w.admin.token }).feedback.d3.latest;
+    const asked = latest.find((x: any) => x.text === 'תחזרו אליי');
+    const plain = latest.find((x: any) => x.text === 'בלי בקשה לתשובה');
+    const thread = w.be.post({ action: 'adminThread', token: w.admin.token, userId: v.user.userId }).messages;
+    expect(asked.messageId).toBe(thread[0].id);
+    expect(plain).not.toHaveProperty('messageId');
+  });
+
   it('admin only; average hidden under 5 answers; first names only, no email or ids', () => {
     const w = world();
     const others = ['a', 'b', 'c', 'd'].map((k) => w.reg(k));

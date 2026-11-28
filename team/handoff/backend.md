@@ -20,7 +20,7 @@
   from the opening day even after the window (offline queue); answers are linked to the user id (spec open question 1, default)
   and the "2 active days" rule is kept (open question 2, default); `createMessage` for reply requests keeps its usual single admin
   notice (spec 1.4 accepts it) — the answer itself never emails; the admin payload has first name, day of use, score, text, time,
-  wantsReply, no ids/emails; average only with 5+ answers. Account deletion removes answers; `answers` in `surveyStatus` is for the
+  wantsReply, `messageId` of the reply thread when one was opened (support message id, not a user id), no user ids/emails; average only with 5+ answers. If the daily message limit blocks the thread, the answer is still saved. Account deletion removes answers; `answers` in `surveyStatus` is for the
   client export.
 
 ### T3 — Supabase migration prep (status: merged in 6.6.0)
