@@ -46,6 +46,7 @@ import { initOutbox } from './outbox';
 import { initErrorReporting } from './errorReport';
 setLockedHandler((whole) => toast(whole ? t('השבוע נעול. אפשר לשחרר אותו מתחת לטבלה.') : t('היום נעול. לחיצה על היום בטבלה פותחת אותו לשחרור.')));
 setDayCompleteHandler(() => {
+  track('day:full');
   const today = todayISO();
   const w = allWeeks().find((x) => x.sundayDate === sundayOf(today));
   if (new Date().getDay() === 6 && w) {
@@ -61,7 +62,7 @@ function tabs(): Tab[] {
   const today: Tab = { names: ['week', 'tracker'], hash: HASH.week(), label: t('היום'), icon: 'week' };
   const progress: Tab = { names: ['stats', 'history', 'workout'], hash: HASH.stats, label: t('התקדמות'), icon: 'stats' };
   if (!hasBackend()) return [today, progress, { names: ['settings'], hash: HASH.settings, label: t('הגדרות'), icon: 'settings' }];
-  return [today, progress, { names: ['profile', 'settings', 'chat', 'rewards', 'share', 'feed', 'admin', 'adminUser'], hash: HASH.profile, label: t('אני'), icon: 'profile' }];
+  return [today, progress, { names: ['profile', 'settings', 'chat', 'rewards', 'share', 'feed', 'admin', 'adminUser', 'plans'], hash: HASH.profile, label: t('אני'), icon: 'profile' }];
 }
 
 const main = h('main', { id: 'main', class: 'content' });
@@ -181,7 +182,7 @@ function render() {
     return;
   }
   // Keep in-progress forms (chat, profile edit) from being wiped by background updates.
-  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share' || route.name === 'feed' || route.name === 'workout' || route.name === 'music' || route.name === 'goals')) return;
+  if (key === lastRoute && (route.name === 'chat' || (route.name === 'profile' && route.edit) || route.name === 'adminUser' || route.name === 'admin' || route.name === 'rewards' || route.name === 'share' || route.name === 'feed' || route.name === 'workout' || route.name === 'music' || route.name === 'goals' || route.name === 'plans')) return;
 
   nav.hidden = false;
   nav.replaceChildren(
@@ -194,7 +195,7 @@ function render() {
   );
   nav.style.setProperty('--tabs', String(tabs().length));
 
-  const fromMe = hasBackend() && ['settings', 'rewards', 'share', 'feed', 'chat', 'admin', 'music', 'goals'].includes(route.name) && !(route.name === 'chat' && route.scope !== 'me');
+  const fromMe = hasBackend() && ['settings', 'rewards', 'share', 'feed', 'chat', 'admin', 'music', 'goals', 'plans'].includes(route.name) && !(route.name === 'chat' && route.scope !== 'me');
   crumb.hidden = !fromMe;
   if (fromMe) crumb.replaceChildren(h('a', { class: 'link-btn', href: HASH.profile }, (isRTL ? '→ ' : '← ') + t('אני')));
   switch (route.name) {
@@ -224,6 +225,7 @@ function render() {
     case 'workout': renderWorkout(main, route.id); break;
     case 'music': renderMusic(main); break;
     case 'goals': renderGoals(main); break;
+    case 'plans': renderPlans(main); break;
     case 'feed': hasBackend() ? renderFeed(main, route.tab ?? 'posts') : renderWeek(main, sundayOf(todayISO())); break;
     case 'duel':
       call('joinDuel', { code: route.code }).then(() => { toast(t('הצטרפת לאתגר! בהצלחה 💪')); track('duel:join-link'); }).catch((e) => toast(e.message)).finally(() => navigate(HASH.duels));
@@ -247,6 +249,7 @@ const renderAdminUser = (m: HTMLElement, id: string) => void import('./ui/adminV
 const renderSettings = (m: HTMLElement) => void import('./ui/settingsView').then((x) => x.renderSettings(m));
 const renderRewards = (m: HTMLElement) => void import('./ui/rewardsView').then((x) => x.renderRewards(m));
 const renderShare = (m: HTMLElement) => void import('./ui/shareView').then((x) => x.renderShare(m));
+const renderPlans = (m: HTMLElement) => void import('./ui/plansView').then((x) => x.renderPlans(m));
 
 /** Level up or a new badge since the last time we looked: celebrate it once. */
 function checkMilestones() {

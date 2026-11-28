@@ -53,6 +53,12 @@ export default defineConfig(({ mode }) => ({
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        screenshots: [
+          { src: 'install/today.webp', sizes: '1080x1920', type: 'image/webp', form_factor: 'narrow', label: 'המסך היום' },
+          { src: 'install/progress.webp', sizes: '1080x1920', type: 'image/webp', form_factor: 'narrow', label: 'התקדמות' },
+          { src: 'install/workout.webp', sizes: '1080x1920', type: 'image/webp', form_factor: 'narrow', label: 'אימון חדש' },
+          { src: 'install/store.webp', sizes: '1080x1920', type: 'image/webp', form_factor: 'narrow', label: 'מטבעות ואתגרים' },
+        ],
       },
       devOptions: { enabled: false, type: 'module' },
     }),

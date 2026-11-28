@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import { mascot } from './mascot';
 import { goalChips } from './goalChips';
 import { applyGoals } from '../goalEffects';
@@ -13,6 +14,7 @@ import { avatar } from './avatar';
 import { confirmButton, fmtKg, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { menuItem } from './weekView';
+import { verifyCard } from './verifyCard';
 import { openAssistant } from './floatingChat';
 import { openAccessibility } from './a11yWidget';
 import { getRewards, levelLabel } from '../rewards';
@@ -23,30 +25,6 @@ function age(birth?: string): number | null {
 }
 
 /** First-time setup and later edits of name, photo and personal details. */
-/** Verify the email with a 6-digit code (needed to post in the community). */
-function verifyCard(): HTMLElement | '' {
-  const u = currentUser();
-  if (!u || u.emailVerified !== false) return '';
-  const body = h('div', { class: 'stack' });
-  const askCode = () => {
-    const input = h('input', { class: 'input', id: 'verify-code', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, dir: 'ltr', placeholder: '123456' }) as HTMLInputElement;
-    body.replaceChildren(
-      h('p', { class: 'muted' }, tr`שלחנו קוד בן 6 ספרות ל-${u.email}. אם לא הגיע, בדקו בספאם.`),
-      h('div', { class: 'field' }, h('label', { for: 'verify-code' }, t('קוד אימות')), input),
-      h('div', { class: 'row-btns two' },
-        h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
-          try { const r = await call<{ user: User }>('verifyEmail', { code: input.value }); await setUser(r.user); toast(t('המייל אומת ✓')); navigate(HASH.profile); } catch (e: any) { toast(e.message); }
-        } }, t('אימות')),
-        h('button', { class: 'btn', type: 'button', onclick: send }, t('שליחה מחדש'))));
-    input.focus();
-  };
-  const send = async () => { try { await call('sendVerifyCode'); askCode(); } catch (e: any) { toast(e.message); } };
-  body.replaceChildren(
-    h('p', null, t('כדי לפרסם בקהילה, להגיב ולפתוח אתגרים צריך לאמת את כתובת המייל. זה לוקח 20 שניות ושומר על הקהילה בלי חשבונות מזויפים.')),
-    h('button', { class: 'btn btn-primary', type: 'button', onclick: send }, t('שליחת קוד למייל')));
-  return h('section', { class: 'card verify-card', 'aria-label': t('אימות מייל') }, h('h2', { class: 'card-title' }, '✉️ ', t('אימות מייל')), body);
-}
-
 export function renderProfileForm(root: HTMLElement, onboarding: boolean): void {
   const u = currentUser()!;
   const p = u.profile ?? {};
@@ -111,7 +89,11 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
       });
       if (photo && res.user.photoId) rememberPhoto(res.user.photoId, photo);
       await setUser(res.user);
-      if (onboarding) applyGoals(chips.value());
+      if (onboarding) {
+        applyGoals(chips.value());
+        const filled = chips.value().length || gender.value() || v('pf-birth') || num('pf-height') || num('pf-goalw') || v('pf-goal') || photo;
+        track(filled ? 'onboarding:done' : 'onboarding:skip');
+      }
       toast(t('הפרופיל נשמר'));
       navigate(onboarding ? HASH.week() : HASH.profile);
     } catch (ex: any) {
@@ -230,10 +212,11 @@ export function renderProfile(root: HTMLElement): void {
       ),
       h('button', { class: 'btn', onclick: go(HASH.profileEdit) }, t('עריכה')),
     ),
-    verifyCard(),
+    verifyCard({ onVerified: () => navigate(HASH.profile) }),
     h('section', { class: 'card menu-list' },
       menuItem('coin', t('מטבעות וחנות'), t('אתגרים אישיים, רמות וחנות'), go(HASH.rewards)),
       menuItem('feed', t('קהילה ואתגרים'), t('פיד, אתגרים עם חברים ותחרויות'), go(HASH.feed)),
+      menuItem('week', t('תוכניות אימון'), t('5 ק"מ ב-8 שבועות, כוח בבית ועוד'), go(HASH.plans)),
       menuItem('music', t('מוזיקה'), t('Spotify ו-Apple Music לאימונים'), go(HASH.music)),
       menuItem('star', t('המטרות שלי'), t('מה חשוב לך, והאפליקציה מתאימה את עצמה'), go(HASH.goals)),
       menuItem(mascot(34, 'mi-mascot'), t('עוזר AI'), t('שאלות על הנתונים שלך'), go(HASH.chat)),

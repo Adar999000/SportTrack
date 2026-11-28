@@ -14,7 +14,13 @@ The chief assigns work, reviews every change, merges it into the release branch 
 | content | Content & language: English/Hebrew copy, gendered wording, help pages | Haiku | `team/content` |
 | growth | Growth: landing copy, SEO, invite messages, launch kit | Haiku | `team/growth` |
 
+## Capacity
+The account has a usage limit per 5-hour window. Running all agents at once used it up in ~20 minutes (2026-11-27).
+The chief runs **at most 3 agents at a time**, cheapest model that fits, and the others wait for their turn.
+Push your branch early and often (every finished sub-step), so work survives an interruption.
+
 ## Rules for every agent
+0. **Work autonomously. Never ask the user (the CEO) anything** and never wait for their answer. The chief is your only contact. If something is unclear, pick the sensible default, write the choice under "Notes for the chief" in your handoff, and keep going. If you truly cannot continue, send the chief `STATUS | <id> | <task> | blocked | <question>` and work on the next part meanwhile. Never end a turn with a question to the user.
 1. Start by reading `team/README.md`, `team/backlog.md`, `team/decisions.md` and your own `team/handoff/<id>.md`.
 2. Work only on your branch (`team/<id>`), created from `claude/personal-discipline-pwa-13qhdk`. Never push to `main` or to the chief's branch, never open pull requests, never force-push.
 3. Keep changes inside your area (see "Owns" in backlog). If you need a change in someone else's area, write it under "Requests" in your handoff file.

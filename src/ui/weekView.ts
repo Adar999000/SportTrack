@@ -23,6 +23,7 @@ import { gx } from '../gender';
 import { smokeFreeStreak } from '../goalEffects';
 import { monthlySummaryCard, weeklySummaryCard } from './weeklySummary';
 import { questCard } from './questCard';
+import { planCard } from './planCard';
 
 const BASE_ROWS: { key: MealKey; full: string; short: string }[] = [
   { key: 'breakfast', full: t('ארוחת בוקר בריאה'), short: t('בוקר') },
@@ -334,7 +335,7 @@ function weekPhoto(sunday: string): HTMLElement | '' {
   function draw() {
     if (!week.photoId) {
       box.className = 'inline-photo';
-      box.replaceChildren(h('button', { class: 'link-btn', type: 'button', onclick: upload }, t('תמונה')));
+      box.replaceChildren(h('button', { class: 'mini-act', type: 'button', onclick: upload }, icon('camera', 18), h('span', null, t('תמונה'))));
       return;
     }
     box.className = 'card week-photo';
@@ -366,6 +367,7 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   });
   weight.addEventListener('change', () => {
     const v = parseFloat(weight.value.replace(',', '.'));
+    if (Number.isFinite(v) && v > 0) track('mark:weight');
     editWeek(sunday, (w) => {
       if (Number.isFinite(v) && v > 0) w.startWeight = Math.round(v * 100) / 100;
       else delete w.startWeight;
@@ -396,10 +398,10 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
     weekTable(sunday, today),
     note,
     h('div', { class: 'mini-actions' },
-      !week.note && h('button', { class: 'link-btn', type: 'button', onclick: (e: Event) => { note.hidden = false; note.focus(); (e.currentTarget as HTMLElement).remove(); } }, t('הערה')),
+      !week.note && h('button', { class: 'mini-act', type: 'button', onclick: (e: Event) => { note.hidden = false; note.focus(); (e.currentTarget as HTMLElement).remove(); } }, icon('note', 18), h('span', null, t('הערה'))),
       week.photoId ? '' : weekPhoto(sunday),
-      h('button', { class: 'link-btn', type: 'button', onclick: () => setLock(sunday, null, !week.locked) }, week.locked ? '🔓 ' + t('שחרר שבוע') : '🔒 ' + t('נעל שבוע')),
-      h('button', { class: 'link-btn', type: 'button', onclick: () => openWeekMenu() }, t('התאמה אישית')),
+      h('button', { class: 'mini-act' + (week.locked ? ' on' : ''), type: 'button', 'aria-pressed': String(!!week.locked), onclick: () => setLock(sunday, null, !week.locked) }, icon(week.locked ? 'lock' : 'unlock', 18), h('span', null, week.locked ? t('שחרר שבוע') : t('נעל שבוע'))),
+      h('button', { class: 'mini-act', type: 'button', onclick: () => openWeekMenu() }, icon('sliders', 18), h('span', null, t('התאמה'))),
     ),
   );
 
@@ -414,8 +416,9 @@ export function renderWeek(root: HTMLElement, sunday: string): void {
   root.replaceChildren(
     listTrackers().length ? trackerBar(null) : '',
     isCurrent ? monthlySummaryCard() || weeklySummaryCard() : '',
-    isCurrent ? questCard() : '',
     isCurrent ? todayPanel(today) : '',
+    isCurrent ? planCard() : '',
+    isCurrent ? questCard() : '',
     sundayNoWeight ? h('div', { class: 'banner' }, t('שבוע חדש — אפשר להזין משקל התחלתי'), h('button', { class: 'link-btn', onclick: () => weight.focus() }, t('הזן'))) : '',
     weekCard,
     week.photoId ? weekPhoto(sunday) : '',

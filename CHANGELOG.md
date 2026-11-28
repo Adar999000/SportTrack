@@ -1,5 +1,26 @@
 # Changelog
 
+## 6.5.0 (2026-11-28)
+- Merged: frontend T8 (Today first, tappable quest steps), T9 (verify card in the feed), T11 (lighter sign-up, inline errors, show password, 8-char rule), T20 (funnel events, quest card reads questStatus); qa T4 e2e suite (`npm run e2e`, 18 tests, selectors made gender-agnostic); design T18 (install screenshots in the manifest, recap template); pm T25 spec; growth T26 spec; content T27 help Q&A (he/en).
+
+## 6.4.0 (2026-11-27)
+- Landing v2 from growth's spec (team/specs/landing-v2.md): 30-second lead, steps right under the hero, four core features with the rest folded under "More features", the mock labeled as an example (no named person), FAQ: cost, no friends needed, missed day.
+- Merged pm T19 (beta metrics spec), content T16, growth T15.
+
+## 6.3.0 (2026-11-27)
+- Training plans (frontend T2): `src/plans.ts`, `#plans`, Today plan card; synced doc `plan:active`; 11 tests.
+- Copy (content T6): 13 English fixes, 54 feminine entries, `docs/help.md`; "חד\"כ" = Gym.
+
+## 6.2.0 (2026-11-27)
+- Team work merged: product review and backlog (pm), six new team cards + generator (design), launch kit `docs/growth.md` (growth).
+- Team content calendar: one designed tip post every 3 days (`TEAM_DRIP`, `TEAM_DRIP_N/LAST`).
+
+## 6.1.3 (2026-11-27)
+- Week actions under the table are icon buttons (note, photo, lock/unlock with pressed state, customize) instead of text links and a lock emoji.
+
+## 6.1.2 (2026-11-27)
+- Fix: the floating assistant button jumped to the right after dragging (in RTL, resetting `inset-inline-end` after setting `left` cleared it). No more snapping to a side; a spot the user chose is never auto-tucked.
+
 ## 6.1.1 (2026-11-27)
 - Landing aligned with the app: interactive Today mock (rings follow taps) instead of the old table + chat, store/levels copy matches the catalog and real level numbers, steps match onboarding, safety section mentions verification/reporting/blocking.
 - `#about` (or `#home`) shows the landing page even when signed in; linked from Me.
