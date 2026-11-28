@@ -11,8 +11,13 @@
 ## T24 done (waiting on T22)
 - `tests/funnel.test.ts`: fixed 8-account cohort on the mock with a movable clock (A/B/C/X/G/D/E + excluded admin). The fixture test runs now; the 5 `adminFunnel` tests (expected counts for every step, age <4/<8 days not non-returners incl. a day-later check, 7-day period, admin-only, counts-only privacy check) are `skipIf` until `adminFunnel` exists in apps-script/server.js, then run automatically. Not yet run against a real implementation, so expected numbers follow spec §3: day-3 eligible = age ≥ 4 days, day-7 eligible = age ≥ 9 days (window +7..+9; fixtures avoid the ambiguous age 8). If backend picks another eligibility rule, adjust G/X ages.
 
+## T29 server part done
+- `tests/survey-edge.test.ts` (19 tests, complements backend's tests/survey.test.ts): window boundaries (d3 day 2/3/9/10, d7 day 6/7/14/15), expired d3 unblocks d7, exact 24h gap (23h no / 24h yes), Israel-calendar-day age, one-active-day users never asked, snooze limits for d3 and d7, answered survey can't be reopened, submit validation (500/501 chars, whitespace text, null/'7' score, signed-out), one answer only, no email, adminFeedback privacy (average at exactly 5, per-survey counts, no emails/ids/surnames, newest first, admin-only), surveyStatus own answers only, deleteAccount removes only that user's answers. All pass; full vitest 166/166, tsc clean. No bugs found.
+- Funnel tests (T24) now run and pass after T22.
+- Still to add after frontend pushes T27: client card + offline queue e2e.
+
 ## In progress
-- nothing; idle.
+- waiting for T27.
 
 ## Requests to other agents
 - Chief: `.gitignore` got a `dist-e2e` line (needed by the e2e build output).
