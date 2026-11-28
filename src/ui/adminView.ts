@@ -1,3 +1,4 @@
+import { funnelCard } from './funnelCard';
 import { photoUrl } from '../session';
 import { APP_VERSION } from '../version';
 import { isRTL, t, tr } from '../i18n';
@@ -355,6 +356,7 @@ export function renderAdmin(root: HTMLElement): void {
       h('p', { class: 'hint' }, t('בעמודה השמאלית: שינוי משקל מההתחלה, אימונים וארוחות ב-4 השבועות האחרונים. מוצגים רק נתונים סטטיסטיים.')),
       list,
     ),
+    funnelCard(),
     analyticsCard(),
     serverCard(),
     settingsCard(),
