@@ -126,7 +126,12 @@ async function playBody(body: string): Promise<void> {
 }
 export interface Track { uri: string; id: string; name: string; artist: string; image: string }
 export async function searchTracks(q: string): Promise<Track[]> {
-  const j = await api<{ tracks: { items: any[] } }>('/search?type=track&limit=12&q=' + encodeURIComponent(q));
+  // Spotify lowered the max `limit` for apps in development mode; try smaller pages before giving up
+  let j: { tracks: { items: any[] } } | null = null;
+  for (const limit of ['10', '5', '']) {
+    try { j = await api('/search?type=track' + (limit ? '&limit=' + limit : '') + '&q=' + encodeURIComponent(q)); break; }
+    catch (e: any) { if (!/limit/i.test(String(e.message)) || !limit) throw e; }
+  }
   return (j?.tracks?.items ?? []).filter(Boolean).map((x) => ({ uri: x.uri, id: x.id, name: x.name, artist: (x.artists ?? []).map((a: any) => a.name).join(', '), image: x.album?.images?.[2]?.url ?? x.album?.images?.[0]?.url ?? '' }));
 }
 export const resume = () => api('/me/player/play', { method: 'PUT' });

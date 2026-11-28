@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.5.1 (2026-11-28)
+- Spotify search: "Invalid limit" (400) for development-mode apps; search now asks for 10, then 5, then the default.
+
 ## 6.5.0 (2026-11-28)
 - Merged: frontend T8 (Today first, tappable quest steps), T9 (verify card in the feed), T11 (lighter sign-up, inline errors, show password, 8-char rule), T20 (funnel events, quest card reads questStatus); qa T4 e2e suite (`npm run e2e`, 18 tests, selectors made gender-agnostic); design T18 (install screenshots in the manifest, recap template); pm T25 spec; growth T26 spec; content T27 help Q&A (he/en).
 

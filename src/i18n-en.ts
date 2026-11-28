@@ -2011,4 +2011,5 @@ export const EN: Record<string, string> = {
   "אימות מייל ישירות מתוך הקהילה, בלי לצאת מהמסך": "Verify your email right from the community, without leaving the screen",
   "הרשמה קלה יותר: שגיאות ליד השדה, הצגת סיסמה, וקוד הזמנה רק כשצריך": "Easier sign-up: errors next to the field, show password, and the invite code only when needed",
   "צילומי מסך בחלון ההתקנה של האפליקציה": "Screenshots in the app's install window",
+  "חיפוש שירים ב-Spotify עובד שוב (Spotify שינו את מספר התוצאות המותר)": "Spotify song search works again (Spotify changed the allowed number of results)",
 };
