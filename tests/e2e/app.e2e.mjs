@@ -1,4 +1,4 @@
-import { test, before, after } from 'node:test';
+import { test, before, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -56,6 +56,10 @@ before(async () => {
   ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL', serviceWorkers: 'block' });
   page = await ctx.newPage(); page.setDefaultTimeout(8000);
   page.on('pageerror', (e) => errors.push(e.message));
+});
+// On failure, save a screenshot (E2E_SHOTS=dir) so a broken step can be seen.
+afterEach(async (t) => {
+  if (!t.passed && process.env.E2E_SHOTS) await page?.screenshot({ path: `${process.env.E2E_SHOTS}/${'app'}-${t.name.replace(/\W+/g, '_').slice(0, 40)}.png` }).catch(() => {});
 });
 after(async () => { await browser?.close(); });
 
