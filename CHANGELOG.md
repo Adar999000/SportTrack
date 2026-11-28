@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.8.0 (2026-11-28)
+- Frontend T12: 2-slide welcome, first Today tour without the AI step, one skip marks both seen. QA T24: `tests/funnel.test.ts` (adminFunnel tests skip until backend T22).
+
 ## 6.7.0 (2026-11-28)
 - Frontend T23 (admin Funnel card, `src/funnel.ts`), T10 (short onboarding: gender, goals, optional weight that fills this week's start weight; real skip); QA T17 (`tests/e2e/newuser.e2e.mjs`, 4 tests, fresh mock per spec).
 

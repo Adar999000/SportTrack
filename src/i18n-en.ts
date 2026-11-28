@@ -2054,4 +2054,5 @@ export const EN: Record<string, string> = {
   "שתי שאלות קצרות, ואפשר גם לדלג. את שאר הפרטים משלימים בפרופיל מתי שרוצים.": "Two short questions, and you can skip them. Fill in the rest of your details in your profile whenever you like.",
   "הרשמה קצרה: מין, מטרות ומשקל נוכחי (לא חובה), עם \"דלג\" ברור": "Short onboarding: gender, goals and current weight (optional), with a clear \"Skip\"",
   "כרטיס \"משפך\" במסך הניהול: מהרשמה ועד חזרה ביום 7": "A \"Funnel\" card in admin: from sign-up to coming back on day 7",
+  "פתיחה קצרה יותר: שני מסכים במקום ארבעה, ו\"דלג\" אחד מדלג על הכל": "A shorter start: two screens instead of four, and one \"Skip\" skips it all",
 };
