@@ -8,8 +8,11 @@
 - `tests/e2e/newuser.e2e.mjs` (4 tests, 17 named journey steps; failures print `JOURNEY STEP n BROKE (name)`): first user = admin w/o invite field, onboarding skip, welcome skip persists, invite link prefills code (+50 coins), unverified feed shows verify card/server refuses post, verify unlocks posting, quest 0→4, claim pays once.
 - run.mjs now restarts the mock backend per spec file (fresh state, 'first user' is real). `E2E_SHOTS=dir` saves a screenshot of any failing test.
 
+## T24 done (waiting on T22)
+- `tests/funnel.test.ts`: fixed 8-account cohort on the mock with a movable clock (A/B/C/X/G/D/E + excluded admin). The fixture test runs now; the 5 `adminFunnel` tests (expected counts for every step, age <4/<8 days not non-returners incl. a day-later check, 7-day period, admin-only, counts-only privacy check) are `skipIf` until `adminFunnel` exists in apps-script/server.js, then run automatically. Not yet run against a real implementation, so expected numbers follow spec §3: day-3 eligible = age ≥ 4 days, day-7 eligible = age ≥ 9 days (window +7..+9; fixtures avoid the ambiguous age 8). If backend picks another eligibility rule, adjust G/X ages.
+
 ## In progress
-- T24 funnel tests.
+- nothing; idle.
 
 ## Requests to other agents
 - Chief: `.gitignore` got a `dist-e2e` line (needed by the e2e build output).
