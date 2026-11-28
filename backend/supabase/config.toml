@@ -1,0 +1,14 @@
+# Supabase CLI config for the Mishmaat project (`supabase link --project-ref <ref>` first).
+# Only the parts that differ from the defaults are listed.
+
+[functions.api]
+# Sign-in actions are called without a user token; the function checks tokens itself (authenticate()).
+verify_jwt = false
+
+[auth]
+# The app sends its own 6-digit codes (verification, 2FA, reset) through Resend.
+enable_signup = true
+jwt_expiry = 3600
+
+[auth.email]
+enable_confirmations = false

@@ -1,5 +1,6 @@
 import { t, tServer } from './i18n';
 import { API_URL } from './config';
+import { clearRefresh, supabaseCall, supabaseConfig } from './backend/supabase';
 
 export interface UserProfile {
   birthDate?: string;
@@ -61,15 +62,21 @@ export interface UserSummary {
 export class AuthError extends Error {}
 
 let token: string | null = null;
-export const setToken = (t: string | null) => (token = t);
+export const setToken = (t: string | null) => {
+  token = t;
+  if (t === null) clearRefresh(); // signed out: the Supabase refresh token goes too
+};
 export const getToken = () => token;
-export const hasBackend = () => !!API_URL;
 
-/** POST as text/plain so the browser sends a "simple" request (no CORS preflight). */
+/** Which server answers `call()`: Apps Script (default) or Supabase when built with VITE_BACKEND=supabase. */
+export const backendKind = (): 'supabase' | 'apps-script' => (import.meta.env.VITE_BACKEND === 'supabase' ? 'supabase' : 'apps-script');
+export const hasBackend = () => (backendKind() === 'supabase' ? !!supabaseConfig() : !!API_URL);
+
 /** No connection at all (as opposed to an error the server returned). */
 export class NetworkError extends Error {}
 
-export async function call<T = any>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
+/** Apps Script: POST as text/plain so the browser sends a "simple" request (no CORS preflight). */
+async function appsScript(action: string, payload: Record<string, unknown>): Promise<any> {
   if (!API_URL) throw new Error(t('השרת לא הוגדר'));
   let res: Response;
   try {
@@ -77,12 +84,26 @@ export async function call<T = any>(action: string, payload: Record<string, unkn
   } catch {
     throw new NetworkError(t('אין חיבור לשרת. בדוק את האינטרנט ונסה שוב.'));
   }
-  let data: any;
   try {
-    data = await res.json();
+    return await res.json();
   } catch {
     throw new Error(t('תשובה לא תקינה מהשרת'));
   }
+}
+
+/** Supabase Edge Function `api` (src/backend/supabase.ts); same actions and answers. */
+async function supabase(action: string, payload: Record<string, unknown>): Promise<any> {
+  if (!supabaseConfig()) throw new Error(t('השרת לא הוגדר'));
+  try {
+    return await supabaseCall(action, payload, token, (fresh) => { token = fresh; });
+  } catch (e) {
+    if (e instanceof SyntaxError) throw new Error(t('תשובה לא תקינה מהשרת'));
+    throw new NetworkError(t('אין חיבור לשרת. בדוק את האינטרנט ונסה שוב.'));
+  }
+}
+
+export async function call<T = any>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
+  const data = backendKind() === 'supabase' ? await supabase(action, payload) : await appsScript(action, payload);
   if (data?.error) {
     const msg = tServer(String(data.error));
     if (String(data.error).startsWith('AUTH:')) throw new AuthError(tServer(String(data.error).slice(5).trim()));
