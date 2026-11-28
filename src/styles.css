@@ -1985,3 +1985,23 @@ a.btn-primary.plan-btn { color: var(--accent-ink); }
 .invite-toggle { min-height: 44px; padding-inline: 0; }
 .input[aria-invalid="true"] { border-color: var(--x-ink); }
 .consent input[aria-invalid="true"] { outline: 2px solid var(--x-ink); outline-offset: 2px; }
+.mock-label { margin: 0 0 8px; text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .02em; color: rgb(255 255 255 / .75); }
+.more-features { margin-top: 16px; }
+.more-features > summary { cursor: pointer; font-weight: 800; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 0 20px; width: fit-content; margin: 0 auto 16px; }
+.hero-visual .mock-label { position: absolute; bottom: -30px; left: 0; right: 0; margin: 0; }
+.hero-visual { margin-bottom: 36px; }
+
+/* ---- admin funnel (T23) ---- */
+.funnel-card .seg { margin-bottom: 10px; }
+.funnel-card .seg button { min-height: 44px; }
+.funnel-table { white-space: normal; }
+.funnel-table thead th { font-size: 0.75rem; line-height: 1.25; vertical-align: bottom; }
+.funnel-table td { white-space: nowrap; }
+.funnel-table th[scope="row"] { position: relative; min-width: 8.5em; padding-bottom: 10px; }
+.funnel-table th, .funnel-table td { padding-inline: 5px; }
+.funnel-name { display: flex; align-items: center; gap: 6px; font-weight: 700; position: relative; z-index: 1; }
+.funnel-num { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); font-size: 0.75rem; flex: none; }
+.funnel-note { display: block; color: var(--muted); font-size: 0.75rem; font-weight: 400; margin-top: 2px; }
+.funnel-visitor th, .funnel-visitor td { color: var(--muted); }
+.funnel-help summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.funnel-help .hint { margin: 0 0 6px; }
