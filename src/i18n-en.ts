@@ -2047,4 +2047,9 @@ export const EN: Record<string, string> = {
   "צילומי מסך בחלון ההתקנה של האפליקציה": "Screenshots in the app's install window",
   "חיפוש שירים ב-Spotify עובד שוב (Spotify שינו את מספר התוצאות המותר)": "Spotify song search works again (Spotify changed the allowed number of results)",
   "תשתית: הכנה מלאה למעבר לשרת שיחזיק קהל גדול (Supabase). עדיין כבוי, נדלק כשהחשבונות יהיו מוכנים": "Infrastructure: full preparation for a server that can handle a large audience (Supabase). Off for now; switched on once the accounts are ready",
+  // short onboarding (T10)
+  "משקל בין 20 ל-400 ק\"ג": "Weight between 20 and 400 kg",
+  "משקל נוכחי (ק\"ג, לא חובה)": "Current weight (kg, optional)",
+  "נכנס כמשקל ההתחלתי של השבוע": "Saved as this week's starting weight",
+  "שתי שאלות קצרות, ואפשר גם לדלג. את שאר הפרטים משלימים בפרופיל מתי שרוצים.": "Two short questions, and you can skip them. Fill in the rest of your details in your profile whenever you like.",
 };

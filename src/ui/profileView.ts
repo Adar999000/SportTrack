@@ -5,11 +5,11 @@ import { applyGoals } from '../goalEffects';
 import { genderPicker } from './genderPicker';
 import { t, tr } from '../i18n';
 import { call, type User } from '../api';
-import { daysBetween, formatShort, todayISO } from '../dates';
+import { daysBetween, formatShort, sundayOf, todayISO } from '../dates';
 import { fileToDataUrl, pickImage } from '../image';
 import { currentUser, endSession, isAdmin, rememberPhoto, replaceToken, setUser } from '../session';
 import { weightPoints, weightSummary, countWorkouts, round1 } from '../stats';
-import { allWeeks, replaceAll } from '../store';
+import { allWeeks, editWeek, replaceAll } from '../store';
 import { avatar } from './avatar';
 import { confirmButton, fmtKg, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
@@ -24,8 +24,75 @@ function age(birth?: string): number | null {
   return Math.floor(daysBetween(birth, todayISO()) / 365.25);
 }
 
-/** First-time setup and later edits of name, photo and personal details. */
+/** First-time setup: gender, goals and an optional current weight; everything else is in Profile edit. */
+function renderOnboarding(root: HTMLElement): void {
+  const u = currentUser()!;
+  const p = u.profile ?? {};
+  const err = h('p', { class: 'form-error', role: 'alert', hidden: true });
+  const chips = goalChips(p.goals ?? []);
+  const gender = genderPicker(p.gender ?? '');
+  const weightErr = h('p', { class: 'field-error', id: 'ob-weight-err', hidden: true });
+  const weight = h('input', { id: 'ob-weight', class: 'input input-weight', type: 'number', inputmode: 'decimal', step: '0.1', min: 20, max: 400, 'aria-describedby': 'ob-weight-hint ob-weight-err' }) as HTMLInputElement;
+  const save = h('button', { class: 'btn btn-primary', type: 'submit' }, t('שמור והמשך'));
+  const skip = h('button', { class: 'btn', type: 'button' }, t('דלג'));
+
+  const finish = async (data: Record<string, unknown>, how: 'done' | 'skip') => {
+    err.hidden = true;
+    save.disabled = skip.disabled = true;
+    try {
+      const res = await call<{ user: User }>('updateProfile', { profile: { ...data, completed: true } });
+      await setUser(res.user);
+      track(how === 'done' ? 'onboarding:done' : 'onboarding:skip');
+      navigate(HASH.week());
+    } catch (ex: any) {
+      err.textContent = ex.message;
+      err.hidden = false;
+      save.disabled = skip.disabled = false;
+    }
+  };
+
+  const form = h('form', { class: 'stack', novalidate: true },
+    h('div', { class: 'field' }, h('span', { class: 'label' }, t('איך לפנות אליך?')), gender.el),
+    h('div', { class: 'field' }, h('span', { class: 'label' }, t('מה המטרות שלך? אפשר לבחור כמה')), chips.el),
+    h('div', { class: 'field' },
+      h('label', { for: 'ob-weight' }, t('משקל נוכחי (ק"ג, לא חובה)')), weight,
+      h('small', { class: 'hint', id: 'ob-weight-hint' }, t('נכנס כמשקל ההתחלתי של השבוע')), weightErr),
+    err,
+    h('div', { class: 'row-btns two' }, save, skip),
+  );
+  weight.addEventListener('input', () => { weightErr.hidden = true; weight.removeAttribute('aria-invalid'); });
+  skip.addEventListener('click', () => finish({}, 'skip'));
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = weight.value.trim();
+    const kg = raw ? parseFloat(raw.replace(',', '.')) : NaN;
+    if (raw && !(kg >= 20 && kg <= 400)) {
+      weightErr.textContent = t('משקל בין 20 ל-400 ק"ג');
+      weightErr.hidden = false; weight.setAttribute('aria-invalid', 'true'); weight.focus();
+      return;
+    }
+    if (raw) {
+      const sunday = sundayOf(todayISO());
+      editWeek(sunday, (w) => { w.startWeight = Math.round(kg * 100) / 100; });
+      track('mark:weight');
+    }
+    const goals = chips.value();
+    applyGoals(goals);
+    finish({ gender: gender.value(), goals }, 'done');
+  });
+
+  root.replaceChildren(
+    h('section', { class: 'card' },
+      h('h2', { class: 'card-title' }, p.gender === 'female' ? tr`ברוכה הבאה, ${u.name}` : tr`ברוך הבא, ${u.name}`),
+      h('p', { class: 'muted' }, t('שתי שאלות קצרות, ואפשר גם לדלג. את שאר הפרטים משלימים בפרופיל מתי שרוצים.')),
+      form,
+    ),
+  );
+}
+
+/** First-time setup (onboarding) and later edits of name, photo and personal details. */
 export function renderProfileForm(root: HTMLElement, onboarding: boolean): void {
+  if (onboarding) return renderOnboarding(root);
   const u = currentUser()!;
   const p = u.profile ?? {};
   let photo: string | null | undefined; // undefined = unchanged, null = removed
@@ -35,11 +102,9 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
   const field = (id: string, label: string, attrs: Record<string, any>, hint?: string) =>
     h('div', { class: 'field' }, h('label', { for: id }, label), h('input', { id, class: 'input', ...attrs }), hint && h('small', { class: 'hint' }, hint));
 
-  const chips = goalChips(p.goals ?? []);
   const gender = genderPicker(p.gender ?? '');
   const form = h('form', { class: 'stack', novalidate: true },
     h('div', { class: 'field' }, h('span', { class: 'label' }, t('איך לפנות אליך?')), gender.el),
-    onboarding && h('div', { class: 'field' }, h('span', { class: 'label' }, t('מה המטרות שלך? אפשר לבחור כמה')), chips.el),
     h('div', { class: 'avatar-row' },
       preview,
       h('div', { class: 'stack' },
@@ -65,8 +130,8 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
       h('textarea', { id: 'pf-goal', class: 'input', rows: 3, placeholder: t('למשל: לרדת ל-90 ק"ג ולהתאמן 3 פעמים בשבוע') }, p.goal ?? ''),
     ),
     err,
-    h('button', { class: 'btn btn-primary', type: 'submit' }, onboarding ? t('שמור והמשך') : t('שמור')),
-    !onboarding && h('button', { class: 'btn', type: 'button', onclick: () => navigate(HASH.profile) }, t('ביטול')),
+    h('button', { class: 'btn btn-primary', type: 'submit' }, t('שמור')),
+    h('button', { class: 'btn', type: 'button', onclick: () => navigate(HASH.profile) }, t('ביטול')),
   );
 
   form.addEventListener('submit', async (e) => {
@@ -84,18 +149,13 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
     try {
       const res = await call<{ user: User }>('updateProfile', {
         name: v('pf-name'),
-        profile: { birthDate: v('pf-birth') || undefined, heightCm: num('pf-height'), goalWeight: num('pf-goalw'), goal: v('pf-goal') || undefined, gender: gender.value(), ...(onboarding ? { goals: chips.value() } : {}), completed: true },
+        profile: { birthDate: v('pf-birth') || undefined, heightCm: num('pf-height'), goalWeight: num('pf-goalw'), goal: v('pf-goal') || undefined, gender: gender.value(), completed: true },
         ...(photo !== undefined ? { photo } : {}),
       });
       if (photo && res.user.photoId) rememberPhoto(res.user.photoId, photo);
       await setUser(res.user);
-      if (onboarding) {
-        applyGoals(chips.value());
-        const filled = chips.value().length || gender.value() || v('pf-birth') || num('pf-height') || num('pf-goalw') || v('pf-goal') || photo;
-        track(filled ? 'onboarding:done' : 'onboarding:skip');
-      }
       toast(t('הפרופיל נשמר'));
-      navigate(onboarding ? HASH.week() : HASH.profile);
+      navigate(HASH.profile);
     } catch (ex: any) {
       err.textContent = ex.message;
       err.hidden = false;
@@ -106,8 +166,7 @@ export function renderProfileForm(root: HTMLElement, onboarding: boolean): void 
 
   root.replaceChildren(
     h('section', { class: 'card' },
-      h('h2', { class: 'card-title' }, onboarding ? (p.gender === 'female' ? tr`ברוכה הבאה, ${u.name}` : tr`ברוך הבא, ${u.name}`) : t('עריכת פרופיל')),
-      onboarding && h('p', { class: 'muted' }, t('כמה פרטים כדי שהאנליזה תהיה אישית. אפשר לדלג על כל שדה ולערוך אחר כך.')),
+      h('h2', { class: 'card-title' }, t('עריכת פרופיל')),
       form,
     ),
   );
