@@ -119,6 +119,8 @@ function route(req) {
     case 'friends': return { friends: friendsList(me) };
     case 'track': return track(me, req.events);
     case 'adminAnalytics': requireAdmin(me); return adminAnalytics(req.days);
+    case 'adminFunnel': requireAdmin(me); return adminFunnel(req.days);
+    case 'setTestAccount': requireAdmin(me); return setTestAccount(me, req);
     case 'serverUpdate': requireAdmin(me); return Object.assign(selfUpdate(), { serverVersion: SERVER_VERSION });
     case 'stravaStatus': return stravaStatus(me);
     case 'stravaAuthUrl': return { url: stravaAuthUrl(me) };
@@ -1292,17 +1294,20 @@ function leaderboard(period) {
 
 /** First-week quest: four things in the first 14 days pay 100 coins once. Checked from the user's own data. */
 const QUEST_PRIZE = 100;
+/** Cells filled on a day: each meal with any mark or text, plus the sport row with any mark (V, X or "-"). 4 = a full day. */
+function dayDone(d) {
+  return ['breakfast', 'lunch', 'dinner'].filter((k) => d[k] || (d.text && d.text[k])).length + (d.sport && d.sport.status ? 1 : 0);
+}
 function questStatus(me) {
   const uid = me.r[U.id];
   const created = Date.parse(String(me.r[U.created])) || 0;
   const weeks = rows('Weeks').filter((r) => r[W.user] === uid).map((r) => parseJSON(r[W.data], null)).filter(Boolean);
   const days = [].concat.apply([], weeks.map((w) => w.days || []));
-  const done = (d) => ['breakfast', 'lunch', 'dinner'].filter((k) => d[k] || (d.text && d.text[k])).length + (d.sport && d.sport.status ? 1 : 0);
   const steps = {
     meal: days.some((d) => ['breakfast', 'lunch', 'dinner'].some((k) => d[k] === 'V')),
     weight: weeks.some((w) => typeof w.startWeight === 'number'),
     sport: days.some((d) => d.sport && d.sport.status === 'V'),
-    full: days.some((d) => done(d) >= 4),
+    full: days.some((d) => d && dayDone(d) >= 4),
   };
   const paid = ledgerRows().some((l) => l[0] === uid && String(l[3]) === 'quest:firstweek');
   return { steps: steps, paid: paid, open: !paid && Date.now() - created < 14 * 864e5, prize: QUEST_PRIZE };
@@ -2573,6 +2578,114 @@ function adminAnalytics(days) {
   const events = Object.keys(byEvent).map((e) => ({ event: e, count: byEvent[e].count, users: Object.keys(byEvent[e].users).length, count7: byEvent[e].count7, users7: Object.keys(byEvent[e].users7).length }))
     .sort((a, b) => b.count - a.count);
   return { days: days, daily: daily, dau: daily[daily.length - 1].users, wau: uniq(week), mau: uniq(from), totalUsers: rows('Users').length, events: events };
+}
+
+/** The calendar day (Asia/Jerusalem) of an ISO timestamp. */
+function ilDay(iso) {
+  const t = Date.parse(String(iso));
+  return isNaN(t) ? String(iso).slice(0, 10) : Utilities.formatDate(new Date(t), 'Asia/Jerusalem', 'yyyy-MM-dd');
+}
+
+/** Admin, team and flagged test accounts are left out of every cohort count. */
+function isCohortUser(r) { return r[U.role] !== 'admin' && extraOf(r).testAccount !== true; }
+
+/** Any meal/sport mark on a day (V, X or -). */
+function dayHasMark(d) {
+  return !!d && (['breakfast', 'lunch', 'dinner'].some((k) => d[k] || (d.text && d.text[k])) || !!(d.sport && d.sport.status));
+}
+
+const FUNNEL_TTL = 600;
+/**
+ * Sign-up cohort funnel (spec: team/specs/beta-metrics.md §3). Counts only: no names, emails or ids.
+ * The period selects users who signed up in the last `days` days. Day-3/day-7 rates use an "eligible"
+ * denominator (old enough to have had the chance). Cached 10 minutes per period and day.
+ */
+function adminFunnel(days) {
+  days = [7, 30, 90].indexOf(Number(days)) >= 0 ? Number(days) : Math.max(7, Math.min(90, Number(days) || 30));
+  const today = todayStr();
+  const from = addDaysStr(today, -days);
+  const cache = CacheService.getScriptCache();
+  const key = 'funnel-v1-' + days + '-' + today;
+  const hit = parseJSON(cache.get(key), null);
+  if (hit) return hit;
+
+  const cohort = rows('Users').filter(isCohortUser).map((r) => ({ id: r[U.id], r: r, day: ilDay(r[U.created]), at: Date.parse(String(r[U.created])) || 0 }))
+    .filter((u) => u.day >= from && u.day <= today);
+  const ids = {};
+  cohort.forEach((u) => { ids[u.id] = u; });
+
+  // weeks of the cohort: first mark (earliest week with a mark) and any full day
+  const mark = {}, full = {}, firstAt = {};
+  rows('Weeks').forEach((w) => {
+    const u = ids[w[W.user]];
+    if (!u) return;
+    const data = parseJSON(w[W.data], null);
+    if (!data) return;
+    const dd = Array.isArray(data.days) ? data.days : [];
+    if (dd.some(dayHasMark) || typeof data.startWeight === 'number') {
+      mark[u.id] = true;
+      const t = Number(w[W.updated]) || 0;
+      if (t && (!firstAt[u.id] || t < firstAt[u.id])) firstAt[u.id] = t;
+    }
+    if (dd.some((d) => d && dayDone(d) >= 4)) full[u.id] = true;
+  });
+
+  // activity days per user (Analytics distinct users) + anonymous landing counters + invite:share
+  const active = {}, shared = {};
+  const visitors = { landing: 0, signupOpen: 0 };
+  allRows(analyticsSheet(), 4).forEach((r) => {
+    const d = String(r[AN.day]), e = String(r[AN.event]);
+    if (d >= from && d <= today) {
+      if (e === 'landing:view') visitors.landing += Number(r[AN.count]) || 0;
+      if (e === 'landing:signup-open') visitors.signupOpen += Number(r[AN.count]) || 0;
+    }
+    (parseJSON(r[AN.users], []) || []).forEach((uid) => {
+      if (!ids[uid]) return;
+      (active[uid] || (active[uid] = {}))[d] = true;
+      if (e === 'invite:share') shared[uid] = true;
+    });
+  });
+  const converted = {};
+  rows('Users').forEach((r) => { const by = extraOf(r).invitedBy; if (by && ids[by]) converted[by] = true; });
+
+  const within = (u, a, b) => { for (let d = addDaysStr(u.day, a); d <= addDaysStr(u.day, b); d = addDaysStr(d, 1)) if (active[u.id] && active[u.id][d]) return true; return false; };
+  const c = { signedUp: cohort.length, onboarded: 0, firstMark: 0, firstFullDay: 0, day3Eligible: 0, day3Returned: 0, day7Eligible: 0, day7Returned: 0, invitedAny: 0, invitedConverted: 0 };
+  const byWeek = {};
+  const hours = [];
+  cohort.forEach((u) => {
+    const ret7 = addDaysStr(u.day, 8) <= today && within(u, 7, 9);
+    if ((parseJSON(u.r[U.profile], {}) || {}).completed === true) c.onboarded++;
+    if (mark[u.id]) c.firstMark++;
+    if (full[u.id]) c.firstFullDay++;
+    if (addDaysStr(u.day, 4) <= today) { c.day3Eligible++; if (within(u, 3, 4)) c.day3Returned++; }
+    if (addDaysStr(u.day, 8) <= today) { c.day7Eligible++; if (ret7) c.day7Returned++; }
+    if (shared[u.id] || converted[u.id]) c.invitedAny++;
+    if (converted[u.id]) c.invitedConverted++;
+    if (firstAt[u.id] && u.at) hours.push(Math.max(0, (firstAt[u.id] - u.at) / 36e5));
+    const wk = sundayStr(u.day);
+    const b = byWeek[wk] || (byWeek[wk] = { weekStart: wk, signedUp: 0, firstMark: 0, day7Returned: 0 });
+    b.signedUp++; if (mark[u.id]) b.firstMark++; if (ret7) b.day7Returned++;
+  });
+  hours.sort((a, b) => a - b);
+  const median = !hours.length ? null : hours.length % 2 ? hours[(hours.length - 1) / 2] : (hours[hours.length / 2 - 1] + hours[hours.length / 2]) / 2;
+  const out = {
+    days: days, from: from, to: today, visitors: visitors, cohort: c,
+    weeks: Object.keys(byWeek).sort().slice(-8).map((k) => byWeek[k]),
+    medianHoursToFirstMark: median === null ? null : Math.round(median * 10) / 10,
+  };
+  cache.put(key, JSON.stringify(out), FUNNEL_TTL);
+  return out;
+}
+
+/** Mark an account as a test/team account (left out of the funnel). */
+function setTestAccount(me, req) {
+  const u = findUser((r) => r[U.id] === String(req.userId || ''));
+  if (!u) throw new Error('המשתמש לא נמצא');
+  setExtra(u, { testAccount: !!req.on });
+  const c = CacheService.getScriptCache();
+  [7, 30, 90].forEach((d) => c.remove('funnel-v1-' + d + '-' + todayStr()));
+  audit(me.r[U.id], 'test_account', u.r[U.id] + ' ' + !!req.on);
+  return { ok: true };
 }
 
 // ------------------------------------------------------------------ updates (through the loader in Code.gs)
