@@ -2055,4 +2055,8 @@ export const EN: Record<string, string> = {
   "הרשמה קצרה: מין, מטרות ומשקל נוכחי (לא חובה), עם \"דלג\" ברור": "Short onboarding: gender, goals and current weight (optional), with a clear \"Skip\"",
   "כרטיס \"משפך\" במסך הניהול: מהרשמה ועד חזרה ביום 7": "A \"Funnel\" card in admin: from sign-up to coming back on day 7",
   "פתיחה קצרה יותר: שני מסכים במקום ארבעה, ו\"דלג\" אחד מדלג על הכל": "A shorter start: two screens instead of four, and one \"Skip\" skips it all",
+  // empty community (T14)
+  "הקהילה עוד שקטה. הכי קל להתחיל עם חבר.": "The community is still quiet. The easiest start is with a friend.",
+  "הזמנת חבר (50 מטבעות לשניכם)": "Invite a friend (50 coins each)",
+  "שיתוף האימון האחרון": "Share your latest workout",
 };

@@ -2005,3 +2005,8 @@ a.btn-primary.plan-btn { color: var(--accent-ink); }
 .funnel-visitor th, .funnel-visitor td { color: var(--muted); }
 .funnel-help summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 .funnel-help .hint { margin: 0 0 6px; }
+
+/* ---- empty community (T14) ---- */
+.feed-empty-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.feed-empty-actions .btn { min-height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.feed-empty-actions a.btn-primary { color: var(--accent-ink); }

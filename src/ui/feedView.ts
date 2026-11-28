@@ -11,7 +11,8 @@ import { logo } from './icons';
 import { confirmButton, h, openSheet, toast } from './dom';
 import { HASH, navigate } from './router';
 import { duelsTab } from './duelsView';
-import { storiesBar } from './storiesView';
+import { openStoryComposer, storiesBar, workoutStory } from './storiesView';
+import { listWorkouts } from '../workouts';
 import { blockButton, reportButton } from './safety';
 import { leagueCard } from './leagueView';
 import { track } from '../analytics';
@@ -294,6 +295,17 @@ function eventsTab(box: HTMLElement): void {
   load();
 }
 
+/** Empty "all" tab: the easiest next steps instead of "be the first to post". */
+function emptyAll(onPosted: () => void): HTMLElement {
+  const last = listWorkouts()[0];
+  return h('section', { class: 'card empty feed-empty' },
+    h('p', { class: 'empty-icon', 'aria-hidden': 'true' }, '👋'),
+    h('p', null, t('הקהילה עוד שקטה. הכי קל להתחיל עם חבר.')),
+    h('div', { class: 'feed-empty-actions' },
+      h('a', { class: 'btn btn-primary', href: HASH.share }, t('הזמנת חבר (50 מטבעות לשניכם)')),
+      last ? h('button', { class: 'btn', type: 'button', onclick: () => openStoryComposer(workoutStory(last), onPosted) }, t('שיתוף האימון האחרון')) : ''));
+}
+
 export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels'): void {
   const box = h('div', { class: 'stack' });
   const seg = h('div', { class: 'seg feed-tabs', role: 'group', 'aria-label': t('קהילה') },
@@ -319,6 +331,7 @@ export function renderFeed(root: HTMLElement, tab: 'posts' | 'events' | 'duels')
             h('p', { class: 'empty-icon', 'aria-hidden': 'true' }, '👯'),
             h('p', null, t('כאן יופיעו הפוסטים של החברים שלך. מזמינים חבר בקישור אישי, ושניכם מקבלים 50 מטבעות.')),
             h('a', { class: 'btn btn-primary', href: HASH.share }, t('הזמנת חברים')))
+        : only === '' ? emptyAll(() => load())
         : h('section', { class: 'card empty' },
             h('p', { class: 'empty-icon', 'aria-hidden': 'true' }, '👋'), h('p', null, t('עוד אין פוסטים. היו הראשונים לשתף אימון או הישג!')))]));
       moreBtn.hidden = !r.more;
