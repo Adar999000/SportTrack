@@ -2007,4 +2007,8 @@ export const EN: Record<string, string> = {
   "מה אם פספסתי יום?": "What if I miss a day?",
   "כל יום בשבוע נפרד. פשוט ממשיכים מהיום הבא, בלי לבנות מחדש.": "Each day stands on its own. Just carry on from the next day, no need to start over.",
   "דף הנחיתה החדש: קודם איך מתחילים, ארבע היכולות המרכזיות, ושאלות שאנשים שואלים ראשונות": "The new landing page: how to start first, the four core features, and the questions people ask first",
+  "מסך \"היום\" מופיע לפני משימות הפתיחה, ולחיצה על משימה מובילה ישר למקום": "The \"Today\" screen comes before the starter quests, and tapping a quest step takes you straight to it",
+  "אימות מייל ישירות מתוך הקהילה, בלי לצאת מהמסך": "Verify your email right from the community, without leaving the screen",
+  "הרשמה קלה יותר: שגיאות ליד השדה, הצגת סיסמה, וקוד הזמנה רק כשצריך": "Easier sign-up: errors next to the field, show password, and the invite code only when needed",
+  "צילומי מסך בחלון ההתקנה של האפליקציה": "Screenshots in the app's install window",
 };

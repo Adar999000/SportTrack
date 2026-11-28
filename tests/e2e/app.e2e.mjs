@@ -71,8 +71,10 @@ test('sign-up requires the terms checkbox, then onboarding saves gender and goal
   await page.fill('#auth-email', me.email);
   await page.fill('#auth-pass', PASS);
   await page.click('button[type=submit]');
-  await page.locator('.form-error:not([hidden])').waitFor();
-  assert.match(await page.textContent('.form-error'), /תנאי השימוש/);
+  // since T11 the consent error sits under its own field (aria-describedby), not at the bottom of the form
+  const err = page.locator('#reg-terms-err:not([hidden]), .form-error:not([hidden])').first();
+  await err.waitFor();
+  assert.match(await err.textContent(), /תנאי השימוש/);
   assert.ok(page.url().includes('#signup'), 'must stay on sign-up without consent');
   await page.check('#reg-terms');
   await page.click('button[type=submit]');
@@ -155,7 +157,7 @@ test('post with 2 photos while offline is queued, then delivered on "online"', a
   // go offline: abort every call to the backend
   await page.route(API + '/**', (r) => r.abort());
   await page.route(API, (r) => r.abort());
-  await page.click('button[type=submit]:has-text("פרסם")');
+  await page.click('button[type=submit]:text-matches("^פרסמ(י)?$")');
   await page.locator('.toast, [role=status]', { hasText: /אין חיבור/ }).first().waitFor({ timeout: 8000 });
   const before = await api('feed', {}, me.token);
   assert.ok(!JSON.stringify(before).includes('שתי תמונות בלי רשת ' + stamp), 'not delivered while offline');
@@ -181,7 +183,7 @@ test('block a user from the story ⋯ menu', async () => {
   await page.click('.story-viewer [aria-label="אפשרויות"]');
   const block = page.locator('button', { hasText: `חסימת ${omer.name}` });
   await block.click();
-  await page.locator('button', { hasText: 'הקש שוב לחסימה' }).click();
+  await page.locator('button', { hasText: /הק(י)?ש(י)? שוב לחסימה/ }).click();
   await page.waitForTimeout(800);
   const blocks = await api('myBlocks', {}, me.token);
   assert.ok(JSON.stringify(blocks).includes(omer.name), 'blocked on server: ' + JSON.stringify(blocks));
@@ -193,7 +195,7 @@ test('create a team-goal challenge', async () => {
   await go('#duels');
   await page.click('button:has-text("אתגר חדש")');
   await page.click('.seg button:has-text("יעד קבוצתי")');
-  await page.click('button:has-text("צור אתגר")');
+  await page.click('button:text-matches("^צר(ו|י)? אתגר$|^צור אתגר$")');
   await page.waitForTimeout(1000);
   const d = await api('duels', {}, me.token);
   const team = (d.duels ?? []).find((x) => String(x.metric ?? x.kind ?? JSON.stringify(x)).includes('team') || x.team);
