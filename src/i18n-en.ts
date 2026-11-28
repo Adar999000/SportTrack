@@ -2059,4 +2059,5 @@ export const EN: Record<string, string> = {
   "הקהילה עוד שקטה. הכי קל להתחיל עם חבר.": "The community is still quiet. The easiest start is with a friend.",
   "הזמנת חבר (50 מטבעות לשניכם)": "Invite a friend (50 coins each)",
   "שיתוף האימון האחרון": "Share your latest workout",
+  "קהילה ריקה? עכשיו יש צעד ברור: להזמין חבר או לשתף את האימון האחרון": "Empty community? Now there is a clear next step: invite a friend or share your last workout",
 };

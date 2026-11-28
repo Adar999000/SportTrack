@@ -1,5 +1,8 @@
 # Changelog
 
+## 6.9.0 (2026-11-28)
+- Frontend T14: empty community feed shows an invite link (#share) and, with a saved workout, a share-last-workout story action.
+
 ## 6.8.0 (2026-11-28)
 - Frontend T12: 2-slide welcome, first Today tour without the AI step, one skip marks both seen. QA T24: `tests/funnel.test.ts` (adminFunnel tests skip until backend T22).
 
